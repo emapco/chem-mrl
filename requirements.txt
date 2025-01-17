@@ -1,0 +1,30 @@
+# ml
+sentence-transformers==2.7.0
+transformers==4.40.1
+pytorch-lightning==2.2.4
+optuna==3.6.1
+optuna-integration==3.6.0
+wandb==0.16.6
+torch==2.3.0
+ray[tune,train]==2.34.0
+# manually install nvidia apex from GitHub for FusedAdam optimizer
+ninja==1.11.1.1  # speed up apex compilation
+
+# analysis
+rdkit==2023.9.5
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.4.2
+pyarrow
+fastparquet
+opencv-python==4.10.0.84
+
+# for web scraping smiles from webistes
+beautifulsoup4==4.12.3
+# store data to db
+sqlalchemy==2.0.29
+psycopg2-binary==2.9.9
+pgvector==0.2.5
+chromadb==0.5.5
+# misc
+fickling==0.1.3

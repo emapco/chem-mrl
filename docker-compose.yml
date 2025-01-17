@@ -1,0 +1,42 @@
+services:
+  zinc-postgres:
+    build:
+      context: docker
+      dockerfile: DB.Dockerfile
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    volumes:
+      - ${HOME}/dev-postgres/chem/:/var/lib/postgresql/data
+    ports:
+      - 5431:5432
+    networks:
+      - chem-network
+    restart: always
+  rapids_notebooks:
+    image: nvcr.io/nvidia/rapidsai/notebooks:24.08-cuda12.2-py3.11
+    volumes:
+      - ./:/home/rapids/notebooks/chem-mrl
+    environment:
+      CUDA_VISIBLE_DEVICES: "0"
+    # user: "1001:1001" # standard for ubuntu
+    ports:
+      - 8888:8888
+      - 8787:8787
+      - 8786:8786
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    shm_size: 1g
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    networks:
+      - chem-network
+networks:
+  chem-network:

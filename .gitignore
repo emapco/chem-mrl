@@ -1,0 +1,10 @@
+/.venv
+/data
+/output
+/binance.ipynb
+/conflux*
+/solar*
+*.pyc
+*.pkl
+*.ini
+/wandb
