@@ -10,9 +10,7 @@ logger = logging.getLogger(__name__)
 # https://github.com/fursovia/self-adj-dice
 # https://aclanthology.org/2020.acl-main.45.pdf
 
-# reduction = "mean" | "sum" | "none"
-# rewrite the above to proper python type hinting code
-REDUCTION = {"mean", "sum"}
+REDUCTION = {"mean", "sum", "none"}
 
 
 class SelfAdjDiceLoss(torch.nn.Module):
@@ -78,13 +76,11 @@ class SelfAdjDiceLoss(torch.nn.Module):
         num_vectors_concatenated = 0
         if concatenation_sent_rep:
             num_vectors_concatenated += 2
-        if concatenation_sent_difference:
+        elif concatenation_sent_difference:
             num_vectors_concatenated += 1
-        if concatenation_sent_multiplication:
+        elif concatenation_sent_multiplication:
             num_vectors_concatenated += 1
-        # logger.info(
-        #     "Softmax loss: #Vectors concatenated: {}".format(num_vectors_concatenated)
-        # )
+
         if num_vectors_concatenated != 0:
             self.classifier = nn.Linear(
                 num_vectors_concatenated * sentence_embedding_dimension,
@@ -100,8 +96,6 @@ class SelfAdjDiceLoss(torch.nn.Module):
     def forward(
         self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor
     ) -> torch.Tensor:
-        # def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-
         sent_reps = [
             self.model(sentence_feature)["sentence_embedding"]
             for sentence_feature in sentence_features
@@ -109,35 +103,26 @@ class SelfAdjDiceLoss(torch.nn.Module):
 
         features = sent_reps[0]  # at least one guaranteed
         vectors_concat = []
-        # WET code but reduces the # of if statement by 1 (case where any self.concat* is true [don't plan on using multi-sentence embedding model])
+
+        rep_a, rep_b = sent_reps
         if self.concatenation_sent_rep:
-            rep_a, rep_b = sent_reps
             vectors_concat.append(rep_a)
             vectors_concat.append(rep_b)
-            features = torch.cat(vectors_concat, 1)
-
-        if self.concatenation_sent_difference:
-            rep_a, rep_b = sent_reps
+        elif self.concatenation_sent_difference:
             vectors_concat.append(torch.abs(rep_a - rep_b))
-            features = torch.cat(vectors_concat, 1)
-
-        if self.concatenation_sent_multiplication:
-            rep_a, rep_b = sent_reps
+        elif self.concatenation_sent_multiplication:
             vectors_concat.append(rep_a * rep_b)
-            features = torch.cat(vectors_concat, 1)
 
+        features = torch.cat(vectors_concat, 1)
         features = self.dropout(features)
-        # print(f"truncate_dim:{self.model.truncate_dim}")
-        # print(f"features shape: {features.shape}")
         logits = self.classifier(features)
+
         if not (
             self.concatenation_sent_difference
             or self.concatenation_sent_multiplication
             or self.concatenation_sent_rep
         ):
             logits = logits.view(-1, self.num_labels)
-        # print(f"labels shape: {labels.shape}")
-        # print(f"labels: {labels}")
 
         if labels is None:
             return sent_reps, logits
@@ -245,13 +230,11 @@ class SoftmaxLoss(nn.Module):
         num_vectors_concatenated = 0
         if concatenation_sent_rep:
             num_vectors_concatenated += 2
-        if concatenation_sent_difference:
+        elif concatenation_sent_difference:
             num_vectors_concatenated += 1
-        if concatenation_sent_multiplication:
+        elif concatenation_sent_multiplication:
             num_vectors_concatenated += 1
-        # logger.info(
-        #     "Softmax loss: #Vectors concatenated: {}".format(num_vectors_concatenated)
-        # )
+
         if num_vectors_concatenated != 0:
             self.classifier = nn.Linear(
                 num_vectors_concatenated * sentence_embedding_dimension,
@@ -273,34 +256,19 @@ class SoftmaxLoss(nn.Module):
 
         features = sent_reps[0]
         vectors_concat = []
+
+        rep_a, rep_b = sent_reps
         if self.concatenation_sent_rep:
-            rep_a, rep_b = sent_reps
             vectors_concat.append(rep_a)
             vectors_concat.append(rep_b)
-            features = torch.cat(vectors_concat, 1)
-
-        if self.concatenation_sent_difference:
-            rep_a, rep_b = sent_reps
+        elif self.concatenation_sent_difference:
             vectors_concat.append(torch.abs(rep_a - rep_b))
-            features = torch.cat(vectors_concat, 1)
-
-        if self.concatenation_sent_multiplication:
-            rep_a, rep_b = sent_reps
+        elif self.concatenation_sent_multiplication:
             vectors_concat.append(rep_a * rep_b)
-            features = torch.cat(vectors_concat, 1)
 
+        features = torch.cat(vectors_concat, 1)
         features = self.dropout(features)
-        # print(f"truncate_dim: {self.model.truncate_dim}")
-        # print(f"features shape: {features.shape}")
         logits = self.classifier(features)
-        # if not (
-        #     self.concatenation_sent_difference
-        #     or self.concatenation_sent_multiplication
-        #     or self.concatenation_sent_rep
-        # ):
-        #     logits = logits.view(-1, self.num_labels)
-        # print(f"labels shape: {labels.shape}")
-        # print(f"labels: {labels}")
 
         if labels is not None:
             loss = self.loss_fct(logits, labels.view(-1))

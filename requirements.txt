@@ -8,6 +8,8 @@ wandb==0.16.6
 torch==2.3.0
 ray[tune,train]==2.34.0
 # manually install nvidia apex from GitHub for FusedAdam optimizer
+# FusedAdam can be replaced with PyTorch's AdamW optimizer at the cost of speed
+# Note: FusedAdam is GPU-only and requires Apex to be installed
 ninja==1.11.1.1  # speed up apex compilation
 
 # analysis

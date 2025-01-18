@@ -26,28 +26,19 @@ from evaluator import LabelAccuracyEvaluator
 from .load_data import load_data
 
 
-def objective(
-    trial: optuna.Trial,
-) -> float:
-    apex.torch.clear_autocast_cache()
-    apex.torch.cuda.empty_cache()
-    gc.collect()
-    transformers.set_seed(42)
+def train() -> float:
+    continue_training = True
+    current_epoch = 4
+    seed = 42 + (2 * current_epoch - 1) if continue_training else 42
+    transformers.set_seed(seed)
 
-    # model_name = trial.suggest_categorical("model_name", MODEL_NAMES)
     model_name = (
         "/home/manny/source/chem-mrl/output/"
-        # "ChemBERTa-zinc-base-v1-QED_functional_morgan_fingerprint-2d-matryoshka-embeddings"
-        # "-num_epochs_2-epoch_2-best-model-1900000_steps"
         "ChemBERTa-zinc-base-v1-2d-matryoshka-embeddings"
         "-n_layers_per_step_2-TaniLoss-lr_1.1190785944700813e-05-batch_size_8"
         "-num_epochs_2-epoch_2-best-model-1900000_steps"
     )
     matryoshka_dim = 768
-    # if "seyonec" not in model_name:
-    #     matryoshka_dim = trial.suggest_categorical(
-    #         "matryoshka_dim", [768, 512, 256, 128, 64, 32]
-    #     )
 
     word_embedding_model = models.Transformer(model_name)
     pooling_model = models.Pooling(
@@ -57,31 +48,18 @@ def objective(
         modules=[word_embedding_model, pooling_model], truncate_dim=matryoshka_dim
     )
 
-    # observation: the larger the num of epochs the more the search heuristic model prefers warmupcosinewithhardrestarts
     num_epochs = 3
     warmup_steps_percent = 2
-    # lr_base = trial.suggest_float(
-    #     "lr_base", 2.0e-06, 8e-06
-    # )  # 5.6e-06 median lr_base after initial search - init best model lr_base was way lower than this
     lr_base = 3.4038386108141304e-06
     scheduler = "warmupcosinewithhardrestarts"
-    # scheduler = trial.suggest_categorical(
-    #     "scheduler",
-    #     [
-    #         "warmuplinear",
-    #         "warmupcosine",
-    #         # "warmupcosinewithhardrestarts",
-    #     ],
-    # )
+
     dropout_p = 0.15
-    loss_func = "SoftMax"  # trial.suggest_categorical("loss_func", ["SelfAdjDice"])  # "SoftMax",
+    loss_func = "SoftMax"
     if loss_func == "SelfAdjDice":
         dice_reduction = "mean"
-        # dice_reduction = trial.suggest_categorical("dice_reduction", ["sum", "mean"])
 
     max_seq_length = word_embedding_model.max_seq_length
     train_batch_size = 160
-    # train_batch_size = int(trial.suggest_float("train_batch_size", 296, 344, step=16))
     LR = lr_base * math.sqrt(train_batch_size)
 
     loss_parameter_str = (
@@ -104,7 +82,7 @@ def objective(
     print(f"\n{model_save_path}\n")
 
     wandb.init(
-        project="chem-mrl-classification-hyperparameter-search",
+        project="chem-mrl-classification-train",
         config={
             "model_name": model_name,
             "train_batch_size": train_batch_size,
@@ -194,7 +172,6 @@ def objective(
         show_progress_bar=True,
         scheduler=scheduler,
         checkpoint_path="output",
-        # checkpoint_save_steps=256,
         callback=wandb_callback,
     )
 
@@ -203,32 +180,8 @@ def objective(
     )
     eval_results_df = pd.read_csv(eval_file_path)
     metric = float(eval_results_df.iloc[-1]["accuracy"])
-    return metric
-
-
-def generate_hyperparameters():
-    study = optuna.create_study(
-        study_name="chem-mrl-classification-hyperparameter-tuning",
-        direction="maximize",
-        load_if_exists=True,
-    )
-    study.optimize(
-        objective,
-        n_trials=1,  # 512, 768, 1536
-        gc_after_trial=True,
-        show_progress_bar=True,
-    )
-
-    print("Best hyperparameters found:")
-    print(study.best_params)
-    print("Best best trials:")
-    print(study.best_trials)
-    print("Best trial:")
-    print(study.best_trial)
-    study.trials_dataframe().to_csv(
-        "chem-mrl-classification-hyperparameter-tuning.csv", index=False
-    )
+    print(f"metric: {metric}")
 
 
 if __name__ == "__main__":
-    generate_hyperparameters()
+    train()
