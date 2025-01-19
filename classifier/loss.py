@@ -32,7 +32,7 @@ class SelfAdjDiceLoss(torch.nn.Module):
             to well-classified examples by adding a (1 − p)**γ factor, leading the final loss to be −(1 − p)**γ * log p.
             `
             The alpha as implemented by fursovia (github user's implementation) seemly randomly (not from the equations) is actually listed as an aside where another paper/method includes a `(1-p)**alpha` factor instead of
-            the self adj dice's (SAD) `(1-p)` factor. SAD/DSC modifies the Sørensen–Dice coefficientcoefficient by including a `(1-p)` factor in the numerator.
+            the self adj dice's (SAD) `(1-p)` factor. SAD/DSC modifies the Sørensen–Dice coefficient by including a `(1-p)` factor in the numerator.
             Keep alpha=1 unless keen on expanding hyperparameter search space.
 
         gamma (float): a factor added to both the nominator and the denominator for smoothing purposes

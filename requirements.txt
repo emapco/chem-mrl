@@ -6,7 +6,6 @@ optuna==3.6.1
 optuna-integration==3.6.0
 wandb==0.16.6
 torch==2.3.0
-ray[tune,train]==2.34.0
 # manually install nvidia apex from GitHub for FusedAdam optimizer
 # FusedAdam can be replaced with PyTorch's AdamW optimizer at the cost of speed
 # Note: FusedAdam is GPU-only and requires Apex to be installed
@@ -21,7 +20,7 @@ pyarrow
 fastparquet
 opencv-python==4.10.0.84
 
-# for web scraping smiles from webistes
+# for web scraping smiles from websites
 beautifulsoup4==4.12.3
 # store data to db
 sqlalchemy==2.0.29
