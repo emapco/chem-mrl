@@ -4,7 +4,7 @@ transformers==4.40.1
 pytorch-lightning==2.2.4
 optuna==3.6.1
 optuna-integration==3.6.0
-wandb==0.16.6
+wandb==0.19.4
 torch==2.3.0
 # manually install nvidia apex from GitHub for FusedAdam optimizer
 # FusedAdam can be replaced with PyTorch's AdamW optimizer at the cost of speed

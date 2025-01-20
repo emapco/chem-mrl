@@ -7,13 +7,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+REDUCTION = {"mean", "sum"}
+
+
 # https://github.com/fursovia/self-adj-dice
 # https://aclanthology.org/2020.acl-main.45.pdf
-
-REDUCTION = {"mean", "sum", "none"}
-
-
-class SelfAdjDiceLoss(torch.nn.Module):
+class SelfAdjDiceLoss(nn.Module):
     r"""
     Creates a criterion that optimizes a multi-class Self-adjusting Dice Loss
     ("Dice Loss for Data-imbalanced NLP Tasks" paper)
@@ -51,9 +51,6 @@ class SelfAdjDiceLoss(torch.nn.Module):
         model: SentenceTransformer,
         sentence_embedding_dimension: int,
         num_labels: int,
-        concatenation_sent_rep: bool = False,
-        concatenation_sent_difference: bool = False,
-        concatenation_sent_multiplication: bool = False,
         alpha: float = 1.0,
         gamma: float = 1.0,
         reduction: str = "mean",
@@ -62,35 +59,13 @@ class SelfAdjDiceLoss(torch.nn.Module):
         super().__init__()
         self.model = model
         self.num_labels = num_labels
-        self.concatenation_sent_rep = concatenation_sent_rep
-        self.concatenation_sent_difference = concatenation_sent_difference
-        self.concatenation_sent_multiplication = concatenation_sent_multiplication
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
 
-        self.concatenation_sent_rep = concatenation_sent_rep
-        self.concatenation_sent_difference = concatenation_sent_difference
-        self.concatenation_sent_multiplication = concatenation_sent_multiplication
-
-        num_vectors_concatenated = 0
-        if concatenation_sent_rep:
-            num_vectors_concatenated += 2
-        elif concatenation_sent_difference:
-            num_vectors_concatenated += 1
-        elif concatenation_sent_multiplication:
-            num_vectors_concatenated += 1
-
-        if num_vectors_concatenated != 0:
-            self.classifier = nn.Linear(
-                num_vectors_concatenated * sentence_embedding_dimension,
-                num_labels,
-                device=model.device,
-            )
-        else:
-            self.classifier = nn.Linear(
-                sentence_embedding_dimension, num_labels, device=model.device
-            )
+        self.classifier = nn.Linear(
+            sentence_embedding_dimension, num_labels, device=model.device
+        )
         self.dropout = nn.Dropout(dropout)
 
     def forward(
@@ -101,31 +76,17 @@ class SelfAdjDiceLoss(torch.nn.Module):
             for sentence_feature in sentence_features
         ]
 
-        features = sent_reps[0]  # at least one guaranteed
-        vectors_concat = []
+        features = sent_reps[0]  # guaranteed to be single sentence embedding
+        batch_size, embedding_dim = features.shape
+        if embedding_dim > self.classifier.in_features:
+            features = features[:, : self.classifier.in_features]
+            features = nn.functional.normalize(features, p=2, dim=1)
 
-        rep_a, rep_b = sent_reps
-        if self.concatenation_sent_rep:
-            vectors_concat.append(rep_a)
-            vectors_concat.append(rep_b)
-        elif self.concatenation_sent_difference:
-            vectors_concat.append(torch.abs(rep_a - rep_b))
-        elif self.concatenation_sent_multiplication:
-            vectors_concat.append(rep_a * rep_b)
-
-        features = torch.cat(vectors_concat, 1)
         features = self.dropout(features)
         logits = self.classifier(features)
 
-        if not (
-            self.concatenation_sent_difference
-            or self.concatenation_sent_multiplication
-            or self.concatenation_sent_rep
-        ):
-            logits = logits.view(-1, self.num_labels)
-
         if labels is None:
-            return sent_reps, logits
+            return features, logits
 
         # dice loss
         probs = torch.softmax(logits, dim=1)
@@ -144,23 +105,18 @@ class SelfAdjDiceLoss(torch.nn.Module):
             return loss.mean()
         elif self.reduction == "sum":
             return loss.sum()
-        elif self.reduction == "none" or self.reduction is None:
-            return loss
         else:
             raise NotImplementedError(f"Reduction `{self.reduction}` is not supported.")
 
 
-# SoftmaxLoss implementation taken from SentenceTranformer library and modified. Might be able to create a subclass
-# based on the ST's Softmax class and then have custom code in child class.
+# SoftmaxLoss implementation taken from SentenceTransformer library
+# and modified for single sentence (SMILES) embedding classification
 class SoftmaxLoss(nn.Module):
     def __init__(
         self,
         model: SentenceTransformer,
         sentence_embedding_dimension: int,
         num_labels: int,
-        concatenation_sent_rep: bool = False,
-        concatenation_sent_difference: bool = False,
-        concatenation_sent_multiplication: bool = False,
         loss_fct: Callable = nn.CrossEntropyLoss(),
         dropout: float = 0.15,
     ):
@@ -223,28 +179,10 @@ class SoftmaxLoss(nn.Module):
         super(SoftmaxLoss, self).__init__()
         self.model = model
         self.num_labels = num_labels
-        self.concatenation_sent_rep = concatenation_sent_rep
-        self.concatenation_sent_difference = concatenation_sent_difference
-        self.concatenation_sent_multiplication = concatenation_sent_multiplication
 
-        num_vectors_concatenated = 0
-        if concatenation_sent_rep:
-            num_vectors_concatenated += 2
-        elif concatenation_sent_difference:
-            num_vectors_concatenated += 1
-        elif concatenation_sent_multiplication:
-            num_vectors_concatenated += 1
-
-        if num_vectors_concatenated != 0:
-            self.classifier = nn.Linear(
-                num_vectors_concatenated * sentence_embedding_dimension,
-                num_labels,
-                device=model.device,
-            )
-        else:
-            self.classifier = nn.Linear(
-                sentence_embedding_dimension, num_labels, device=model.device
-            )
+        self.classifier = nn.Linear(
+            sentence_embedding_dimension, num_labels, device=model.device
+        )
         self.dropout = nn.Dropout(dropout)
         self.loss_fct = loss_fct
 
@@ -254,24 +192,17 @@ class SoftmaxLoss(nn.Module):
             for sentence_feature in sentence_features
         ]
 
-        features = sent_reps[0]
-        vectors_concat = []
+        features = sent_reps[0]  # guaranteed to be single sentence embedding
+        batch_size, embedding_dim = features.shape
+        if embedding_dim > self.classifier.in_features:
+            features = features[:, : self.classifier.in_features]
+            features = nn.functional.normalize(features, p=2, dim=1)
 
-        rep_a, rep_b = sent_reps
-        if self.concatenation_sent_rep:
-            vectors_concat.append(rep_a)
-            vectors_concat.append(rep_b)
-        elif self.concatenation_sent_difference:
-            vectors_concat.append(torch.abs(rep_a - rep_b))
-        elif self.concatenation_sent_multiplication:
-            vectors_concat.append(rep_a * rep_b)
-
-        features = torch.cat(vectors_concat, 1)
         features = self.dropout(features)
         logits = self.classifier(features)
 
-        if labels is not None:
-            loss = self.loss_fct(logits, labels.view(-1))
-            return loss
-        else:
-            return sent_reps, logits
+        if labels is None:
+            return features, logits
+
+        loss = self.loss_fct(logits, labels.view(-1))
+        return loss
