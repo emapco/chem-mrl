@@ -9,6 +9,11 @@ from sentence_transformers import (
 )
 import pandas as pd
 
+from constants import (
+    TRAIN_DS_DICT,
+    VAL_DS_DICT,
+)
+
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -24,10 +29,8 @@ logging.basicConfig(
 def load_data(
     num_of_rows_to_train_on: int | None = 750000,
     num_of_rows_to_validate_on: int | None = 150000,
-    dataset_path: str = "data/chem/train_QED_functional_morgan_fingerprint_similarity_8192.parquet",
-    val_ds_path: (
-        str | None
-    ) = "data/chem/validate_functional_morgan_fingerprint_similarity_8192.parquet",
+    dataset_path: str = TRAIN_DS_DICT["morgan-similarity"],
+    val_ds_path: str | None = VAL_DS_DICT["morgan-similarity"],
 ):
     sample_seed = 42
     logging.info(f"Loading {dataset_path} dataset")
@@ -44,7 +47,7 @@ def load_data(
 
     if val_ds_path is None:
         # Split train_df into train_df and val_df using pandas
-        val_df = train_df.sample(frac=0.1, random_state=sample_seed)
+        val_df = train_df.sample(frac=0.15, random_state=sample_seed)
         train_df = train_df.drop(val_df.index)
         val_df = val_df.reset_index(drop=True)
         logging.info("Split train_df into training and validation datasets.")
