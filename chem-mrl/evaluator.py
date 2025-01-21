@@ -98,11 +98,12 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             + ("_" + precision if precision else "")
             + "_results.csv"
         )
+
         self.csv_headers = [
             "epoch",
             "steps",
-            "cosine_pearson",
-            "cosine_spearman",
+            "pearson",
+            "spearman",
         ]
 
     def __call__(
@@ -154,6 +155,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             )
             torch.cuda.empty_cache()
             gc.collect()
+
         # Binary and ubinary embeddings are packed, so we need to unpack them for the distance metrics
         if self.precision == "binary":
             embeddings1 = (embeddings1 + 128).astype(np.uint8)
@@ -162,19 +164,31 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             embeddings1 = np.unpackbits(embeddings1, axis=1)
             embeddings2 = np.unpackbits(embeddings2, axis=1)
 
-        cosine_scores = 1 - (paired_cosine_distances(embeddings1, embeddings2))
+        if self.main_similarity == SimilarityFunction.TANIMOTO:
+            main_similarity_scores = paired_tanimoto_similarity(
+                embeddings1, embeddings2
+            )
+            main_similarity_name = "Tanimoto-Similarity"
+        else:
+            main_similarity_scores = 1 - (
+                paired_cosine_distances(embeddings1, embeddings2)
+            )
+            main_similarity_name = "Cosine-Similarity"
+
+        # OOM issues on WSL2 thus manually clear memory and wait for WSL to release memory
         del embeddings1, embeddings2
         gc.collect()
         time.sleep(15)
 
-        eval_pearson_cosine, _ = pearsonr(self.labels, cosine_scores)
-        eval_spearman_cosine, _ = spearmanr(self.labels, cosine_scores)
-        del cosine_scores
+        eval_pearson, _ = pearsonr(self.labels, main_similarity_scores)
+        eval_spearman, _ = spearmanr(self.labels, main_similarity_scores)
+        del main_similarity_scores
         gc.collect()
+        time.sleep(10)
 
         logger.info(
-            "Cosine-Similarity :\tPearson: {:.4f}\tSpearman: {:.4f}".format(
-                eval_pearson_cosine, eval_spearman_cosine
+            "{} :\tPearson: {:.5f}\tSpearman: {:.5f}".format(
+                main_similarity_name, eval_pearson, eval_spearman
             )
         )
 
@@ -195,18 +209,19 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
                     [
                         epoch,
                         steps,
-                        eval_pearson_cosine,
-                        eval_spearman_cosine,
+                        eval_pearson,
+                        eval_spearman,
                     ]
                 )
 
-        gc.collect()
-        if self.main_similarity == SimilarityFunction.COSINE:
-            return eval_spearman_cosine
-        elif self.main_similarity is None:
-            return max(eval_spearman_cosine)
-        else:
-            raise ValueError("Unknown main_similarity value")
+        if (
+            self.main_similarity == SimilarityFunction.COSINE
+            or self.main_similarity == SimilarityFunction.TANIMOTO
+        ):
+            return eval_spearman
+
+        # main_similarity is None:
+        return max(eval_spearman)
 
 
 def paired_cosine_distances(X, Y):
@@ -234,14 +249,6 @@ def paired_cosine_distances(X, Y):
     -----
     The cosine distance is equivalent to the half the squared
     euclidean distance if each sample is normalized to unit norm.
-
-    Examples
-    --------
-    >>> from sklearn.metrics.pairwise import paired_cosine_distances
-    >>> X = [[0, 0, 0], [1, 1, 1]]
-    >>> Y = [[1, 0, 0], [1, 1, 0]]
-    >>> paired_cosine_distances(X, Y)
-    array([0.5       , 0.18...])
     """
     if not isinstance(X, np.ndarray) or not isinstance(Y, np.ndarray):
         X, Y = check_paired_arrays(X, Y)
@@ -254,3 +261,44 @@ def paired_cosine_distances(X, Y):
         Y = normalize(Y).astype(np.float16, copy=False)
 
     return 0.5 * row_norms(X - Y, squared=True)
+
+
+def paired_tanimoto_similarity(X, Y):
+    """
+    Compute the paired Tanimoto similarity between X and Y.
+
+    Defined in 10.1186 (Tanimoto coefficient) as:
+    T(x,y) = <x,y> / (x^2 + y^2 - <x,y>) where ||a|| is the L2 norm of a.
+
+    References
+    ----------
+    https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2
+
+    Parameters
+    ----------
+    X : {array-like} of shape (n_samples, n_features)
+        First array of samples
+    Y : {array-like} of shape (n_samples, n_features)
+        Second array of samples
+
+    Returns
+    -------
+    similarity : ndarray of shape (n_samples,)
+        Tanimoto similarity between paired rows of X and Y
+    """
+    if not isinstance(X, np.ndarray) or not isinstance(Y, np.ndarray):
+        X, Y = check_paired_arrays(X, Y)
+        X = X.astype(np.float16, copy=False)
+        Y = Y.astype(np.float16, copy=False)
+
+    if isinstance(X, np.ndarray):
+        X = normalize(X).astype(np.float16, copy=False)
+    if isinstance(X, np.ndarray):
+        Y = normalize(Y).astype(np.float16, copy=False)
+
+    dot_product = np.sum(X * Y, axis=1)
+    X_sum_squares = np.sum(X * X, axis=1)
+    Y_sum_squares = np.sum(Y * Y, axis=1)
+
+    denominator = X_sum_squares + Y_sum_squares - dot_product
+    return dot_product / np.maximum(denominator, 1e-9)

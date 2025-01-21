@@ -11,9 +11,54 @@ logger = logging.getLogger(__name__)
 REDUCTION = {"mean", "sum"}
 
 
+class ClassifierLoss(nn.Module):
+    def __init__(
+        self,
+        model: SentenceTransformer,
+        sentence_embedding_dimension: int,
+        num_labels: int,
+        dropout: float = 0.15,
+    ):
+        super(ClassifierLoss, self).__init__()
+        self.model = model
+        self.classifier = nn.Linear(
+            sentence_embedding_dimension, num_labels, device=model.device
+        )
+        self.dropout = nn.Dropout(dropout, inplace=True)
+
+    def forward(
+        self, sentence_features: Iterable[Dict[str, Tensor]]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        sent_reps: list[Tensor] = [
+            self.model(sentence_feature)["sentence_embedding"]
+            for sentence_feature in sentence_features
+        ]
+
+        # guaranteed to be single sentence embedding
+        features = self._truncate_embeddings(sent_reps[0])
+        self.dropout(features)
+        logits: Tensor = self.classifier(features)
+
+        return features, logits
+
+    def _truncate_embeddings(self, embeddings: Tensor) -> Tensor:
+        """Truncate embeddings if it exceeds classifier's input features. Only applicable to MRL models.
+        Args:
+            embeddings (Tensor): sentence embeddings
+
+        Returns:
+            Tensor: truncated embeddings
+        """
+        batch_size, embedding_dim = embeddings.shape
+        if embedding_dim > self.classifier.in_features:
+            embeddings = embeddings[:, : self.classifier.in_features]
+            embeddings = nn.functional.normalize(embeddings, p=2, dim=1)
+        return embeddings
+
+
 # https://github.com/fursovia/self-adj-dice
 # https://aclanthology.org/2020.acl-main.45.pdf
-class SelfAdjDiceLoss(nn.Module):
+class SelfAdjDiceLoss(ClassifierLoss):
     r"""
     Creates a criterion that optimizes a multi-class Self-adjusting Dice Loss
     ("Dice Loss for Data-imbalanced NLP Tasks" paper)
@@ -51,39 +96,23 @@ class SelfAdjDiceLoss(nn.Module):
         model: SentenceTransformer,
         sentence_embedding_dimension: int,
         num_labels: int,
+        dropout: float = 0.15,
         alpha: float = 1.0,
         gamma: float = 1.0,
         reduction: str = "mean",
-        dropout: float = 0.15,
     ) -> None:
-        super().__init__()
-        self.model = model
-        self.num_labels = num_labels
+        super().__init__(model, sentence_embedding_dimension, num_labels, dropout)
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
 
-        self.classifier = nn.Linear(
-            sentence_embedding_dimension, num_labels, device=model.device
-        )
-        self.dropout = nn.Dropout(dropout)
-
     def forward(
-        self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor
+        self,
+        sentence_features: Iterable[Dict[str, Tensor]],
+        labels: Tensor,
     ) -> torch.Tensor:
-        sent_reps = [
-            self.model(sentence_feature)["sentence_embedding"]
-            for sentence_feature in sentence_features
-        ]
 
-        features = sent_reps[0]  # guaranteed to be single sentence embedding
-        batch_size, embedding_dim = features.shape
-        if embedding_dim > self.classifier.in_features:
-            features = features[:, : self.classifier.in_features]
-            features = nn.functional.normalize(features, p=2, dim=1)
-
-        features = self.dropout(features)
-        logits = self.classifier(features)
+        features, logits = super().forward(sentence_features)
 
         if labels is None:
             return features, logits
@@ -111,14 +140,14 @@ class SelfAdjDiceLoss(nn.Module):
 
 # SoftmaxLoss implementation taken from SentenceTransformer library
 # and modified for single sentence (SMILES) embedding classification
-class SoftmaxLoss(nn.Module):
+class SoftmaxLoss(ClassifierLoss):
     def __init__(
         self,
         model: SentenceTransformer,
         sentence_embedding_dimension: int,
         num_labels: int,
-        loss_fct: Callable = nn.CrossEntropyLoss(),
         dropout: float = 0.15,
+        loss_fct: Callable = nn.CrossEntropyLoss(),
     ):
         """
         This loss was used in our SBERT publication (https://arxiv.org/abs/1908.10084) to train the SentenceTransformer
@@ -148,58 +177,12 @@ class SoftmaxLoss(nn.Module):
             +=======================================+========+
             | (sentence_A, sentence_B) pairs        | class  |
             +---------------------------------------+--------+
-
-        Example:
-            ::
-
-                from sentence_transformers import SentenceTransformer, SentencesDataset, losses
-                from sentence_transformers.readers import InputExample
-                from torch.utils.data import DataLoader
-
-                model = SentenceTransformer('distilbert-base-nli-mean-tokens')
-                train_examples = [
-                    InputExample(texts=['First pair, sent A',  'First pair, sent B'], label=0),
-                    InputExample(texts=['Second pair, sent A', 'Second pair, sent B'], label=1),
-                    InputExample(texts=['Third pair, sent A',  'Third pair, sent B'], label=0),
-                    InputExample(texts=['Fourth pair, sent A', 'Fourth pair, sent B'], label=2),
-                ]
-                train_batch_size = 2
-                train_dataset = SentencesDataset(train_examples, model)
-                train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=train_batch_size)
-                train_loss = losses.SoftmaxLoss(
-                    model=model,
-                    sentence_embedding_dimension=model.get_sentence_embedding_dimension(),
-                    num_labels=len(set(x.label for x in train_examples))
-                )
-                model.fit(
-                    [(train_dataloader, train_loss)],
-                    epochs=10,
-                )
         """
-        super(SoftmaxLoss, self).__init__()
-        self.model = model
-        self.num_labels = num_labels
-
-        self.classifier = nn.Linear(
-            sentence_embedding_dimension, num_labels, device=model.device
-        )
-        self.dropout = nn.Dropout(dropout)
+        super().__init__(model, sentence_embedding_dimension, num_labels, dropout)
         self.loss_fct = loss_fct
 
     def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):
-        sent_reps = [
-            self.model(sentence_feature)["sentence_embedding"]
-            for sentence_feature in sentence_features
-        ]
-
-        features = sent_reps[0]  # guaranteed to be single sentence embedding
-        batch_size, embedding_dim = features.shape
-        if embedding_dim > self.classifier.in_features:
-            features = features[:, : self.classifier.in_features]
-            features = nn.functional.normalize(features, p=2, dim=1)
-
-        features = self.dropout(features)
-        logits = self.classifier(features)
+        features, logits = super().forward(sentence_features)
 
         if labels is None:
             return features, logits
