@@ -1,4 +1,17 @@
 services:
+  optuna-postgres:
+    image: postgres:17.2-alpine3.21
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    volumes:
+      - ${HOME}/dev-postgres/optuna/:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    networks:
+      - chem-network
+    restart: always
   zinc-postgres:
     build:
       context: docker

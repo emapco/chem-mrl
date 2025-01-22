@@ -11,7 +11,7 @@ def pairwise_tanimoto_similarity(x: Tensor, y: Tensor) -> Tensor:
     Computes the Tanimoto similarity between two numpy arrays x and y.
 
     Defined in 10.1186 (Tanimoto coefficient) as:
-    T(x,y) = <x,y> / (x^2 + y^2 - <x,y>) where ||a|| is the L2 norm of a.
+    T(x,y) = <x,y> / (x^2 + y^2 - <x,y>)
 
     References
     ----------
@@ -40,9 +40,7 @@ def pairwise_tanimoto_similarity(x: Tensor, y: Tensor) -> Tensor:
     dot_product = util.pairwise_dot_score(x, y)
     denominator = x.pow(2).sum(dim=-1) + y.pow(2).sum(dim=-1) - dot_product
 
-    similarity = dot_product / denominator.clamp(min=1e-9)
-
-    return similarity
+    return dot_product / denominator.clamp(min=1e-9)
 
 
 class TanimotoLoss(CoSENTLoss):
@@ -119,13 +117,17 @@ class TanimotoSimilarityLoss(nn.Module):
         self.similarity_fct = pairwise_tanimoto_similarity
 
     def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):
-        embeddings = [
+        embeddings: list[Tensor] = [
             self.model(sentence_feature)["sentence_embedding"]
             for sentence_feature in sentence_features
         ]
 
+        if isinstance(self.loss, nn.CosineEmbeddingLoss):
+            loss = self.loss(embeddings[0], embeddings[1], labels)
+            return loss
+
         similarities = self.similarity_fct(embeddings[0], embeddings[1])
-        loss = self.loss(similarities, labels)
+        loss = self.loss(similarities, labels.view(-1))
         return loss
 
     def get_config_dict(self):

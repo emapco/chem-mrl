@@ -126,13 +126,20 @@ def objective(
     )
 
     def wandb_callback(score, epoch, steps):
+        if steps == -1:
+            steps = (epoch + 1) * len(train_dataloader)
         eval_dict = {
             "score": score,
             "epoch": epoch,
             "steps": steps,
             **param_config,
         }
+
         wandb.log(eval_dict)
+        trial.report(score, step=steps)
+
+        if trial.should_prune():
+            raise optuna.TrialPruned()
 
     model.fit(
         train_objectives=[(train_dataloader, train_loss)],
@@ -146,6 +153,7 @@ def objective(
             "weight_decay": weight_decay,
             "adam_w_mode": True,
         },
+        save_best_model=False,
         use_amp=False,
         show_progress_bar=True,
         scheduler=param_config["scheduler"],
@@ -197,7 +205,7 @@ def get_model_save_path(param_config):
         f"-{param_config['train_batch_size']}"
         f"-{param_config['num_epochs']}"
         f"-{param_config['lr_base']:6f}"
-        f"-{param_config['scheduler']}-{param_config['warmup_steps_percent']:3f}"
+        f"-{param_config['scheduler']}-{param_config['warmup_steps_percent']}"
         f"-{param_config['loss_func']}-{param_config['dropout_p']:3f}"
         f"-{param_config['matryoshka_dim']}-{loss_parameter_str}",  # noqa: E501,
     )
@@ -207,9 +215,11 @@ def get_model_save_path(param_config):
 
 def generate_hyperparameters():
     study = optuna.create_study(
+        storage="postgresql://postgres:password@192.168.0.8:5432/postgres",
         study_name="chem-mrl-classification-hyperparameter-tuning",
         direction="maximize",
         load_if_exists=True,
+        pruner=optuna.pruners.PatientPruner(optuna.pruners.MedianPruner(), patience=1),
     )
     study.optimize(
         objective,

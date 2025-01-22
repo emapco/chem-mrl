@@ -89,7 +89,7 @@ class SelfAdjDiceLoss(ClassifierLoss):
     Shape:
         - logits: `(N, C)` where `N` is the batch size and `C` is the number of classes.
         - targets: `(N)` where each value is in [0, C - 1]
-    """
+    """  # noqa
 
     def __init__(
         self,

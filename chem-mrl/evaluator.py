@@ -268,7 +268,7 @@ def paired_tanimoto_similarity(X, Y):
     Compute the paired Tanimoto similarity between X and Y.
 
     Defined in 10.1186 (Tanimoto coefficient) as:
-    T(x,y) = <x,y> / (x^2 + y^2 - <x,y>) where ||a|| is the L2 norm of a.
+    T(x,y) = <x,y> / (x^2 + y^2 - <x,y>)
 
     References
     ----------
@@ -297,8 +297,6 @@ def paired_tanimoto_similarity(X, Y):
         Y = normalize(Y).astype(np.float16, copy=False)
 
     dot_product = np.sum(X * Y, axis=1)
-    X_sum_squares = np.sum(X * X, axis=1)
-    Y_sum_squares = np.sum(Y * Y, axis=1)
+    denominator = np.sum(X**2, axis=1) + np.sum(Y**2, axis=1) - dot_product
 
-    denominator = X_sum_squares + Y_sum_squares - dot_product
     return dot_product / np.maximum(denominator, 1e-9)

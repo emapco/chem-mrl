@@ -28,6 +28,8 @@ from constants import (
     TEST_DS_DICT,
 )
 
+logger = logging.getLogger()
+
 
 def objective(
     trial: optuna.Trial,
@@ -49,19 +51,20 @@ def objective(
 
     # generate hyperparameters
     loss_func = trial.suggest_categorical(
-        "loss_func", ["TanimotoLoss", "TanimotoSimilarityLoss"]  # , "CoSENTLoss"]
+        "loss_func", ["TanimotoLoss", "TanimotoSimilarityLoss", "CoSENTLoss"]
     )
     param_config = {
         "model_name": model_name,
         "dataset_key": dataset_key,
-        "train_batch_size": 64,
+        "train_batch_size": 8,
         # num-epochs: 2-3 likely based on chemberta hyperparameter search on wandb
         # https://wandb.ai/seyonec/huggingface/reports/seyonec-s-ChemBERTa-update-08-31--VmlldzoyMjM1NDY
-        "num_epochs": trial.suggest_int("num_epochs", 1, 5),
+        "num_epochs": 5,
         # scheduler parameters
-        "lr_base": trial.suggest_float(
-            "lr_base", 5.0e-06, 1.0e-04
-        ),  # 1.1190785944700813e-05
+        # "lr_base": trial.suggest_float(
+        #     "lr_base", 5.0e-06, 1.0e-04
+        # ),  # 1.1190785944700813e-05
+        "lr_base": 1.1190785944700813e-05,
         "scheduler": trial.suggest_categorical(
             "scheduler",
             [
@@ -78,9 +81,14 @@ def objective(
         "loss_func": loss_func,
         "tanimoto_similarity_loss_func": (
             trial.suggest_categorical(
-                "tanimoto_similarity_loss_func", ["mse", "l1", "smooth_l1", "huber"]
+                "tanimoto_similarity_loss_func",
+                [
+                    "mse",
+                    "l1",
+                    "smooth_l1",
+                ],
             )
-            if loss_func
+            if loss_func == "TanimotoSimilarityLoss"
             else None
         ),
         "use_2d_matryoshka": trial.suggest_categorical(
@@ -172,21 +180,28 @@ def objective(
     logging.info("Warmup-steps: {}".format(warmup_steps))
 
     wandb.init(
-        project="chem-mrl-hyperparameter-search-2d_matryoshka-2025",
+        project="chem-mrl-hyperparameter-search-2025",
         config=param_config,
     )
 
     def wandb_callback(score, epoch, steps):
+        if steps == -1:
+            steps = (epoch + 1) * len(train_dataloader)
         eval_dict = {
             "score": score,
             "epoch": epoch,
             "steps": steps,
             **param_config,
         }
+
         wandb.log(eval_dict)
+        trial.report(score, step=steps)
+
+        if trial.should_prune():
+            raise optuna.TrialPruned()
 
     model.fit(
-        train_objectives=[(train_dataloader, train_loss)],  # type: ignore
+        train_objectives=[(train_dataloader, train_loss)],
         evaluator=val_evaluator,
         epochs=param_config["num_epochs"],
         warmup_steps=warmup_steps,
@@ -197,16 +212,15 @@ def objective(
             "weight_decay": weight_decay,
             "adam_w_mode": True,
         },
+        save_best_model=False,
         use_amp=False,
         show_progress_bar=True,
         scheduler=param_config["scheduler"],
         checkpoint_path="output",
-        checkpoint_save_steps=1000000,
         callback=wandb_callback,
     )
 
-    # The evaluation score is always NAN when using optuna integration and sentence transformers.
-    # Thus, load metric from evaluation output file.
+    # Get final metric
     eval_file_path = os.path.join(
         model_save_path, "eval/similarity_evaluation_morgan-similarity_int8_results.csv"
     )
@@ -230,6 +244,15 @@ def get_base_loss(
                 model, loss=nn.SmoothL1Loss()
             ),
             "huber": lambda model: TanimotoSimilarityLoss(model, loss=nn.HuberLoss()),
+            "bin_cross_entropy": lambda model: TanimotoSimilarityLoss(
+                model, loss=nn.BCEWithLogitsLoss()
+            ),
+            "kldiv": lambda model: TanimotoSimilarityLoss(
+                model, loss=nn.KLDivLoss(reduction="batchmean")
+            ),
+            "cosine_embedding_loss": lambda model: TanimotoSimilarityLoss(
+                model, loss=nn.CosineEmbeddingLoss()
+            ),
         },
     }
     if loss_func in ["TanimotoLoss", "CoSENTLoss"]:
@@ -247,13 +270,13 @@ def get_model_save_path(
         OUTPUT_MODEL_DIR,
         f"{param_config['dataset_key']}-chem-{'2D' if param_config['use_2d_matryoshka'] else '1D'}mrl"
         f"-{param_config['train_batch_size']}-{param_config['num_epochs']}"
-        f"-{param_config['lr_base']:6f}-{param_config['scheduler']}-{param_config['warmup_steps_percent']:3f}"
+        f"-{param_config['lr_base']:6f}-{param_config['scheduler']}-{param_config['warmup_steps_percent']}"
         f"-{param_config['loss_func']}-{param_config['tanimoto_similarity_loss_func']}"
         f"-{param_config['last_layer_weight']:4f}-{param_config['prior_layers_weight']:4f}"
         f"-{param_config['first_dim_weight']:4f}-{param_config['second_dim_weight']:4f}-{param_config['third_dim_weight']:4f}"  # noqa: E501
         f"-{param_config['fourth_dim_weight']:4f}-{param_config['fifth_dim_weight']:4f}-{param_config['sixth_dim_weight']:4f}",  # noqa: E501
     )
-    print(f"\n{model_save_path}\n")
+    logger.info(f"\n{model_save_path}\n")
     return model_save_path
 
 
@@ -275,23 +298,25 @@ def generate_hyperparameters():
         )
 
     study = optuna.create_study(
+        storage="postgresql://postgres:password@192.168.0.8:5432/postgres",
         study_name="chem-mrl-hyperparameter-tuning",
         direction="maximize",
         load_if_exists=True,
+        pruner=optuna.pruners.PatientPruner(optuna.pruners.MedianPruner(), patience=1),
     )
     study.optimize(
         objective_closure,
-        n_trials=128,
+        n_trials=256,
         gc_after_trial=True,
         show_progress_bar=True,
     )
 
-    print("Best hyperparameters found:")
-    print(study.best_params)
-    print("Best best trials:")
-    print(study.best_trials)
-    print("Best trial:")
-    print(study.best_trial)
+    logger.info("Best hyperparameters found:")
+    logger.info(study.best_params)
+    logger.info("Best best trials:")
+    logger.info(study.best_trials)
+    logger.info("Best trial:")
+    logger.info(study.best_trial)
     study.trials_dataframe().to_csv("chem-mrl-hyperparameter-tuning.csv", index=False)
 
 
