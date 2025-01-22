@@ -1,6 +1,6 @@
 from contextlib import nullcontext
 from enum import Enum
-from typing import List, Literal
+from typing import Literal, Iterable
 import logging
 import os
 import gc
@@ -39,9 +39,9 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
 
     def __init__(
         self,
-        sentences1: List[str],
-        sentences2: List[str],
-        scores: List[float],
+        smiles1: Iterable[str],
+        smiles2: Iterable[str],
+        scores: Iterable[float],
         batch_size: int = 16,
         main_similarity: SimilarityFunction | None = None,
         name: str = "",
@@ -55,22 +55,22 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         """
         Constructs an evaluator based for the dataset
 
-        The labels need to indicate the similarity between the sentences.
+        The labels need to indicate the similarity between a pair of SMILES.
 
-        :param sentences1:  List with the first sentence in a pair
-        :param sentences2: List with the second sentence in a pair
-        :param scores: Similarity score between sentences1[i] and sentences2[i]
+        :param smiles1:  List with the first SMILES in a pair
+        :param smiles2: List with the second SMILES in a pair
+        :param scores: Similarity score between smiles[i] and smiles[i]
         :param write_csv: Write results to a CSV file
         :param precision: The precision to use for the embeddings. Can be "float32", "int8", "uint8", "binary", or
             "ubinary". Defaults to None.
-        :param truncate_dim: The dimension to truncate sentence embeddings to. `None` uses the model's current
+        :param truncate_dim: The dimension to truncate SMILES embeddings to. `None` uses the model's current
             truncation dimension. Defaults to None.
         """
         if precision is None:
             precision = "float32"
 
-        self.sentences1 = sentences1
-        self.sentences2 = sentences2
+        self.smiles1 = smiles1
+        self.smiles2 = smiles2
         self.labels = scores
         self.write_csv = write_csv
         self.precision: Literal["float32", "int8", "uint8", "binary", "ubinary"] = (
@@ -78,8 +78,8 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         )
         self.truncate_dim = truncate_dim
 
-        assert len(self.sentences1) == len(self.sentences2)
-        assert len(self.sentences1) == len(self.labels)
+        assert len(self.smiles1) == len(self.smiles2)
+        assert len(self.smiles1) == len(self.labels)
 
         self.main_similarity = main_similarity
         self.name = name
@@ -115,16 +115,16 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
     ) -> float:
         if epoch != -1:
             if steps == -1:
-                out_txt = f" after epoch {epoch}"
+                out_txt = f"after epoch {epoch}"
             else:
-                out_txt = f" in epoch {epoch} after {steps} steps"
+                out_txt = f"in epoch {epoch} after {steps} steps"
         else:
             out_txt = ""
         if self.truncate_dim is not None:
-            out_txt += f" (truncated to {self.truncate_dim})"
+            out_txt += f"(truncated to {self.truncate_dim})"
 
         logger.info(
-            f"Custom EmbeddingSimilarityEvaluator: Evaluating the model on the {self.name} dataset{out_txt}:"
+            f"Custom EmbeddingSimilarityEvaluator: Evaluating the model on the {self.name} dataset {out_txt}:"
         )
 
         with (
@@ -135,24 +135,25 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             torch.clear_autocast_cache()
             torch.cuda.empty_cache()
             gc.collect()
-            logger.info("Encoding sentence 1 validation data.")
+            logger.info("Encoding smiles 1 validation data.")
             embeddings1 = model.encode(
-                self.sentences1,
+                self.smiles1,
                 batch_size=self.batch_size,
                 show_progress_bar=self.show_progress_bar,
                 convert_to_numpy=True,
                 precision=self.precision,
                 normalize_embeddings=bool(self.precision),
             )
-            logger.info("Encoding sentence 2 validation data.")
+            logger.info("Encoding smiles 2 validation data.")
             embeddings2 = model.encode(
-                self.sentences2,
+                self.smiles2,
                 batch_size=self.batch_size,
                 show_progress_bar=self.show_progress_bar,
                 convert_to_numpy=True,
                 precision=self.precision,
                 normalize_embeddings=bool(self.precision),
             )
+            torch.clear_autocast_cache()
             torch.cuda.empty_cache()
             gc.collect()
 
@@ -178,13 +179,11 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         # OOM issues on WSL2 thus manually clear memory and wait for WSL to release memory
         del embeddings1, embeddings2
         gc.collect()
-        time.sleep(15)
 
         eval_pearson, _ = pearsonr(self.labels, main_similarity_scores)
         eval_spearman, _ = spearmanr(self.labels, main_similarity_scores)
         del main_similarity_scores
         gc.collect()
-        time.sleep(10)
 
         logger.info(
             "{} :\tPearson: {:.5f}\tSpearman: {:.5f}".format(

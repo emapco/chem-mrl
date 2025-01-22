@@ -1,14 +1,14 @@
+import logging
+
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.evaluation import (
     SentenceEvaluator,
-)  # , LabelAccuracyEvaluator
+)
 from sentence_transformers.util import batch_to_device
 import torch
 from torch.utils.data import DataLoader
-import logging
 import os
 import csv
-
 
 logger = logging.getLogger(__name__)
 

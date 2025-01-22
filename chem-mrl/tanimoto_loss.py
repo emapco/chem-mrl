@@ -61,21 +61,25 @@ class TanimotoLoss(CoSENTLoss):
         batch such that the expected similarity of ``(i,j)`` is greater than ``(k,l)``. The summation is over all possible
         pairs of input pairs in the batch that match this condition.
 
-        :param model: SentenceTransformerModel
-        :param scale: Output of similarity function is multiplied by scale value. Represents the inverse temperature.
+        Parameters
+        ----------
+        model : SentenceTransformer
+            The sentence transformer model used to generate embeddings
+        scale : float, optional
+            Scaling factor (inverse temperature) applied to similarity scores, defaults to 20.0
 
         Requirements:
-            - Sentence pairs with corresponding similarity scores in range of the similarity function. Default is [-1,1].
+            - SMILES pairs with corresponding similarity scores in range of the similarity function. Default is [-1,1].
 
         Relations:
-            - :class:`TanimotoLoss` is CoSENTLoss with ``pairwise_tanimoto_similarity`` as the metric, rather than ``pairwise_cos_sim``.
+            - Extends CoSENTLoss by replacing pairwise_cos_sim with pairwise_tanimoto_similarity
 
         Inputs:
-            +--------------------------------+------------------------+
-            | Texts                          | Labels                 |
-            +================================+========================+
-            | (sentence_A, sentence_B) pairs | float similarity score |
-            +--------------------------------+------------------------+
+            +---------------------------+------------------------+
+            | Texts                     | Labels                 |
+            +===========================+========================+
+            | (smiles_A, smiles2) pairs | float similarity score |
+            +---------------------------+------------------------+
         """  # noqa: E501
         super().__init__(
             model,
@@ -91,10 +95,8 @@ class TanimotoSimilarityLoss(nn.Module):
         loss: nn.Module = nn.MSELoss(),
     ):
         """
-        A PyTorch loss module that computes similarity loss between sentence pairs using Tanimoto similarity.
-
         This class implements a loss function that measures the difference between predicted Tanimoto similarities
-        of sentence embeddings and their expected similarity scores. It uses a SentenceTransformer model to generate
+        of smiles embeddings and their expected similarity scores. It uses a SentenceTransformer model to generate
         embeddings and computes pairwise Tanimoto similarities between them.
 
         Parameters
@@ -105,21 +107,21 @@ class TanimotoSimilarityLoss(nn.Module):
             The base loss function to compute the final loss value, defaults to nn.MSELoss()
 
         Inputs:
-            +--------------------------------+------------------------+
-            | Texts                          | Labels                 |
-            +================================+========================+
-            | (sentence_A, sentence_B) pairs | float similarity score |
-            +--------------------------------+------------------------+
+            +---------------------------+------------------------+
+            | Texts                     | Labels                 |
+            +===========================+========================+
+            | (smiles_A, smiles2) pairs | float similarity score |
+            +---------------------------+------------------------+
         """
         super().__init__()
         self.model = model
-        self.loss = loss
+        self.loss_fct = loss
         self.similarity_fct = pairwise_tanimoto_similarity
 
-    def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):
+    def forward(self, smiles_features: Iterable[Dict[str, Tensor]], labels: Tensor):
         embeddings: list[Tensor] = [
-            self.model(sentence_feature)["sentence_embedding"]
-            for sentence_feature in sentence_features
+            self.model(smiles_feature)["sentence_embedding"]
+            for smiles_feature in smiles_features
         ]
 
         if isinstance(self.loss, nn.CosineEmbeddingLoss):
@@ -127,11 +129,11 @@ class TanimotoSimilarityLoss(nn.Module):
             return loss
 
         similarities = self.similarity_fct(embeddings[0], embeddings[1])
-        loss = self.loss(similarities, labels.view(-1))
+        loss = self.loss_fct(similarities, labels.view(-1))
         return loss
 
     def get_config_dict(self):
         return {
-            "loss_fct": self.loss.__name__,
+            "loss_fct": type(self.loss_fct).__name__,
             "similarity_fct": self.similarity_fct.__name__,
         }

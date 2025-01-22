@@ -1,125 +1,117 @@
 import math
-import logging
-import os
-import gc
+import argparse
+from contextlib import nullcontext
 
-import apex
-from apex.optimizers import FusedAdam
 import transformers
-from sentence_transformers import (
-    models,
-    SentenceTransformer,
-)
-
-import pandas as pd
-import optuna
+from apex.optimizers import FusedAdam
+from sentence_transformers import models, SentenceTransformer
 import wandb
 
-from constants import (
-    ISOMER_DESIGN_TRAIN_DS_PATH,
-    ISOMER_DESIGN_VAL_DS_PATH,
-    MODEL_NAMES,
-    CAT_TO_LABEL,
-)
-from loss import SoftmaxLoss, SelfAdjDiceLoss
 from evaluator import LabelAccuracyEvaluator
-from .load_data import load_data
+from load_data import load_data
+from utils import get_train_loss, get_model_save_path, get_signed_in_wandb_callback
+from constants import ISOMER_DESIGN_TRAIN_DS_PATH, ISOMER_DESIGN_VAL_DS_PATH
 
 
-def train() -> float:
-    continue_training = True
-    current_epoch = 4
-    seed = 42 + (2 * current_epoch - 1) if continue_training else 42
-    transformers.set_seed(seed)
-
-    model_name = (
-        "/home/manny/source/chem-mrl/output/"
-        "ChemBERTa-zinc-base-v1-2d-matryoshka-embeddings"
-        "-n_layers_per_step_2-TaniLoss-lr_1.1190785944700813e-05-batch_size_8"
-        "-num_epochs_2-epoch_2-best-model-1900000_steps"
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train classifier model")
+    # Model params
+    parser.add_argument("--model_name", required=True)
+    parser.add_argument(
+        "--classifier_hidden_dimension",
+        type=int,
+        choices=[768, 512, 256, 128, 64, 32],
+        default=768,
+        help="Hidden dimension of classifier model. Must be one of the dimensions of the base MRL model.",
     )
-    matryoshka_dim = 768
+    parser.add_argument("--train_batch_size", type=int, default=160)
+    parser.add_argument("--num_epochs", type=int, default=3)
+    parser.add_argument("--evaluation_steps", type=int, default=0)
+    # Wandb params
+    parser.add_argument("--use_wandb", action="store_true")
+    parser.add_argument("--wandb_api_key", default=None)
+    parser.add_argument("--wandb_project_name", default="chem-mrl-classification-train")
+    parser.add_argument("--wandb_run_name", default=None)
+    # Optimizer and scheduler params
+    parser.add_argument(
+        "--lr_base",
+        type=float,
+        default=1.1190785944700813e-05,
+        min_value=0.0,
+        help="Base learning rate that will be scaled with batch size",
+    )
+    parser.add_argument(
+        "--scheduler",
+        choices=[
+            "warmupconstant",
+            "warmuplinear",
+            "warmupcosine",
+            "warmupcosinewithhardrestarts",
+        ],
+        default="warmupcosinewithhardrestarts",
+    )
+    parser.add_argument("--warmup_steps_percent", type=float, default=0.0)
+    parser.add_argument(
+        "--use_amp",
+        action="store_true",
+        help="Use automatic mixed precision (AMP) for training",
+    )
+    # Loss function params
+    parser.add_argument(
+        "--loss_func", choices=["SoftMax", "SelfAdjDice"], required=True
+    )
+    parser.add_argument(
+        "--dropout_p", type=float, default=0.15, help="Dropout probability"
+    )
+    parser.add_argument(
+        "--dice_reduction",
+        default="mean",
+        choices=["mean", "sum"],
+    )
+    parser.add_argument(
+        "--dice_gamma",
+        type=float,
+        default=1.0,
+        min=0.0,
+    )
+    # misc.
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--model_output_path", default="output")
+    parser.add_argument("--checkpoint_save_steps", type=int, default=1000000)
+    parser.add_argument("--checkpoint_save_total_limit", type=int, default=20)
 
-    word_embedding_model = models.Transformer(model_name)
+    return parser.parse_args()
+
+
+def train(args):
+    if args.seed is not None:
+        transformers.set_seed(args.seed)
+
+    # Load model components
+    word_embedding_model = models.Transformer(args.model_name)
     pooling_model = models.Pooling(
         word_embedding_model.get_word_embedding_dimension(), pooling_mode="mean"
     )
     model = SentenceTransformer(
-        modules=[word_embedding_model, pooling_model], truncate_dim=matryoshka_dim
-    )
-
-    num_epochs = 3
-    warmup_steps_percent = 2
-    lr_base = 3.4038386108141304e-06
-    scheduler = "warmupcosinewithhardrestarts"
-
-    dropout_p = 0.15
-    loss_func = "SoftMax"
-    if loss_func == "SelfAdjDice":
-        dice_reduction = "mean"
-
-    max_seq_length = word_embedding_model.max_seq_length
-    train_batch_size = 160
-    LR = lr_base * math.sqrt(train_batch_size)
-
-    loss_parameter_str = (
-        f"-dice_reduction_{dice_reduction}" if loss_func == "SelfAdjDice" else ""
-    )
-    model_save_path = (
-        "output/"
-        + model_name.rsplit("/", 1)[1][:20]
-        + "-classification-model"
-        + f"-epochs_{num_epochs}"
-        + f"-mrl_dim_{matryoshka_dim}"
-        + f"-lr_{lr_base}"
-        + f"-batch_size_{train_batch_size}"
-        + f"-warmup_steps_percent_{warmup_steps_percent}"
-        + f"-scheduler_{scheduler}"
-        + f"-dropout_p_{dropout_p}"
-        + f"-loss_{loss_func}"
-        + loss_parameter_str
-    )
-    print(f"\n{model_save_path}\n")
-
-    wandb.init(
-        project="chem-mrl-classification-train",
-        config={
-            "model_name": model_name,
-            "train_batch_size": train_batch_size,
-            "max_seq_length": max_seq_length,
-            "matryoshka_dim": matryoshka_dim,
-            "num_epochs": num_epochs,
-            "lr_base": lr_base,
-            "warmup_steps_percent": warmup_steps_percent,
-            "scheduler": scheduler,
-            "loss_func": loss_func,
-            "dropout_p": dropout_p,
-        },
+        modules=[word_embedding_model, pooling_model],
+        truncate_dim=args.classifier_hidden_dimension,
     )
 
     train_dataloader, val_dataloader, _, num_labels = load_data(
-        batch_size=train_batch_size,
+        batch_size=args.train_batch_size,
         train_file=ISOMER_DESIGN_TRAIN_DS_PATH,
         val_file=ISOMER_DESIGN_VAL_DS_PATH,
     )
 
-    if loss_func == "SoftMax":
-        train_loss = SoftmaxLoss(
-            model=model,
-            # method returns truncated dim if using truncated mrl model
-            sentence_embedding_dimension=model.get_sentence_embedding_dimension(),
-            num_labels=num_labels,
-            dropout=dropout_p,
-        )
-    else:
-        train_loss = SelfAdjDiceLoss(
-            model=model,
-            # method returns truncated dim if using truncated mrl model
-            sentence_embedding_dimension=model.get_sentence_embedding_dimension(),
-            num_labels=num_labels,
-            reduction=dice_reduction,
-            dropout=dropout_p,
-        )
+    train_loss = get_train_loss(
+        model=model,
+        smiles_embedding_dimension=args.classifier_hidden_dimension,
+        num_labels=num_labels,
+        loss_func=args.loss_func,
+        dropout=args.dropout_p,
+        dice_reduction=args.dice_reduction,
+        dice_gamma=args.dice_gamma,
+    )
 
     val_evaluator = LabelAccuracyEvaluator(
         dataloader=val_dataloader,
@@ -127,61 +119,60 @@ def train() -> float:
         write_csv=True,
     )
 
-    warmup_steps = math.ceil(len(train_dataloader) * num_epochs * warmup_steps_percent)
-    logging.info("Warmup-steps: {}".format(warmup_steps))
-
-    total_number_training_points = len(train_dataloader) * train_batch_size
+    # Calculate training parameters
+    total_number_training_points = len(train_dataloader) * args.train_batch_size
+    # normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf
+    # optimized hyperparameter lambda_norm = 0.05 for AdamW optimizer
     weight_decay = 0.05 * math.sqrt(
-        train_batch_size / (total_number_training_points * num_epochs)
+        args.train_batch_size / (total_number_training_points * args.num_epochs)
+    )
+    learning_rate = args.lr_base * math.sqrt(args.train_batch_size)
+    warmup_steps = math.ceil(
+        len(train_dataloader) * args.num_epochs * args.warmup_steps_percent
     )
 
-    def wandb_callback(score, epoch, _):
-        eval_dict = {
-            "accuracy": score,
-            "epoch": epoch,
-            "lr_base": lr_base,
-            "model_name": model_name,
-            "num_epochs": num_epochs,
-            "matryoshka_dim": matryoshka_dim,
-            "train_batch_size": train_batch_size,
-            "warmup_steps_percent": warmup_steps_percent,
-            "scheduler": scheduler,
-            "loss_func": loss_func,
-            "dropout_p": dropout_p if loss_func == "SoftMax" else None,
-            "dice_reduction": dice_reduction if loss_func == "SelfAdjDice" else None,
-        }
-        wandb.log(eval_dict)
-        apex.torch.clear_autocast_cache()
-        apex.torch.cuda.empty_cache()
-        gc.collect()
-
-    model.fit(
-        train_objectives=[(train_dataloader, train_loss)],
-        evaluator=val_evaluator,
-        evaluation_steps=4,
-        epochs=num_epochs,
-        warmup_steps=warmup_steps,
-        output_path=model_save_path,
-        optimizer_class=FusedAdam,
-        optimizer_params={
-            "lr": LR,
-            "weight_decay": weight_decay,
-            "adam_w_mode": True,
-        },
-        use_amp=False,
-        show_progress_bar=True,
-        scheduler=scheduler,
-        checkpoint_path="output",
-        callback=wandb_callback,
+    param_config = vars(args)
+    model_save_path = get_model_save_path(param_config, args.model_output_path)
+    wandb_callback = get_signed_in_wandb_callback(
+        train_dataloader, args.use_wandb, args.wandb_api_key
     )
 
-    eval_file_path = os.path.join(
-        model_save_path, "eval/accuracy_evaluation_results.csv"
-    )
-    eval_results_df = pd.read_csv(eval_file_path)
-    metric = float(eval_results_df.iloc[-1]["accuracy"])
-    print(f"metric: {metric}")
+    with (
+        nullcontext()
+        if not args.use_wandb
+        else wandb.init(
+            project=args.wandb_project_name,
+            name=args.wandb_run_name,
+            config=param_config,
+        )
+    ):
+        if args.use_wandb:
+            wandb.watch(model, log="all", log_graph=True)
+
+        model.fit(
+            train_objectives=[(train_dataloader, train_loss)],
+            evaluator=val_evaluator,
+            evaluation_steps=args.evaluation_steps,
+            epochs=args.num_epochs,
+            warmup_steps=warmup_steps,
+            output_path=model_save_path,
+            optimizer_class=FusedAdam,
+            optimizer_params={
+                "lr": learning_rate,
+                "weight_decay": weight_decay,
+                "adam_w_mode": True,
+            },
+            save_best_model=True,
+            use_amp=args.use_amp,
+            show_progress_bar=True,
+            scheduler=args.scheduler,
+            checkpoint_path=args.model_output_path,
+            checkpoint_save_steps=args.checkpoint_save_steps,
+            checkpoint_save_total_limit=args.checkpoint_save_total_limit,
+            callback=wandb_callback,
+        )
 
 
 if __name__ == "__main__":
-    train()
+    args = parse_args()
+    train(args)
