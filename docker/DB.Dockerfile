@@ -1,4 +1,4 @@
-FROM pgvector/pgvector:0.6.2-pg16
+FROM pgvector/pgvector:0.8.0-pg17
 
 RUN apt-get update && apt-get install -y postgresql-contrib
 

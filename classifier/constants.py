@@ -4,9 +4,15 @@ _const_file_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_const_file_dir)
 _data_dir = os.path.join(_parent_dir, "data", "chem")
 OUTPUT_MODEL_DIR = os.path.join(_parent_dir, "output")
-ISOMER_DESIGN_TRAIN_DS_PATH = os.path.join(_data_dir, "isomer_design_train.parquet")
-ISOMER_DESIGN_VAL_DS_PATH = os.path.join(_data_dir, "isomer_design_val.parquet")
-ISOMER_DESIGN_TEST_DS_PATH = os.path.join(_data_dir, "isomer_design_test.parquet")
+TRAIN_ISOMER_DESIGN_DS_PATH = os.path.join(
+    _data_dir, "isomer_design", "train_isomer_design.parquet"
+)
+VAL_ISOMER_DESIGN_DS_PATH = os.path.join(
+    _data_dir, "isomer_design", "val_isomer_design.parquet"
+)
+TEST_ISOMER_DESIGN_DS_PATH = os.path.join(
+    _data_dir, "isomer_design", "test_isomer_design.parquet"
+)
 
 MODEL_NAMES = {
     # full dataset 2d-mrl-embed preferred in init. hyperparam. search

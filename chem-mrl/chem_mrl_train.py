@@ -1,21 +1,21 @@
-import math
 import argparse
+import math
 from contextlib import nullcontext
 
 import transformers
 from apex.optimizers import FusedAdam
-from sentence_transformers import models, SentenceTransformer
-import wandb
-
+from constants import TRAIN_DS_DICT, VAL_DS_DICT
 from evaluator import EmbeddingSimilarityEvaluator, SimilarityFunction
 from load_data import load_data
+from sentence_transformers import SentenceTransformer, models
 from utils import (
     get_base_loss,
     get_model_save_path,
-    get_train_loss,
     get_signed_in_wandb_callback,
+    get_train_loss,
 )
-from constants import TRAIN_DS_DICT, VAL_DS_DICT
+
+import wandb
 
 
 def parse_args():

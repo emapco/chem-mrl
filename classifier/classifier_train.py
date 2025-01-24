@@ -1,16 +1,16 @@
-import math
 import argparse
+import math
 from contextlib import nullcontext
 
 import transformers
 from apex.optimizers import FusedAdam
-from sentence_transformers import models, SentenceTransformer
-import wandb
-
+from constants import TRAIN_ISOMER_DESIGN_DS_PATH, VAL_ISOMER_DESIGN_DS_PATH
 from evaluator import LabelAccuracyEvaluator
 from load_data import load_data
-from utils import get_train_loss, get_model_save_path, get_signed_in_wandb_callback
-from constants import ISOMER_DESIGN_TRAIN_DS_PATH, ISOMER_DESIGN_VAL_DS_PATH
+from sentence_transformers import SentenceTransformer, models
+from utils import get_model_save_path, get_signed_in_wandb_callback, get_train_loss
+
+import wandb
 
 
 def parse_args():
@@ -64,6 +64,11 @@ def parse_args():
         "--dropout_p", type=float, default=0.15, help="Dropout probability"
     )
     parser.add_argument(
+        "--freeze_model",
+        action="store_true",
+        help="Freeze the base MRL model during training",
+    )
+    parser.add_argument(
         "--dice_reduction",
         default="mean",
         choices=["mean", "sum"],
@@ -73,6 +78,17 @@ def parse_args():
         type=float,
         default=1.0,
         min=0.0,
+    )
+    # dataset paths
+    parser.add_argument(
+        "--train_dataset_path",
+        default=TRAIN_ISOMER_DESIGN_DS_PATH,
+        help="Path to train dataset",
+    )
+    parser.add_argument(
+        "--val_dataset_path",
+        default=VAL_ISOMER_DESIGN_DS_PATH,
+        help="Path to validation dataset",
     )
     # misc.
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
@@ -99,8 +115,8 @@ def train(args):
 
     train_dataloader, val_dataloader, _, num_labels = load_data(
         batch_size=args.train_batch_size,
-        train_file=ISOMER_DESIGN_TRAIN_DS_PATH,
-        val_file=ISOMER_DESIGN_VAL_DS_PATH,
+        train_file=args.train_dataset_path,
+        val_file=args.val_dataset_path,
     )
 
     train_loss = get_train_loss(
@@ -109,6 +125,7 @@ def train(args):
         num_labels=num_labels,
         loss_func=args.loss_func,
         dropout=args.dropout_p,
+        freeze_base_model=args.freeze_model,
         dice_reduction=args.dice_reduction,
         dice_gamma=args.dice_gamma,
     )

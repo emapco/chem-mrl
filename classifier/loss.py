@@ -1,7 +1,8 @@
+from typing import Callable, Dict, Iterable
+
 import torch
-from torch import nn, Tensor
-from typing import Iterable, Dict, Callable
 from sentence_transformers import SentenceTransformer
+from torch import Tensor, nn
 
 REDUCTION = {"mean", "sum"}
 
@@ -13,6 +14,7 @@ class _ClassifierLoss(nn.Module):
         smiles_embedding_dimension: int,
         num_labels: int,
         dropout: float = 0.15,
+        freeze_model: bool = False,
     ):
         """
         Base class for SMILES classification loss functions.
@@ -20,23 +22,31 @@ class _ClassifierLoss(nn.Module):
         Parameters
         ----------
         model : SentenceTransformer
-        The sentence transformer model used to generate embeddings
+            The sentence transformer model used to generate embeddings
         smiles_embedding_dimension : int
-        The dimension of the SMILE
+            The dimension of the SMILE
         num_labels : int
-        The number of labels to classify
+            The number of labels to classify
         dropout : float, optional
-        The dropout rate to apply to the embeddings, defaults to 0.15
+            The dropout rate to apply to the embeddings, defaults to 0.15
+        freeze_model : bool, optional
+            Whether to freeze the sentence transformer model, defaults to False.
+            If True, only the classifier parameters will be updated during training.
         """
         super(_ClassifierLoss, self).__init__()
         self.model = model
+
+        if freeze_model:
+            for param in self.model.parameters():
+                param.requires_grad = False
+
         self.smiles_embedding_dimension = smiles_embedding_dimension
         self.num_labels = num_labels
-        self.dropout = dropout
+        self.dropout_p = dropout
         self.classifier = nn.Linear(
             smiles_embedding_dimension, num_labels, device=model.device
         )
-        self.dropout = nn.Dropout(dropout, inplace=True)
+        self.dropout = nn.Dropout(self.dropout_p, inplace=True)
 
     def forward(
         self, smiles_features: Iterable[Dict[str, Tensor]]
@@ -71,7 +81,7 @@ class _ClassifierLoss(nn.Module):
         return {
             "smiles_embedding_dimension": self.smiles_embedding_dimension,
             "num_labels": self.num_labels,
-            "dropout": self.dropout,
+            "dropout": self.dropout_p,
         }
 
 
@@ -84,6 +94,7 @@ class SelfAdjDiceLoss(_ClassifierLoss):
         smiles_embedding_dimension: int,
         num_labels: int,
         dropout: float = 0.15,
+        freeze_model: bool = False,
         alpha: float = 1.0,
         gamma: float = 1.0,
         reduction: str = "mean",
@@ -102,6 +113,8 @@ class SelfAdjDiceLoss(_ClassifierLoss):
             The number of labels to classify
         dropout : float, optional
             The dropout rate for regularization, defaults to 0.15
+        feeze_model : bool, optional
+            Whether to freeze the sentence transformer model, defaults to False.
         alpha : float, optional
             Factor to down-weight easy examples, defaults to 1.0
             `A close look at Eq.12 reveals that it actually mimics the idea of focal loss (FL for short) (Lin et al.,
@@ -133,7 +146,9 @@ class SelfAdjDiceLoss(_ClassifierLoss):
             | SMILES string                  | class  |
             +--------------------------------+--------+
         """  # noqa
-        super().__init__(model, smiles_embedding_dimension, num_labels, dropout)
+        super().__init__(
+            model, smiles_embedding_dimension, num_labels, dropout, freeze_model
+        )
         self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
@@ -185,6 +200,7 @@ class SoftmaxLoss(_ClassifierLoss):
         smiles_embedding_dimension: int,
         num_labels: int,
         dropout: float = 0.15,
+        freeze_model: bool = False,
         loss_fct: Callable = nn.CrossEntropyLoss(),
     ):
         """
@@ -202,6 +218,8 @@ class SoftmaxLoss(_ClassifierLoss):
             The number of labels to classify
         dropout : float, optional
             The dropout rate to apply to the embeddings, defaults to 0.15
+        freeze_model : bool, optional
+            Whether to freeze the model weights, defaults to False
         loss : nn.Module, optional
             The base loss function to compute the final loss value, defaults to nn.MSELoss()
 
@@ -212,7 +230,9 @@ class SoftmaxLoss(_ClassifierLoss):
             | SMILES string                         | class  |
             +---------------------------------------+--------+
         """
-        super().__init__(model, smiles_embedding_dimension, num_labels, dropout)
+        super().__init__(
+            model, smiles_embedding_dimension, num_labels, dropout, freeze_model
+        )
         self.loss_fct = loss_fct
 
     def forward(self, smiles_features: Iterable[Dict[str, Tensor]], labels: Tensor):

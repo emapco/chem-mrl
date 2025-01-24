@@ -1,0 +1,22 @@
+# analysis
+rdkit==2024.9.4
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.6.1
+fastparquet==2024.11.0
+opencv-python==4.11.0.86
+
+# for web scraping smiles from websites
+beautifulsoup4==4.12.3
+# store data to db
+sqlalchemy==2.0.37
+psycopg2-binary==2.9.9
+pgvector==0.3.6
+chromadb==0.6.3
+# misc
+fickling==0.1.3
+
+# recommended to use a RAPIDS container for GPU acceleration (cudf)
+# otherwise refer to:
+# https://github.com/rapidsai/cudf?tab=readme-ov-file#installation
+# Alternatively, use pandas via `import pandas as cudf`

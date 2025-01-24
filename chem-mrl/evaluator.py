@@ -1,23 +1,18 @@
-from contextlib import nullcontext
-from enum import Enum
-from typing import Literal, Iterable
+import csv
+import gc
 import logging
 import os
-import gc
-import csv
-import time
+from contextlib import nullcontext
+from enum import Enum
+from typing import Iterable, Literal
 
+import numpy as np
 import torch
-from sentence_transformers import SentenceTransformer
-from sentence_transformers.evaluation import (
-    SentenceEvaluator,
-)
-
 from scipy.stats import pearsonr, spearmanr
+from sentence_transformers import SentenceTransformer
+from sentence_transformers.evaluation import SentenceEvaluator
 from sklearn.metrics.pairwise import check_paired_arrays, row_norms
 from sklearn.preprocessing import normalize
-import numpy as np
-
 
 logger = logging.getLogger(__name__)
 

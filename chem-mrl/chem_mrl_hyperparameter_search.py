@@ -1,30 +1,24 @@
-import math
-import logging
-import os
 import gc
+import logging
+import math
+import os
 
+import optuna
+import pandas as pd
 import transformers
 from apex.optimizers import FusedAdam
-from sentence_transformers import (
-    models,
-    SentenceTransformer,
-)
-import pandas as pd
-import optuna
-import wandb
-
+from constants import TRAIN_DS_DICT, VAL_DS_DICT
 from evaluator import EmbeddingSimilarityEvaluator, SimilarityFunction
 from load_data import load_data
+from sentence_transformers import SentenceTransformer, models
 from utils import (
     get_base_loss,
     get_model_save_path,
-    get_train_loss,
     get_signed_in_wandb_callback,
+    get_train_loss,
 )
-from constants import (
-    TRAIN_DS_DICT,
-    VAL_DS_DICT,
-)
+
+import wandb
 
 logger = logging.getLogger(__name__)
 PROJECT_NAME = "chem-mrl-hyperparameter-tuning-2025"
@@ -55,9 +49,10 @@ def objective(
         # https://wandb.ai/seyonec/huggingface/reports/seyonec-s-ChemBERTa-update-08-31--VmlldzoyMjM1NDY
         "num_epochs": 5,
         # scheduler parameters
-        "lr_base": trial.suggest_float(
-            "lr_base", 5.0e-06, 1.0e-04
-        ),  # 1.1190785944700813e-05
+        # "lr_base": trial.suggest_float(
+        #     "lr_base", 5.0e-06, 1.0e-04
+        # ),  # 1.1190785944700813e-05
+        "lr_base": 1.1190785944700813e-05,
         "scheduler": trial.suggest_categorical(
             "scheduler",
             [
@@ -201,7 +196,14 @@ def objective(
 def generate_hyperparameters():
     """Use this to generate hyperparameters to then be manually trained on using working training code."""
     study = optuna.create_study(
-        storage="postgresql://postgres:password@192.168.0.8:5432/postgres",
+        storage=optuna.storages.RDBStorage(
+            url="postgresql://postgres:password@192.168.0.8:5432/postgres",
+            heartbeat_interval=10,
+            engine_kwargs={
+                "pool_size": 20,
+                "connect_args": {"keepalives": 1},
+            },
+        ),
         study_name=PROJECT_NAME,
         direction="maximize",
         load_if_exists=True,

@@ -1,9 +1,9 @@
-from typing import Iterable, Dict
+from typing import Dict, Iterable
 
-from torch import Tensor, tensor, nn
 import sentence_transformers
-from sentence_transformers import util, SentenceTransformer
+from sentence_transformers import SentenceTransformer, util
 from sentence_transformers.losses import CoSENTLoss
+from torch import Tensor, nn, tensor
 
 
 def pairwise_tanimoto_similarity(x: Tensor, y: Tensor) -> Tensor:
@@ -124,9 +124,9 @@ class TanimotoSimilarityLoss(nn.Module):
             for smiles_feature in smiles_features
         ]
 
-        if isinstance(self.loss, nn.CosineEmbeddingLoss):
-            loss = self.loss(embeddings[0], embeddings[1], labels)
-            return loss
+        # if isinstance(self.loss, nn.CosineEmbeddingLoss):
+        #     loss = self.loss(embeddings[0], embeddings[1], labels)
+        #     return loss
 
         similarities = self.similarity_fct(embeddings[0], embeddings[1])
         loss = self.loss_fct(similarities, labels.view(-1))

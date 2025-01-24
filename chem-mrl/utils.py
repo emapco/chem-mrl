@@ -1,12 +1,12 @@
 import logging
 import os
 
-from torch import nn
-from sentence_transformers import SentenceTransformer
 import optuna
-import wandb
-
 from constants import OUTPUT_MODEL_DIR
+from sentence_transformers import SentenceTransformer
+from torch import nn
+
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +47,8 @@ def get_base_loss(
     loss_func: str,
     tanimoto_similarity_loss_func: str | None,
 ) -> nn.Module:
-    from tanimoto_loss import TanimotoLoss, TanimotoSimilarityLoss
     from sentence_transformers import losses
+    from tanimoto_loss import TanimotoLoss, TanimotoSimilarityLoss
 
     LOSS_FUNCTIONS = {
         "tanimotoloss": lambda model: TanimotoLoss(model),

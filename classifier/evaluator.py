@@ -1,14 +1,12 @@
-import logging
-
-from sentence_transformers import SentenceTransformer
-from sentence_transformers.evaluation import (
-    SentenceEvaluator,
-)
-from sentence_transformers.util import batch_to_device
-import torch
-from torch.utils.data import DataLoader
-import os
 import csv
+import logging
+import os
+
+import torch
+from sentence_transformers import SentenceTransformer
+from sentence_transformers.evaluation import SentenceEvaluator
+from sentence_transformers.util import batch_to_device
+from torch.utils.data import DataLoader
 
 logger = logging.getLogger(__name__)
 

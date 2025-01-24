@@ -1,12 +1,12 @@
 import logging
 import os
 
-from torch import nn
-from sentence_transformers import SentenceTransformer
 import optuna
-import wandb
-
 from constants import OUTPUT_MODEL_DIR
+from sentence_transformers import SentenceTransformer
+from torch import nn
+
+import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +17,11 @@ def get_train_loss(
     num_labels: int,
     loss_func: str,
     dropout: float,
+    freeze_base_model: bool = False,
     dice_reduction: str | None = None,
     dice_gamma: float | None = None,
 ) -> nn.Module:
-    from loss import SoftmaxLoss, SelfAdjDiceLoss
+    from loss import SelfAdjDiceLoss, SoftmaxLoss
 
     if loss_func == "SoftMax":
         return SoftmaxLoss(
@@ -28,14 +29,16 @@ def get_train_loss(
             smiles_embedding_dimension=smiles_embedding_dimension,
             num_labels=num_labels,
             dropout=dropout,
+            freeze_model=freeze_base_model,
         )
     return SelfAdjDiceLoss(
         model=model,
         smiles_embedding_dimension=smiles_embedding_dimension,
         num_labels=num_labels,
+        dropout=dropout,
+        freeze_model=freeze_base_model,
         reduction=dice_reduction or "mean",
         gamma=dice_gamma or 1.0,
-        dropout=dropout,
     )
 
 

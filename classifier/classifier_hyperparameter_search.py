@@ -1,25 +1,22 @@
-import math
 import logging
+import math
 import os
 
+import optuna
+import pandas as pd
 import transformers
 from apex.optimizers import FusedAdam
-from sentence_transformers import (
-    models,
-    SentenceTransformer,
-)
-import pandas as pd
-import optuna
-import wandb
-
 from constants import (
-    ISOMER_DESIGN_TRAIN_DS_PATH,
-    ISOMER_DESIGN_VAL_DS_PATH,
     MODEL_NAMES,
+    TRAIN_ISOMER_DESIGN_DS_PATH,
+    VAL_ISOMER_DESIGN_DS_PATH,
 )
 from evaluator import LabelAccuracyEvaluator
 from load_data import load_data
-from utils import get_train_loss, get_model_save_path, get_signed_in_wandb_callback
+from sentence_transformers import SentenceTransformer, models
+from utils import get_model_save_path, get_signed_in_wandb_callback, get_train_loss
+
+import wandb
 
 logger = logging.getLogger(__name__)
 PROJECT_NAME = "chem-mrl-classification-hyperparameter-search-2025"
@@ -64,6 +61,7 @@ def objective(
             if "seyonec" not in model_name
             else 768
         ),
+        "freeze_model": trial.suggest_categorical("freeze_model", [True, False]),
     }
     if param_config["loss_func"] == "SelfAdjDice":
         param_config.update(
@@ -83,8 +81,8 @@ def objective(
 
     train_dataloader, val_dataloader, _, num_labels = load_data(
         batch_size=param_config["train_batch_size"],
-        train_file=ISOMER_DESIGN_TRAIN_DS_PATH,
-        val_file=ISOMER_DESIGN_VAL_DS_PATH,
+        train_file=TRAIN_ISOMER_DESIGN_DS_PATH,
+        val_file=VAL_ISOMER_DESIGN_DS_PATH,
     )
 
     train_loss = get_train_loss(
@@ -93,6 +91,7 @@ def objective(
         num_labels=num_labels,
         loss_func=param_config["loss_func"],
         dropout=param_config["dropout_p"],
+        freeze_base_model=param_config["freeze_model"],
         dice_reduction=param_config.get("dice_reduction"),
         dice_gamma=param_config.get("dice_gamma"),
     )

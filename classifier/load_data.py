@@ -1,15 +1,11 @@
 import logging
 import os
 
-import torch
-from torch.utils.data import DataLoader, Dataset
-from sentence_transformers import (
-    LoggingHandler,
-    InputExample,
-)
 import pandas as pd
-
+import torch
 from constants import CAT_TO_LABEL
+from sentence_transformers import InputExample, LoggingHandler
+from torch.utils.data import DataLoader, Dataset
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 torch.backends.cuda.matmul.allow_tf32 = True

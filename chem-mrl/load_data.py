@@ -1,18 +1,11 @@
 import logging
 import os
 
-import torch
-from torch.utils.data import DataLoader, Dataset
-from sentence_transformers import (
-    LoggingHandler,
-    InputExample,
-)
 import pandas as pd
-
-from constants import (
-    TRAIN_DS_DICT,
-    VAL_DS_DICT,
-)
+import torch
+from constants import TRAIN_DS_DICT, VAL_DS_DICT
+from sentence_transformers import InputExample, LoggingHandler
+from torch.utils.data import DataLoader, Dataset
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -48,8 +41,8 @@ def load_data(
     sample_seed: int = 42,
     num_of_rows_to_train_on: int | None = None,
     num_of_rows_to_validate_on: int | None = None,
-    train_file: str = TRAIN_DS_DICT["morgan-similarity"],
-    val_file: str | None = VAL_DS_DICT["morgan-similarity"],
+    train_file: str = TRAIN_DS_DICT["fp-similarity"],
+    val_file: str | None = VAL_DS_DICT["fp-similarity"],
 ):
     logging.info(f"Loading {train_file} dataset")
     train_df = pd.read_parquet(
@@ -61,8 +54,8 @@ def load_data(
             n=num_of_rows_to_train_on,
             replace=False,
             random_state=sample_seed,
+            ignore_index=True,
         )
-        train_df.reset_index(drop=True, inplace=True)
 
     train_dataloader = DataLoader(
         PandasDataFrameDataset(train_df),
@@ -88,8 +81,8 @@ def load_data(
                 n=num_of_rows_to_validate_on,
                 replace=False,
                 random_state=sample_seed,
+                ignore_index=True,
             )
-            val_df.reset_index(drop=True, inplace=True)
 
     # validation uses int8 tensors but keep it as a float for now
     val_df = val_df.astype({"fingerprint_similarity": "float16"})
