@@ -4,7 +4,7 @@ from contextlib import nullcontext
 
 import transformers
 from apex.optimizers import FusedAdam
-from constants import TRAIN_DS_DICT, VAL_DS_DICT
+from constants import CHEM_MRL_DIMENSIONS, TRAIN_DS_DICT, VAL_DS_DICT
 from evaluator import EmbeddingSimilarityEvaluator, SimilarityFunction
 from load_data import load_data
 from sentence_transformers import SentenceTransformer, models
@@ -152,7 +152,6 @@ def train(args):
         precision="int8",
     )
 
-    dimensions = [768, 512, 256, 128, 64, 32]
     # more weight is given to smaller dimensions to improve downstream tasks
     # that benefit from dimensionality reduction (e.g. clustering)
     matryoshka_weights = [
@@ -167,7 +166,7 @@ def train(args):
         model,
         get_base_loss(model, args.loss_func, args.tanimoto_similarity_loss_func),
         args.use_2d_matryoshka,
-        dimensions,
+        CHEM_MRL_DIMENSIONS,
         matryoshka_weights,
         args.last_layer_weight,
         args.prior_layers_weight,

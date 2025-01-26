@@ -7,6 +7,7 @@ import pandas as pd
 import transformers
 from apex.optimizers import FusedAdam
 from constants import (
+    CHEM_MRL_DIMENSIONS,
     MODEL_NAMES,
     TRAIN_ISOMER_DESIGN_DS_PATH,
     VAL_ISOMER_DESIGN_DS_PATH,
@@ -57,7 +58,7 @@ def objective(
             "dropout_p", [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
         ),
         "matryoshka_dim": (
-            trial.suggest_categorical("matryoshka_dim", [768, 512, 256, 128, 64, 32])
+            trial.suggest_categorical("matryoshka_dim", CHEM_MRL_DIMENSIONS)
             if "seyonec" not in model_name
             else 768
         ),

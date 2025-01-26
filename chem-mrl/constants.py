@@ -4,6 +4,7 @@ _const_file_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_const_file_dir)
 _data_dir = os.path.join(_parent_dir, "data", "chem")
 OUTPUT_MODEL_DIR = os.path.join(_parent_dir, "output")
+CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32]
 
 TRAIN_DS_DICT = {
     "functional-qed-pfizer-fp-similarity": os.path.join(

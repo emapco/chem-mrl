@@ -4,7 +4,11 @@ from contextlib import nullcontext
 
 import transformers
 from apex.optimizers import FusedAdam
-from constants import TRAIN_ISOMER_DESIGN_DS_PATH, VAL_ISOMER_DESIGN_DS_PATH
+from constants import (
+    CHEM_MRL_DIMENSIONS,
+    TRAIN_ISOMER_DESIGN_DS_PATH,
+    VAL_ISOMER_DESIGN_DS_PATH,
+)
 from evaluator import LabelAccuracyEvaluator
 from load_data import load_data
 from sentence_transformers import SentenceTransformer, models
@@ -20,7 +24,7 @@ def parse_args():
     parser.add_argument(
         "--classifier_hidden_dimension",
         type=int,
-        choices=[768, 512, 256, 128, 64, 32],
+        choices=CHEM_MRL_DIMENSIONS,
         default=768,
         help="Hidden dimension of classifier model. Must be one of the dimensions of the base MRL model.",
     )

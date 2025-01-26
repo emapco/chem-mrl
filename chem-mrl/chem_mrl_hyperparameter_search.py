@@ -7,7 +7,7 @@ import optuna
 import pandas as pd
 import transformers
 from apex.optimizers import FusedAdam
-from constants import TRAIN_DS_DICT, VAL_DS_DICT
+from constants import CHEM_MRL_DIMENSIONS, TRAIN_DS_DICT, VAL_DS_DICT
 from evaluator import EmbeddingSimilarityEvaluator, SimilarityFunction
 from load_data import load_data
 from sentence_transformers import SentenceTransformer, models
@@ -114,7 +114,6 @@ def objective(
         precision="int8",
     )
 
-    dimensions = [768, 512, 256, 128, 64, 32]
     matryoshka_weights: list[float] = [
         param_config["first_dim_weight"],
         param_config["second_dim_weight"],
@@ -127,7 +126,7 @@ def objective(
         model,
         get_base_loss(model, loss_func, param_config["tanimoto_similarity_loss_func"]),
         param_config["use_2d_matryoshka"],
-        dimensions,
+        CHEM_MRL_DIMENSIONS,
         matryoshka_weights,
         param_config["last_layer_weight"],
         param_config["prior_layers_weight"],
