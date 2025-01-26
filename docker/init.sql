@@ -2,124 +2,106 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS vector;
 
-SET hnsw.ef_search = 100;
-SET max_parallel_maintenance_workers = 7; -- plus leader
-SET maintenance_work_mem = '16GB';
-
 -- base transformer model prior to MRL training
-CREATE TABLE base_768 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS base_768 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(768)
+    embedding halfvec(768)
 );
-CREATE INDEX ON base_768 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS base_768_embedding_idx ON base_768 USING hnsw ((embedding::halfvec(768)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
 -- create different tables for different embedding sizes and create a hnsw index on the embedding column
 -- these tables and indicies are for comparing performance and accuracy of different embedding sizes
 
-CREATE TABLE cme_768 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cme_768 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(768)
+    embedding halfvec(768)
 );
-CREATE INDEX ON cme_768 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS cme_768_embedding_idx ON cme_768 USING hnsw ((embedding::halfvec(768)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE cme_512 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cme_512 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(512)
+    embedding halfvec(512)
 );
-CREATE INDEX ON cme_512 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS cme_512_embedding_idx ON cme_512 USING hnsw ((embedding::halfvec(512)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE cme_256 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cme_256 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(256)
+    embedding halfvec(256)
 );
-CREATE INDEX ON cme_256 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS cme_256_embedding_idx ON cme_256 USING hnsw ((embedding::halfvec(256)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE cme_128 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cme_128 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(128)
+    embedding halfvec(128)
 );
-CREATE INDEX ON cme_128 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS cme_128_embedding_idx ON cme_128 USING hnsw ((embedding::halfvec(128)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE cme_64 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cme_64 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(64)
+    embedding halfvec(64)
 );
-CREATE INDEX ON cme_64 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS cme_64_embedding_idx ON cme_64 USING hnsw ((embedding::halfvec(64)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE cme_32 (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-  smiles TEXT NOT NULL,
-  zinc_id TEXT NOT NULL,
-  embedding VECTOR(32)
-);
-CREATE INDEX ON cme_32 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
-
--- Table and index for morgen fingerprint embedding size 2000
--- 2000 is the maximum embedding size supported by pgvector
-CREATE TABLE test_2000 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS cme_32 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(2000)
+    embedding halfvec(32)
 );
-CREATE INDEX ON test_2000 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS cme_32_embedding_idx ON cme_32 USING hnsw ((embedding::halfvec(32)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE test_768 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+-- Table and index for morgen fingerprint embedding size 4000
+-- 4000 is the maximum embedding size supported by pgvector for halfvec
+CREATE TABLE IF NOT EXISTS test_4000 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(768)
+    embedding halfvec(4000)
 );
-CREATE INDEX ON test_768 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS test_4000_embedding_idx ON test_4000 USING hnsw ((embedding::halfvec(4000)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE test_512 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS test_768 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(512)
+    embedding halfvec(768)
 );
-CREATE INDEX ON test_512 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS test_768_embedding_idx ON test_768 USING hnsw ((embedding::halfvec(768)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE test_256 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS test_512 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(256)
+    embedding halfvec(512)
 );
-CREATE INDEX ON test_256 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS test_512_embedding_idx ON test_512 USING hnsw ((embedding::halfvec(512)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE test_128 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS test_256 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(128)
+    embedding halfvec(256)
 );
-CREATE INDEX ON test_128 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS test_256_embedding_idx ON test_256 USING hnsw ((embedding::halfvec(256)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE test_64 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS test_128 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(64)
+    embedding halfvec(128)
 );
-CREATE INDEX ON test_64 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS test_128_embedding_idx ON test_128 USING hnsw ((embedding::halfvec(128)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
-CREATE TABLE test_32 (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS test_64 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    zinc_id TEXT NOT NULL,
-    embedding VECTOR(32)
+    embedding halfvec(64)
 );
-CREATE INDEX ON test_32 USING hnsw (embedding vector_cosine_ops) WITH (m = 32, ef_construction = 128);
+CREATE INDEX IF NOT EXISTS test_64_embedding_idx ON test_64 USING hnsw ((embedding::halfvec(64)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
+
+CREATE TABLE IF NOT EXISTS test_32 (
+    zinc_id TEXT NOT NULL PRIMARY KEY,
+    smiles TEXT NOT NULL,
+    embedding halfvec(32)
+);
+CREATE INDEX IF NOT EXISTS test_32_embedding_idx ON test_32 USING hnsw ((embedding::halfvec(32)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);

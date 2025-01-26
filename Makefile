@@ -1,13 +1,21 @@
-.PHONY: docker
+.PHONY: docker, rapids, benchmark_db, optuna_db, clear_benchmark_db, clear_optuna_db
 
 docker:
-	docker-compose up -d --build zinc-postgres rapids_notebooks optuna-postgres
+	docker compose up -d --build benchmark-postgres rapids-notebooks optuna-postgres
 
 rapids:
-	docker-compose up -d --build rapids_notebooks
+	docker compose up -d --build rapids-notebooks
 
-zinc_db:
-	docker-compose up -d --build zinc-postgres
+benchmark_db:
+	docker compose up -d --build benchmark-postgres
 
 optuna_db:
-	docker-compose up -d --build optuna-postgres
+	docker compose up -d --build optuna-postgres
+
+clear_benchmark_db:
+	sudo rm -r ~/dev-postgres/chem/
+	make benchmark_db
+
+clear_optuna_db:
+	sudo rm -r ~/dev-postgres/optuna/
+	make optuna_db

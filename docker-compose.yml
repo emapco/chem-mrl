@@ -12,22 +12,23 @@ services:
     networks:
       - chem-network
     restart: always
-  zinc-postgres:
+  benchmark-postgres:
     build:
       context: docker
-      dockerfile: DB.Dockerfile
+      dockerfile: BenchmarkDB.Dockerfile
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=postgres
     volumes:
-      - ${HOME}/dev-postgres/chem/:/var/lib/postgresql/data
+      - ${HOME}/dev-postgres/chem:/var/lib/postgresql/data
     ports:
       - 5431:5432
     networks:
       - chem-network
+    shm_size: 60g # must be greater than the size of the database
     restart: always
-  rapids_notebooks:
+  rapids-notebooks:
     image: nvcr.io/nvidia/rapidsai/notebooks:24.08-cuda12.2-py3.11
     volumes:
       - ./:/home/rapids/notebooks/chem-mrl
