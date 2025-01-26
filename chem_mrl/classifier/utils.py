@@ -2,11 +2,10 @@ import logging
 import os
 
 import optuna
+import wandb
 from constants import OUTPUT_MODEL_DIR
 from sentence_transformers import SentenceTransformer
 from torch import nn
-
-import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ def get_train_loss(
     dice_reduction: str | None = None,
     dice_gamma: float | None = None,
 ) -> nn.Module:
-    from loss import SelfAdjDiceLoss, SoftmaxLoss
+    from chem_mrl.losses import SelfAdjDiceLoss, SoftmaxLoss
 
     if loss_func == "SoftMax":
         return SoftmaxLoss(

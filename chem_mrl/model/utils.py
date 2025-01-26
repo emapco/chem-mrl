@@ -2,11 +2,10 @@ import logging
 import os
 
 import optuna
+import wandb
 from constants import OUTPUT_MODEL_DIR
 from sentence_transformers import SentenceTransformer
 from torch import nn
-
-import wandb
 
 logger = logging.getLogger(__name__)
 
@@ -48,10 +47,11 @@ def get_base_loss(
     tanimoto_similarity_loss_func: str | None,
 ) -> nn.Module:
     from sentence_transformers import losses
-    from tanimoto_loss import TanimotoLoss, TanimotoSimilarityLoss
+
+    from chem_mrl.losses import TanimotoSentLoss, TanimotoSimilarityLoss
 
     LOSS_FUNCTIONS = {
-        "tanimotoloss": lambda model: TanimotoLoss(model),
+        "tanimotosentloss": lambda model: TanimotoSentLoss(model),
         "cosentloss": lambda model: losses.CoSENTLoss(model),
         "tanimotosimilarityloss": {
             "mse": lambda model: TanimotoSimilarityLoss(model, loss=nn.MSELoss()),
@@ -71,7 +71,7 @@ def get_base_loss(
             ),
         },
     }
-    if loss_func in ["tanimotoloss", "cosentloss"]:
+    if loss_func in ["tanimotosentloss", "cosentloss"]:
         return LOSS_FUNCTIONS[loss_func](model)
 
     return LOSS_FUNCTIONS["tanimotosimilarityloss"][tanimoto_similarity_loss_func](

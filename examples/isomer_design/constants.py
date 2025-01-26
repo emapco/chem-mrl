@@ -5,16 +5,8 @@ _parent_dir = os.path.dirname(_const_file_dir)
 _data_dir = os.path.join(_parent_dir, "data", "chem")
 OUTPUT_MODEL_DIR = os.path.join(_parent_dir, "output")
 CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32]
+OPTUNA_DB_URI = "postgresql://postgres:password@127.0.0.1:5432/postgres"
 
-TRAIN_ISOMER_DESIGN_DS_PATH = os.path.join(
-    _data_dir, "isomer_design", "train_isomer_design.parquet"
-)
-VAL_ISOMER_DESIGN_DS_PATH = os.path.join(
-    _data_dir, "isomer_design", "val_isomer_design.parquet"
-)
-TEST_ISOMER_DESIGN_DS_PATH = os.path.join(
-    _data_dir, "isomer_design", "test_isomer_design.parquet"
-)
 
 MODEL_NAMES = {
     # full dataset 2d-mrl-embed preferred in init. hyperparam. search
@@ -37,6 +29,20 @@ MODEL_NAMES = {
         "-num_epochs_2-epoch_4-best-model-1900000_steps",
     ),
 }
+
+##############################
+# ISOMER DESIGN CLASSIFICATION
+##############################
+
+TRAIN_ISOMER_DESIGN_DS_PATH = os.path.join(
+    _data_dir, "isomer_design", "train_isomer_design.parquet"
+)
+VAL_ISOMER_DESIGN_DS_PATH = os.path.join(
+    _data_dir, "isomer_design", "val_isomer_design.parquet"
+)
+TEST_ISOMER_DESIGN_DS_PATH = os.path.join(
+    _data_dir, "isomer_design", "test_isomer_design.parquet"
+)
 
 CAT_TO_LABEL = {
     "unknown": 0,

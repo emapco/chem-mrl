@@ -3,34 +3,42 @@ import math
 from contextlib import nullcontext
 
 import transformers
+import wandb
 from apex.optimizers import FusedAdam
-from constants import (
-    CHEM_MRL_DIMENSIONS,
-    TRAIN_ISOMER_DESIGN_DS_PATH,
-    VAL_ISOMER_DESIGN_DS_PATH,
-)
-from evaluator import LabelAccuracyEvaluator
 from load_data import load_data
 from sentence_transformers import SentenceTransformer, models
-from utils import get_model_save_path, get_signed_in_wandb_callback, get_train_loss
+from utils import (
+    get_base_loss,
+    get_model_save_path,
+    get_signed_in_wandb_callback,
+    get_train_loss,
+)
 
-import wandb
+from chem_mrl.constants import (
+    BASE_MODEL_NAME,
+    CHEM_MRL_DIMENSIONS,
+    TRAIN_DS_DICT,
+    VAL_DS_DICT,
+)
+from chem_mrl.evaluation import EmbeddingSimilarityEvaluator, SimilarityFunction
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Train classifier model")
+    parser = argparse.ArgumentParser(description="Train chemical embeddings model")
     # Model params
-    parser.add_argument("--model_name", required=True)
     parser.add_argument(
-        "--classifier_hidden_dimension",
-        type=int,
-        choices=CHEM_MRL_DIMENSIONS,
-        default=768,
-        help="Hidden dimension of classifier model. Must be one of the dimensions of the base MRL model.",
+        "--model_name",
+        default=BASE_MODEL_NAME,
+        help="Base SMILES model name",
     )
     parser.add_argument("--train_batch_size", type=int, default=160)
     parser.add_argument("--num_epochs", type=int, default=3)
     parser.add_argument("--evaluation_steps", type=int, default=0)
+    parser.add_argument(
+        "--use_2d_matryoshka",
+        action="store_true",
+        help="Use 2D Matryoshka instead of 1D Matryoshka",
+    )
     # Wandb params
     parser.add_argument("--use_wandb", action="store_true")
     parser.add_argument("--wandb_api_key", default=None)
@@ -52,7 +60,7 @@ def parse_args():
             "warmupcosine",
             "warmupcosinewithhardrestarts",
         ],
-        default="warmupcosinewithhardrestarts",
+        default="warmuplinear",
     )
     parser.add_argument("--warmup_steps_percent", type=float, default=0.0)
     parser.add_argument(
@@ -62,40 +70,57 @@ def parse_args():
     )
     # Loss function params
     parser.add_argument(
-        "--loss_func", choices=["SoftMax", "SelfAdjDice"], required=True
+        "--loss_func",
+        choices=["tanimotosentloss", "tanimotosimilarityloss", "cosentloss"],
+        default="tanimotosentloss",
+    )
+    # Available loss functions are defined in utils/get_tanimoto_similarity_base_loss()
+    parser.add_argument(
+        "--tanimoto_similarity_loss_func",
+        choices=[
+            "mse",
+            "l1",
+            "smooth_l1",
+            "huber",
+            "bin_cross_entropy",
+            "kldiv",
+            "cosine_embedding_loss",
+        ],
+        help="Loss function to use for TanimotoSimilarityLoss",
+    )
+    # Layer weights
+    parser.add_argument(
+        "--last_layer_weight", type=float, default=1.8708220063487997, required=True
     )
     parser.add_argument(
-        "--dropout_p", type=float, default=0.15, help="Dropout probability"
+        "--prior_layers_weight", type=float, default=1.4598249321447245, required=True
     )
     parser.add_argument(
-        "--freeze_model",
-        action="store_true",
-        help="Freeze the base MRL model during training",
+        "--first_dim_weight", type=float, default=1.0489590183361719, required=True
     )
     parser.add_argument(
-        "--dice_reduction",
-        default="mean",
-        choices=["mean", "sum"],
+        "--second_dim_weight", type=float, default=1.126163907196291, required=True
     )
     parser.add_argument(
-        "--dice_gamma",
-        type=float,
-        default=1.0,
-        min=0.0,
-    )
-    # dataset paths
-    parser.add_argument(
-        "--train_dataset_path",
-        default=TRAIN_ISOMER_DESIGN_DS_PATH,
-        help="Path to train dataset",
+        "--third_dim_weight", type=float, default=1.3807986616809407, required=True
     )
     parser.add_argument(
-        "--val_dataset_path",
-        default=VAL_ISOMER_DESIGN_DS_PATH,
-        help="Path to validation dataset",
+        "--fourth_dim_weight", type=float, default=1.397331091971628, required=True
+    )
+    parser.add_argument(
+        "--fifth_dim_weight", type=float, default=1.6522851342433993, required=True
+    )
+    parser.add_argument(
+        "--sixth_dim_weight", type=float, default=1.9858679040493405, required=True
     )
     # misc.
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument(
+        "--dataset_key",
+        choices=list(TRAIN_DS_DICT.keys()),
+        help="Key for the dataset to train and validate on. Options defined in constants.py",
+        required=True,
+    )
     parser.add_argument("--model_output_path", default="output")
     parser.add_argument("--checkpoint_save_steps", type=int, default=1000000)
     parser.add_argument("--checkpoint_save_total_limit", type=int, default=20)
@@ -107,37 +132,49 @@ def train(args):
     if args.seed is not None:
         transformers.set_seed(args.seed)
 
-    # Load model components
     word_embedding_model = models.Transformer(args.model_name)
     pooling_model = models.Pooling(
         word_embedding_model.get_word_embedding_dimension(), pooling_mode="mean"
     )
-    model = SentenceTransformer(
-        modules=[word_embedding_model, pooling_model],
-        truncate_dim=args.classifier_hidden_dimension,
-    )
+    model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
-    train_dataloader, val_dataloader, _, num_labels = load_data(
+    train_dataloader, val_df = load_data(
         batch_size=args.train_batch_size,
-        train_file=args.train_dataset_path,
-        val_file=args.val_dataset_path,
+        sample_seed=args.seed,
+        train_file=TRAIN_DS_DICT[args.dataset_key],
+        val_file=VAL_DS_DICT[args.dataset_key],
     )
 
-    train_loss = get_train_loss(
-        model=model,
-        smiles_embedding_dimension=args.classifier_hidden_dimension,
-        num_labels=num_labels,
-        loss_func=args.loss_func,
-        dropout=args.dropout_p,
-        freeze_base_model=args.freeze_model,
-        dice_reduction=args.dice_reduction,
-        dice_gamma=args.dice_gamma,
-    )
-
-    val_evaluator = LabelAccuracyEvaluator(
-        dataloader=val_dataloader,
-        softmax_model=train_loss,
+    val_evaluator = EmbeddingSimilarityEvaluator(
+        val_df["smiles_a"],
+        val_df["smiles_b"],
+        val_df["fingerprint_similarity"],
+        batch_size=args.train_batch_size,
+        main_similarity=SimilarityFunction.TANIMOTO,
+        name="morgan-similarity",
+        show_progress_bar=True,
         write_csv=True,
+        precision="int8",
+    )
+
+    # more weight is given to smaller dimensions to improve downstream tasks
+    # that benefit from dimensionality reduction (e.g. clustering)
+    matryoshka_weights = [
+        args.first_dim_weight,
+        args.second_dim_weight,
+        args.third_dim_weight,
+        args.fourth_dim_weight,
+        args.fifth_dim_weight,
+        args.sixth_dim_weight,
+    ]
+    train_loss = get_train_loss(
+        model,
+        get_base_loss(model, args.loss_func, args.tanimoto_similarity_loss_func),
+        args.use_2d_matryoshka,
+        CHEM_MRL_DIMENSIONS,
+        matryoshka_weights,
+        args.last_layer_weight,
+        args.prior_layers_weight,
     )
 
     # Calculate training parameters

@@ -6,9 +6,8 @@ import os
 import optuna
 import pandas as pd
 import transformers
+import wandb
 from apex.optimizers import FusedAdam
-from constants import CHEM_MRL_DIMENSIONS, TRAIN_DS_DICT, VAL_DS_DICT
-from evaluator import EmbeddingSimilarityEvaluator, SimilarityFunction
 from load_data import load_data
 from sentence_transformers import SentenceTransformer, models
 from utils import (
@@ -18,7 +17,14 @@ from utils import (
     get_train_loss,
 )
 
-import wandb
+from chem_mrl.constants import (
+    BASE_MODEL_NAME,
+    CHEM_MRL_DIMENSIONS,
+    OPTUNA_DB_URI,
+    TRAIN_DS_DICT,
+    VAL_DS_DICT,
+)
+from chem_mrl.evaluation import EmbeddingSimilarityEvaluator, SimilarityFunction
 
 logger = logging.getLogger(__name__)
 PROJECT_NAME = "chem-mrl-hyperparameter-tuning-2025"
@@ -27,7 +33,7 @@ PROJECT_NAME = "chem-mrl-hyperparameter-tuning-2025"
 def objective(
     trial: optuna.Trial,
 ) -> float:
-    model_name = "seyonec/ChemBERTa-zinc-base-v1"
+    model_name = BASE_MODEL_NAME
     word_embedding_model = models.Transformer(model_name)
     pooling_model = models.Pooling(
         word_embedding_model.get_word_embedding_dimension(), pooling_mode="mean"
@@ -36,7 +42,7 @@ def objective(
 
     # generate hyperparameters
     loss_func = trial.suggest_categorical(
-        "loss_func", ["tanimotoloss", "tanimotosimilarityloss", "cosentloss"]
+        "loss_func", ["tanimotosentloss", "tanimotosimilarityloss", "cosentloss"]
     )
     param_config = {
         "model_name": model_name,
@@ -44,7 +50,7 @@ def objective(
             "dataset_key", list(TRAIN_DS_DICT.keys())
         ),
         "seed": 42,
-        "train_batch_size": 64,
+        "train_batch_size": 32,
         # num-epochs: 2-3 likely based on chemberta hyperparameter search on wandb
         # https://wandb.ai/seyonec/huggingface/reports/seyonec-s-ChemBERTa-update-08-31--VmlldzoyMjM1NDY
         "num_epochs": 5,
@@ -196,7 +202,7 @@ def generate_hyperparameters():
     """Use this to generate hyperparameters to then be manually trained on using working training code."""
     study = optuna.create_study(
         storage=optuna.storages.RDBStorage(
-            url="postgresql://postgres:password@192.168.0.8:5432/postgres",
+            url=OPTUNA_DB_URI,
             heartbeat_interval=10,
             engine_kwargs={
                 "pool_size": 20,

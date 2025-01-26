@@ -43,7 +43,7 @@ def pairwise_tanimoto_similarity(x: Tensor, y: Tensor) -> Tensor:
     return dot_product / denominator.clamp(min=1e-9)
 
 
-class TanimotoLoss(CoSENTLoss):
+class TanimotoSentLoss(CoSENTLoss):
     def __init__(
         self,
         model: sentence_transformers.SentenceTransformer,

@@ -5,19 +5,24 @@ import os
 import optuna
 import pandas as pd
 import transformers
+import wandb
 from apex.optimizers import FusedAdam
 from constants import (
     CHEM_MRL_DIMENSIONS,
     MODEL_NAMES,
+    OPTUNA_DB_URI,
     TRAIN_ISOMER_DESIGN_DS_PATH,
     VAL_ISOMER_DESIGN_DS_PATH,
 )
-from evaluator import LabelAccuracyEvaluator
-from load_data import load_data
 from sentence_transformers import SentenceTransformer, models
-from utils import get_model_save_path, get_signed_in_wandb_callback, get_train_loss
 
-import wandb
+from chem_mrl.classifier.load_data import load_data
+from chem_mrl.classifier.utils import (
+    get_model_save_path,
+    get_signed_in_wandb_callback,
+    get_train_loss,
+)
+from chem_mrl.evaluation import LabelAccuracyEvaluator
 
 logger = logging.getLogger(__name__)
 PROJECT_NAME = "chem-mrl-classification-hyperparameter-search-2025"
@@ -166,7 +171,7 @@ def objective(
 
 def generate_hyperparameters():
     study = optuna.create_study(
-        storage="postgresql://postgres:password@192.168.0.8:5432/postgres",
+        storage=OPTUNA_DB_URI,
         study_name=PROJECT_NAME,
         direction="maximize",
         load_if_exists=True,

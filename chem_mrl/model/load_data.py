@@ -3,9 +3,11 @@ import os
 
 import pandas as pd
 import torch
-from constants import TRAIN_DS_DICT, VAL_DS_DICT
-from sentence_transformers import InputExample, LoggingHandler
-from torch.utils.data import DataLoader, Dataset
+from sentence_transformers import LoggingHandler
+from torch.utils.data import DataLoader
+
+from chem_mrl.constants import TRAIN_DS_DICT, VAL_DS_DICT
+from chem_mrl.datasets import PandasDataFrameDataset
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -16,24 +18,6 @@ logging.basicConfig(
     level=logging.INFO,
     handlers=[LoggingHandler()],
 )
-
-
-class PandasDataFrameDataset(Dataset):
-    """
-    PyTorch Dataset class for similarity data from Pandas DataFrame.
-    """
-
-    def __init__(self, df: pd.DataFrame):
-        self.df = df
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getitem__(self, idx: int):
-        row = self.df.iloc[idx]
-        return InputExample(
-            texts=[row.smiles_a, row.smiles_b], label=row.fingerprint_similarity
-        )
 
 
 def load_data(
@@ -58,7 +42,12 @@ def load_data(
         )
 
     train_dataloader = DataLoader(
-        PandasDataFrameDataset(train_df),
+        PandasDataFrameDataset(
+            train_df,
+            smiles_a_column="smiles_a",
+            smiles_b_column="smiles_b",
+            label_column="fingerprint_similarity",
+        ),
         batch_size=batch_size,
         shuffle=True,
         pin_memory=True,
