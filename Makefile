@@ -1,5 +1,11 @@
 .PHONY: docker, rapids, benchmark_db, optuna_db, clear_benchmark_db, clear_optuna_db
 
+install:
+	pip install -e .[dev]
+
+install-pep:
+	pip install .[dev] --use-pep517
+
 docker:
 	docker compose up -d --build benchmark-postgres rapids-notebooks optuna-postgres
 

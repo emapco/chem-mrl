@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS base_768 (
 );
 CREATE INDEX IF NOT EXISTS base_768_embedding_idx ON base_768 USING hnsw ((embedding::halfvec(768)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
--- create different tables for different embedding sizes and create a hnsw index on the embedding column
 -- these tables and indicies are for comparing performance and accuracy of different embedding sizes
 
 CREATE TABLE IF NOT EXISTS cme_768 (

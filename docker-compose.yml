@@ -33,7 +33,7 @@ services:
     volumes:
       - ./:/home/rapids/notebooks/chem-mrl
     environment:
-      CUDA_VISIBLE_DEVICES: "0"
+      CUDA_VISIBLE_DEVICES: "0,1"
     # user: "1001:1001" # standard for ubuntu
     ports:
       - 8888:8888
@@ -44,7 +44,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: 2
               capabilities: [gpu]
     shm_size: 1g
     ulimits:
