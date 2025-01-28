@@ -8,13 +8,15 @@ The `visualization` directory contains embeddings of the [Isomer Design](https:/
 
 ## Classifier
 
-The repository includes code for training a linear SBERT classifier with dropout, designed to categorize substances based on SMILES and category features. While it is specifically demonstrated on the Isomer Design dataset, the model is generalizable and can be applied to any dataset containing `smiles` and `category` features. For more information on how to prepare and load your data, refer to the `load_data` function in `classifier/load_data.py`.
+The repository includes code for training a linear SBERT classifier with dropout, designed to categorize substances based on SMILES and category features. While it is specifically demonstrated on the Isomer Design dataset, the model is generalizable and can be applied to any dataset containing `smiles` and `label` features. The training scripts include parameters to specify the `smiles` and `label` columns. The dataset is expected to be a parquet file.
 
 During training, the model was evaluated using both self-adjusting dice loss and cross-entropy loss. Hyperparameter tuning determined that cross-entropy loss outperformed self-adjusting dice loss in terms of model accuracy, making it the preferred choice for training on molecular property datasets.
 
 ## References:
-- Chithrananda, Seyone, et al. "ChemBERTa: Large-Scale Self-Supervised Pretraining for Molecular Property Prediction." *arXiv [Cs.LG]*, 2020. [Link](http://arxiv.org/abs/2010.09885).
-- Ahmad, Walid, et al. "ChemBERTa-2: Towards Chemical Foundation Models." *arXiv [Cs.LG]*, 2022. [Link](http://arxiv.org/abs/2209.01712).
-- Li, Xianming, et al. "2D Matryoshka Sentence Embeddings." *arXiv [Cs.CL]*, 2024. [Link](http://arxiv.org/abs/2402.14776).
-- Bajusz, D., Rácz, A., & Héberger, K. "Why is the Tanimoto Index an Appropriate Choice for Fingerprint-Based Similarity Calculations?" *J Cheminform*, 7, 20 (2015). [Link](https://doi.org/10.1186/s13321-015-0069-3).
-- Li, Xiaoya, et al. "Dice Loss for Data-imbalanced NLP Tasks." *arXiv [Cs.CL]*, 2020. [Link](https://arxiv.org/abs/1911.02855)
+
+- Chithrananda, Seyone, et al. "ChemBERTa: Large-Scale Self-Supervised Pretraining for Molecular Property Prediction." _arXiv [Cs.LG]_, 2020. [Link](http://arxiv.org/abs/2010.09885).
+- Ahmad, Walid, et al. "ChemBERTa-2: Towards Chemical Foundation Models." _arXiv [Cs.LG]_, 2022. [Link](http://arxiv.org/abs/2209.01712).
+- Kusupati, Aditya, et al. "Matryoshka Representation Learning." _arXiv [Cs.LG]_, 2022. [Link](https://arxiv.org/abs/2205.13147).
+- Li, Xianming, et al. "2D Matryoshka Sentence Embeddings." _arXiv [Cs.CL]_, 2024. [Link](http://arxiv.org/abs/2402.14776).
+- Bajusz, Dávid, et al. "Why is the Tanimoto Index an Appropriate Choice for Fingerprint-Based Similarity Calculations?" _J Cheminform_, 7, 20 (2015). [Link](https://doi.org/10.1186/s13321-015-0069-3).
+- Li, Xiaoya, et al. "Dice Loss for Data-imbalanced NLP Tasks." _arXiv [Cs.CL]_, 2020. [Link](https://arxiv.org/abs/1911.02855)

@@ -1,13 +1,13 @@
 import os
 
 _const_file_dir = os.path.dirname(os.path.abspath(__file__))
-_project_dir = os.path.dirname(_const_file_dir)
-_data_dir = os.path.join(_project_dir, "data", "chem")
-OUTPUT_MODEL_DIR = os.path.join(_project_dir, "output")
-OUTPUT_DATA_DIR = os.path.join(_project_dir, "data", "chem")
+_project_root_dir = os.path.dirname(_const_file_dir)
+_data_dir = os.path.join(_project_root_dir, "data", "chem")
+OUTPUT_MODEL_DIR = os.path.join(_project_root_dir, "output")
+OUTPUT_DATA_DIR = os.path.join(_project_root_dir, "data", "chem")
 EMBEDDING_MODEL_HIDDEN_DIM = 768
 TEST_FP_SIZES = [32, 64, 128, 256, 512, 768, 4000]
-CHEM_MRL_DIMENSIONS = [32, 64, 128, 256, 512, 768]
+CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32]
 BASE_MODEL_DIMENSIONS = [768]
 BASE_MODEL_NAME = "seyonec/ChemBERTa-zinc-base-v1"
 OPTUNA_DB_URI = "postgresql://postgres:password@127.0.0.1:5432/postgres"
@@ -37,6 +37,7 @@ MODEL_NAMES = {
         "-num_epochs_2-epoch_4-best-model-1900000_steps",
     ),
 }
+MODEL_NAME_KEYS = sorted(list(MODEL_NAMES.keys()))
 
 ##############################
 # CHEM-MRL DATASET MAPS
@@ -60,6 +61,7 @@ TRAIN_DS_DICT = {
     ),
     "fp-similarity": os.path.join(_data_dir, "train_fp_similarity_8192.parquet"),
 }
+CHEM_MRL_DATASET_KEYS = sorted(list(TRAIN_DS_DICT.keys()))
 
 VAL_DS_DICT = {
     "functional-qed-pfizer-fp-similarity": os.path.join(
@@ -98,7 +100,7 @@ TEST_DS_DICT = {
 }
 
 
-def check_dataset_files():
+def _check_dataset_files():
     all_dicts = {
         "Training": TRAIN_DS_DICT,
         "Validation": VAL_DS_DICT,
@@ -114,4 +116,4 @@ def check_dataset_files():
 
 
 if __name__ == "__main__":
-    check_dataset_files()
+    _check_dataset_files()

@@ -73,8 +73,8 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         )
         self.truncate_dim = truncate_dim
 
-        assert len(self.smiles1) == len(self.smiles2)
-        assert len(self.smiles1) == len(self.labels)
+        assert len(self.smiles1) == len(self.smiles2)  # type: ignore
+        assert len(self.smiles1) == len(self.labels)  # type: ignore
 
         self.main_similarity = main_similarity
         self.name = name
@@ -132,7 +132,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             gc.collect()
             logger.info("Encoding smiles 1 validation data.")
             embeddings1 = model.encode(
-                self.smiles1,
+                self.smiles1,  # type: ignore
                 batch_size=self.batch_size,
                 show_progress_bar=self.show_progress_bar,
                 convert_to_numpy=True,
@@ -141,7 +141,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             )
             logger.info("Encoding smiles 2 validation data.")
             embeddings2 = model.encode(
-                self.smiles2,
+                self.smiles2,  # type: ignore
                 batch_size=self.batch_size,
                 show_progress_bar=self.show_progress_bar,
                 convert_to_numpy=True,

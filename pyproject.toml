@@ -1,6 +1,6 @@
 [project]
 name = "chem-mrl"
-version = "0.1.0"
+version = "0.2.0"
 description = "SMILES-based Matryoshka Representation Learning Embeddings"
 license = { text = "Apache 2.0" }
 readme = "README.md"
@@ -18,28 +18,29 @@ dependencies = [
     "transformers==4.48.1", 
     "optuna==4.2.0",
     "wandb==0.19.4",
-    "torch==2.3.1",
+    "torch==2.5.1",
     "ninja==1.11.1.3",
 
     # Analysis dependencies
     "rdkit==2024.9.4",
-    "pandas==2.2.3",
-    "numpy==1.26.4", 
+    "pandas==2.2.2",
+    "numpy==2.2.2", 
     "scikit-learn==1.6.1",
     "fastparquet==2024.11.0",
     "opencv-python==4.11.0.86",
 
     # Data processing
-    "beautifulsoup4==4.12.3",
     "sqlalchemy==2.0.37",
     "psycopg2-binary==2.9.9",
     "pgvector==0.3.6",
     "chromadb==0.6.3",
-    "fickling==0.1.3"
 ]
 
 [project.urls]
 Repository = "https://github.com/emapco/chem-mrl-public"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "ipykernel", "beautifulsoup4==4.12.3", "fickling==0.1.3"]
 
 [build-system]
 requires = ["setuptools>=64", "wheel"]
