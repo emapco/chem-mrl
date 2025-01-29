@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+from .BaseTrainer import BoundTrainerType
 from .ChemMrlTrainer import ChemMRLTrainer
 from .ClassifierTrainer import ClassifierTrainer
-from .ExecutableTrainer import ExecutableTrainer
+from .TrainerExecutor import CallbackTrainerExecutor, WandBTrainerExecutor
 
-__all__ = ["ChemMRLTrainer", "ClassifierTrainer", "ExecutableTrainer"]
+__all__ = [
+    "BoundTrainerType",
+    "ChemMRLTrainer",
+    "ClassifierTrainer",
+    "WandBTrainerExecutor",
+    "CallbackTrainerExecutor",
+]
