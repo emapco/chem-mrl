@@ -28,38 +28,60 @@ class _ClassifierLoss(nn.Module):
         num_labels : int
             The number of labels to classify
         dropout : float, optional
-            The dropout rate to apply to the embeddings, defaults to 0.15
+            The dropout rate to apply to the embeddings, defaults to 0.15.
+            If set to 0, no dropout will be applied.
         freeze_model : bool, optional
             Whether to freeze the sentence transformer model, defaults to False.
             If True, only the classifier parameters will be updated during training.
         """
         super(_ClassifierLoss, self).__init__()
-        self.model = model
+        self.__model = model
+        self.__freeze_model = freeze_model
 
-        if freeze_model:
-            for param in self.model.parameters():
+        if self.__freeze_model:
+            for param in self.__model.parameters():
                 param.requires_grad = False
 
-        self.smiles_embedding_dimension = smiles_embedding_dimension
-        self.num_labels = num_labels
-        self.dropout_p = dropout
-        self.classifier = nn.Linear(
+        self.__smiles_embedding_dimension = smiles_embedding_dimension
+        self.__num_labels = num_labels
+        self.__dropout_p = dropout
+        self.__classifier = nn.Linear(
             smiles_embedding_dimension, num_labels, device=model.device
         )
-        self.dropout = nn.Dropout(self.dropout_p, inplace=True)
+        # strategy pattern - determine whether to apply dropout or no-op at runtime
+        if dropout > 0:
+            self.__dropout = nn.Dropout(self.__dropout_p, inplace=True)
+        else:
+            self.__dropout = nn.Identity()  # no-op
+
+    @property
+    def freeze_model(self):
+        return self.__freeze_model
+
+    @property
+    def smiles_embedding_dimension(self):
+        return self.__smiles_embedding_dimension
+
+    @property
+    def num_labels(self):
+        return self.__num_labels
+
+    @property
+    def dropout_p(self):
+        return self.__dropout_p
 
     def forward(
         self, smiles_features: Iterable[Dict[str, Tensor]]
     ) -> tuple[torch.Tensor, torch.Tensor]:
         sent_reps: list[Tensor] = [
-            self.model(smiles_feature)["sentence_embedding"]
+            self.__model(smiles_feature)["sentence_embedding"]
             for smiles_feature in smiles_features
         ]
 
         # guaranteed to be single smiles (sentence) embedding
         features = self._truncate_embeddings(sent_reps[0])
-        self.dropout(features)
-        logits: Tensor = self.classifier(features)
+        self.__dropout(features)
+        logits: Tensor = self.__classifier(features)
 
         return features, logits
 
@@ -72,16 +94,16 @@ class _ClassifierLoss(nn.Module):
             Tensor: truncated embeddings
         """
         batch_size, embedding_dim = embeddings.shape
-        if embedding_dim > self.smiles_embedding_dimension:
-            embeddings = embeddings[:, : self.smiles_embedding_dimension]
+        if embedding_dim > self.__smiles_embedding_dimension:
+            embeddings = embeddings[:, : self.__smiles_embedding_dimension]
             embeddings = nn.functional.normalize(embeddings, p=2, dim=1)
         return embeddings
 
     def get_config_dict(self):
         return {
-            "smiles_embedding_dimension": self.smiles_embedding_dimension,
-            "num_labels": self.num_labels,
-            "dropout": self.dropout_p,
+            "smiles_embedding_dimension": self.__smiles_embedding_dimension,
+            "num_labels": self.__num_labels,
+            "dropout": self.__dropout_p,
         }
 
 
@@ -149,9 +171,9 @@ class SelfAdjDiceLoss(_ClassifierLoss):
         super().__init__(
             model, smiles_embedding_dimension, num_labels, dropout, freeze_model
         )
-        self.alpha = alpha
-        self.gamma = gamma
-        self.reduction = reduction
+        self.__alpha = alpha
+        self.__gamma = gamma
+        self.__reduction = reduction
 
     def forward(
         self,
@@ -172,24 +194,26 @@ class SelfAdjDiceLoss(_ClassifierLoss):
         # gather ensure only the positive examples contribute (yi1)
         probs = torch.gather(probs, dim=1, index=labels.unsqueeze(1))
 
-        probs_with_factor = ((1 - probs) ** self.alpha) * probs
-        loss = 1 - (2 * probs_with_factor + self.gamma) / (
-            probs_with_factor + yi1 + self.gamma
+        probs_with_factor = ((1 - probs) ** self.__alpha) * probs
+        loss = 1 - (2 * probs_with_factor + self.__gamma) / (
+            probs_with_factor + yi1 + self.__gamma
         )
 
-        if self.reduction == "mean":
+        if self.__reduction == "mean":
             return loss.mean()
-        elif self.reduction == "sum":
+        elif self.__reduction == "sum":
             return loss.sum()
         else:
-            raise NotImplementedError(f"Reduction `{self.reduction}` is not supported.")
+            raise NotImplementedError(
+                f"Reduction `{self.__reduction}` is not supported."
+            )
 
     def get_config_dict(self):
         return {
             **super().get_config_dict(),
-            "alpha": self.alpha,
-            "gamma": self.gamma,
-            "reduction": self.reduction,
+            "alpha": self.__alpha,
+            "gamma": self.__gamma,
+            "reduction": self.__reduction,
         }
 
 
@@ -233,7 +257,7 @@ class SoftmaxLoss(_ClassifierLoss):
         super().__init__(
             model, smiles_embedding_dimension, num_labels, dropout, freeze_model
         )
-        self.loss_fct = loss_fct
+        self.__loss_fct = loss_fct
 
     def forward(self, smiles_features: Iterable[Dict[str, Tensor]], labels: Tensor):
         features, logits = super().forward(smiles_features)
@@ -241,11 +265,11 @@ class SoftmaxLoss(_ClassifierLoss):
         if labels is None:
             return features, logits
 
-        loss = self.loss_fct(logits, labels.view(-1))
+        loss = self.__loss_fct(logits, labels.view(-1))
         return loss
 
     def get_config_dict(self):
         return {
             **super().get_config_dict(),
-            "loss_fct": type(self.loss_fct).__name__,
+            "loss_fct": type(self.__loss_fct).__name__,
         }

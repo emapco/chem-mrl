@@ -114,26 +114,32 @@ class TanimotoSimilarityLoss(nn.Module):
             +---------------------------+------------------------+
         """
         super().__init__()
-        self.model = model
-        self.loss_fct = loss
-        self.similarity_fct = pairwise_tanimoto_similarity
+        self.__model = model
+        self.__loss_fct = loss
+        self.__similarity_fct = pairwise_tanimoto_similarity
+        # strategy pattern - determine which forward to call at runtime
+        if isinstance(self.__loss_fct, nn.CosineEmbeddingLoss):
+            self.__forward = self._bypass_similarity_fct_forward
+        else:
+            self.__forward = self._compute_similarity_fct_forward
 
     def forward(self, smiles_features: Iterable[Dict[str, Tensor]], labels: Tensor):
         embeddings: list[Tensor] = [
-            self.model(smiles_feature)["sentence_embedding"]
+            self.__model(smiles_feature)["sentence_embedding"]
             for smiles_feature in smiles_features
         ]
+        return self.__forward(embeddings, labels)
 
-        # if isinstance(self.loss, nn.CosineEmbeddingLoss):
-        #     loss = self.loss(embeddings[0], embeddings[1], labels)
-        #     return loss
+    def _compute_similarity_fct_forward(self, embeddings: list[Tensor], labels: Tensor):
+        similarities = self.__similarity_fct(embeddings[0], embeddings[1])
+        return self.__loss_fct(similarities, labels.view(-1))
 
-        similarities = self.similarity_fct(embeddings[0], embeddings[1])
-        loss = self.loss_fct(similarities, labels.view(-1))
-        return loss
+    def _bypass_similarity_fct_forward(self, embeddings: list[Tensor], labels: Tensor):
+        """nn.CosineEmbeddingLoss does not use similarity_fct, so we bypass it"""
+        return self.__loss_fct(embeddings[0], embeddings[1], labels.view(-1))
 
     def get_config_dict(self):
         return {
-            "loss_fct": type(self.loss_fct).__name__,
-            "similarity_fct": self.similarity_fct.__name__,
+            "loss_fct": type(self.__loss_fct).__name__,
+            "similarity_fct": self.__similarity_fct.__name__,
         }

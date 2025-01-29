@@ -1,7 +1,7 @@
 import os
 
-_const_file_dir = os.path.dirname(os.path.abspath(__file__))
-_parent_dir = os.path.dirname(_const_file_dir)
+_curr_file_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_curr_file_dir)
 _project_root_dir = os.path.dirname(_parent_dir)
 _data_dir = os.path.join(_project_root_dir, "data", "chem")
 
