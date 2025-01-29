@@ -13,6 +13,10 @@ build/
 *.ini
 .flake8
 *.csv
+*.tsv
 *.parquet
 *.egg-info/
 TODO
+
+!tests/data
+!tests/data/*.parquet
