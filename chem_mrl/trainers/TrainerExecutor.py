@@ -1,15 +1,13 @@
-import gc
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from typing import Callable, Generic, TypeVar
 
 import optuna
-import pandas as pd
-import torch
 
 import wandb
 from chem_mrl.configs import BoundConfigType
-from chem_mrl.trainers import BoundTrainerType
+
+from .BaseTrainer import BoundTrainerType
 
 BoundTrainerExecutorType = TypeVar(
     "BoundTrainerExecutorType", bound="_BaseTrainerExecutor"
@@ -17,6 +15,13 @@ BoundTrainerExecutorType = TypeVar(
 
 
 class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType, BoundConfigType]):
+    """Base abstract executor class.
+    Concrete executor classes should inherit from this class and implement the abstract methods and properties.
+
+    Executors are used to execute a trainer with additional functionality.
+    For example, an executor can be used to execute a trainer within a context manager.
+    """
+
     def __init__(self, trainer: BoundTrainerType):
         self.__trainer = trainer
 
@@ -29,23 +34,8 @@ class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType, BoundConfigType]):
         return self.__trainer.config
 
     @abstractmethod
-    def execute(self, return_eval_metric: bool) -> float:
+    def execute(self) -> float:
         pass
-
-    @staticmethod
-    def _read_eval_metric(eval_file_path, eval_metric: str) -> float:
-        eval_results_df = pd.read_csv(eval_file_path)
-        return float(eval_results_df.iloc[-1][eval_metric])
-
-    @staticmethod
-    def _clear_memory():
-        # OOM issues in between epochs
-        torch.cuda.synchronize()
-        torch.clear_autocast_cache()
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
-        torch.cuda.synchronize()
-        gc.collect()
 
 
 class CallbackTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigType]):
@@ -59,15 +49,9 @@ class CallbackTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfig
             raise ValueError("eval_callback must be callable")
         self.__eval_callback = eval_callback
 
-    def execute(self, return_eval_metric=False) -> float:
-        self.trainer.fit(eval_callback=self.__eval_callback)
-
-        if return_eval_metric:
-            metric = self._read_eval_metric(
-                self.trainer.eval_file_path, self.trainer.eval_metric
-            )
-            return metric
-        return -1.0
+    def execute(self) -> float:
+        metric = self.trainer.train(eval_callback=self.__eval_callback)
+        return metric
 
 
 class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigType]):
@@ -77,14 +61,11 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
         optuna_trial: optuna.Trial | None = None,
     ):
         super().__init__(trainer)
-        self.__wandb_callback = self._get_signed_in_wandb_callback(
-            self.trainer.config,
-            self.trainer.steps_per_epoch,
-            optuna_trial,
-            self._clear_memory,
+        self.__wandb_callback = self._signed_in_wandb_callback_factory(
+            self.trainer.config, self.trainer.steps_per_epoch, optuna_trial
         )
 
-    def execute(self, return_eval_metric=False) -> float:
+    def execute(self) -> float:
         wandb_config = self.config.wandb_config
         wandb_project_name = None
         wandb_run_name = None
@@ -93,15 +74,22 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
             wandb_run_name = wandb_config.run_name
 
         # Do not pass unnecessary values to wandb
-        config_without_wandb = self.config.asdict()
-        config_without_wandb.pop("use_wandb", None)
-        config_without_wandb.pop("wandb_config", None)
+        parsed_config = self.config.asdict()
+        parsed_config.pop("use_wandb", None)
+        parsed_config.pop("wandb_config", None)
+        parsed_config.pop("return_eval_metric", None)
+        parsed_config.pop("n_dataloader_workers", None)
+        parsed_config.pop("generate_dataset_examples_at_init", None)
+        parsed_config.pop("evaluation_steps", None)
+        parsed_config.pop("checkpoint_save_steps", None)
+        parsed_config.pop("checkpoint_save_total_limit", None)
+        parsed_config.pop("model_output_path", None)
 
         with (
             wandb.init(
                 project=wandb_project_name,
                 name=wandb_run_name,
-                config=config_without_wandb,
+                config=parsed_config,
             )
             if self.config.use_wandb
             else nullcontext()
@@ -119,21 +107,14 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
                     log_graph=wandb_config.watch_log_graph,
                 )
 
-            self.trainer.fit(eval_callback=self.__wandb_callback)
-
-            if return_eval_metric:
-                metric = self._read_eval_metric(
-                    self.trainer.eval_file_path, self.trainer.eval_metric
-                )
-                return metric
-        return -1.0
+            metric = self.trainer.train(eval_callback=self.__wandb_callback)
+            return metric
 
     @staticmethod
-    def _get_signed_in_wandb_callback(
+    def _signed_in_wandb_callback_factory(
         config: BoundConfigType,
         steps_per_epoch: int,
         trial: optuna.Trial | None = None,
-        clear_memory_callback: Callable[[], None] | None = None,
     ):
         if config.use_wandb:
             wandb_config = config.wandb_config
@@ -151,12 +132,6 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
                     "steps": steps,
                 }
                 wandb.log(eval_dict)
-
-                # OOM issues in between epochs
-                if clear_memory_callback is not None and callable(
-                    clear_memory_callback
-                ):
-                    clear_memory_callback()
 
                 if trial is not None:
                     trial.report(score, steps)

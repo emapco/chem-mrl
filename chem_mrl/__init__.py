@@ -4,7 +4,7 @@ import logging
 
 from sentence_transformers import LoggingHandler
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from . import (
     configs,

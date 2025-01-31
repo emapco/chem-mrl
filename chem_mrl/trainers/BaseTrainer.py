@@ -3,6 +3,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import Callable, Generic, TypeVar
 
+import pandas as pd
 import torch
 import transformers
 from sentence_transformers import SentenceTransformer
@@ -14,6 +15,11 @@ BoundTrainerType = TypeVar("BoundTrainerType", bound="_BaseTrainer")
 
 
 class _BaseTrainer(ABC, Generic[BoundConfigType]):
+    """Base abstract trainer class.
+    Concrete trainer classes should inherit from this class and implement the abstract methods and properties.
+    Concrete trainer classes can be trained directly (via fit method) or through an executor.
+    """
+
     def __init__(
         self,
         config: BoundConfigType,
@@ -63,6 +69,11 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
 
     @property
     @abstractmethod
+    def test_evaluator(self) -> SentenceEvaluator | None:
+        pass
+
+    @property
+    @abstractmethod
     def model_save_dir_name(self) -> str:
         pass
 
@@ -78,12 +89,18 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
 
     @property
     @abstractmethod
-    def eval_file_path(self) -> str:
+    def val_eval_file_path(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def test_eval_file_path(self) -> str:
         pass
 
     ############################################################################
     # abstract methods
     ############################################################################
+
     @abstractmethod
     def _initialize_model(self):
         pass
@@ -93,7 +110,11 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
         pass
 
     @abstractmethod
-    def _initialize_evaluator(self):
+    def _initialize_val_evaluator(self):
+        pass
+
+    @abstractmethod
+    def _initialize_test_evaluator(self):
         pass
 
     @abstractmethod
@@ -110,8 +131,10 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
 
     def __calculate_training_params(self) -> tuple[float, float, int]:
         total_training_points = self.steps_per_epoch * self.config.train_batch_size
-        # normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf
+        # Normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf
         # optimized hyperparameter lambda_norm = 0.05 for AdamW optimizer
+        # Hyperparameter search indicates a normalized weight decay outperforms
+        # the default adamw weight decay
         weight_decay = 0.05 * math.sqrt(
             self.config.train_batch_size
             / (total_training_points * self.config.num_epochs)
@@ -124,11 +147,13 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
         )
         return learning_rate, weight_decay, warmup_steps
 
-    def fit(self, eval_callback: Callable | None):
+    @staticmethod
+    def _read_eval_metric(eval_file_path, eval_metric: str) -> float:
+        eval_results_df = pd.read_csv(eval_file_path)
+        return float(eval_results_df.iloc[-1][eval_metric])
+
+    def train(self, eval_callback: Callable | None):
         learning_rate, weight_decay, warmup_steps = self.__calculate_training_params()
-        model_output_path = os.path.join(
-            self.model_save_dir_name, self._config.model_output_path
-        )
 
         optimizer_params: dict[str, object] = {
             "lr": learning_rate,
@@ -140,21 +165,35 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
             # FusedAdam requires adam_w_mode flag
             optimizer_params["adam_w_mode"] = True
 
-        self.model.fit(
+        self.model.old_fit(
             train_objectives=[(self.train_dataloader, self.loss_fct)],
             evaluator=self.val_evaluator,
-            evaluation_steps=self._config.evaluation_steps,
             epochs=self._config.num_epochs,
+            scheduler=self._config.scheduler,
             warmup_steps=warmup_steps,
-            output_path=self.model_save_dir_name,
             optimizer_class=self.__optimizer,  # type: ignore - Library defaults to AdamW. We can safely ignore error
             optimizer_params=optimizer_params,
+            weight_decay=weight_decay,
+            evaluation_steps=self._config.evaluation_steps,
+            output_path=self.model_save_dir_name,
             save_best_model=True,
             use_amp=self._config.use_amp,
+            callback=eval_callback,  # type: ignore - Library defaults to None. We can safely ignore error
             show_progress_bar=True,
-            scheduler=self._config.scheduler,
-            checkpoint_path=model_output_path,
+            checkpoint_path=os.path.join(self.model_save_dir_name, "checkpoints"),
             checkpoint_save_steps=self._config.checkpoint_save_steps,
             checkpoint_save_total_limit=self._config.checkpoint_save_total_limit,
-            callback=eval_callback,  # type: ignore - Library defaults to AdamW. We can safely ignore error
         )
+
+        if self.test_evaluator is not None:
+            model = SentenceTransformer(self.model_save_dir_name)
+            self.test_evaluator(
+                model, output_path=os.path.join(self.model_save_dir_name, "eval")
+            )
+            metric = self._read_eval_metric(self.test_eval_file_path, self.eval_metric)
+            return metric
+
+        if self.config.return_eval_metric:
+            metric = self._read_eval_metric(self.val_eval_file_path, self.eval_metric)
+            return metric
+        return -1.0

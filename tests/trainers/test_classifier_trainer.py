@@ -37,6 +37,34 @@ def test_classifier_trainer_instantiation():
     assert isinstance(executor.trainer.config, ClassifierConfig)
 
 
+def test_classifier_test_evaluator():
+    config = ClassifierConfig(
+        model_name=BASE_MODEL_NAME,
+        train_dataset_path=TEST_CLASSIFICATION_PATH,
+        val_dataset_path=TEST_CLASSIFICATION_PATH,
+        test_dataset_path=TEST_CLASSIFICATION_PATH,
+        return_eval_metric=True,
+    )
+    trainer = ClassifierTrainer(config)
+    executor = CallbackTrainerExecutor(trainer=trainer)
+    result = executor.execute()
+    assert isinstance(result, float)
+    assert result != -1.0
+
+    config = DiceLossClassifierConfig(
+        model_name=BASE_MODEL_NAME,
+        train_dataset_path=TEST_CLASSIFICATION_PATH,
+        val_dataset_path=TEST_CLASSIFICATION_PATH,
+        test_dataset_path=TEST_CLASSIFICATION_PATH,
+        return_eval_metric=True,
+    )
+    trainer = ClassifierTrainer(config)
+    executor = CallbackTrainerExecutor(trainer=trainer)
+    result = executor.execute()
+    assert isinstance(result, float)
+    assert result != -1.0
+
+
 @pytest.mark.parametrize("scheduler", SCHEDULER_OPTIONS)
 def test_classifier_scheduler_options(
     scheduler,
@@ -46,24 +74,26 @@ def test_classifier_scheduler_options(
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         scheduler=scheduler,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         scheduler=scheduler,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
 
 @pytest.mark.parametrize("dimension", CHEM_MRL_DIMENSIONS)
@@ -75,28 +105,30 @@ def test_classifier_classifier_hidden_dimensions(
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         classifier_hidden_dimension=dimension,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert trainer.model.truncate_dim == dimension
     assert trainer.loss_fct.smiles_embedding_dimension == dimension
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         classifier_hidden_dimension=dimension,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert trainer.model.truncate_dim == dimension
     assert trainer.loss_fct.smiles_embedding_dimension == dimension
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
 
 @pytest.mark.parametrize("eval_metric", CLASSIFIER_EVAL_METRIC_OPTIONS)
@@ -106,24 +138,26 @@ def test_classifier_eval_metrics(eval_metric):
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         eval_metric=eval_metric,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         eval_metric=eval_metric,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
 
 def test_classifier_freeze_internal_model():
@@ -132,26 +166,28 @@ def test_classifier_freeze_internal_model():
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         freeze_model=True,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert trainer.loss_fct.freeze_model is True
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         freeze_model=True,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert trainer.loss_fct.freeze_model is True
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
 
 def test_classifier_num_labels():
@@ -181,26 +217,29 @@ def test_classifier_dropout(dropout_p):
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         dropout_p=dropout_p,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
 
     assert trainer.loss_fct.dropout_p == dropout_p
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
+
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         dropout_p=dropout_p,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert trainer.loss_fct.dropout_p == dropout_p
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
 
 def test_dice_loss_classifier_trainer_instantiation():
@@ -233,12 +272,13 @@ def test_dice_loss_classifier_dice_reduction_options(dice_reduction):
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         loss_func="selfadjdice",
         dice_reduction=dice_reduction,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert float != -1.0
+    assert result != -1.0
 
 
 @pytest.mark.parametrize("batch_size", [1, 16, 64, 128])
@@ -248,11 +288,12 @@ def test_classifier_batch_sizes(batch_size):
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         train_batch_size=batch_size,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     assert trainer.train_dataloader.batch_size == batch_size
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert isinstance(result, float)
     assert result != -1.0
 
@@ -264,10 +305,11 @@ def test_classifier_learning_rates(lr):
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         lr_base=lr,
+        return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
     executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute(return_eval_metric=True)
+    result = executor.execute()
     assert isinstance(result, float)
     assert result != -1.0
 
