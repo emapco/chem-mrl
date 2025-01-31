@@ -23,7 +23,8 @@ class ChemMRL:
         Initialize the SMILES embedder with specified parameters.
 
         Args:
-            model_name: Name or file path of the transformer model to use
+            model_name: Name or file path of the transformer model to use.
+                Can either `seyonec/ChemBERTa-zinc-base-v1` or a path to a trained chem-mrl model.
             fp_size: Size of the embedding vector (for truncation)
             use_half_precision: Whether to use FP16 precision
             device: Device to run the model on ('cuda' or 'cpu')

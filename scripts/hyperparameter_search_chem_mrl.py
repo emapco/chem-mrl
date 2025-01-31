@@ -1,4 +1,5 @@
 import logging
+import os
 
 import optuna
 
@@ -31,8 +32,8 @@ def objective(
         "model_name": BASE_MODEL_NAME,
         "train_dataset_path": TRAIN_DS_DICT[dataset_key],
         "val_dataset_path": VAL_DS_DICT[dataset_key],
-        "num_train_samples": 500000,
-        "num_val_samples": 150000,
+        "n_train_samples": 5000,
+        "n_val_samples": 1500,
         "train_batch_size": 24,
         "num_epochs": 5,
         "lr_base": 1.1190785944700813e-05,
@@ -44,6 +45,7 @@ def objective(
         "use_2d_matryoshka": trial.suggest_categorical(
             "use_2d_matryoshka", [True, False]
         ),
+        "return_eval_metric": True,
         "use_wandb": True,
         "wandb_config": WandbConfig(
             project_name=PROJECT_NAME,
@@ -51,12 +53,12 @@ def objective(
             watch_log_graph=True,
         ),
     }
-
     # Add tanimoto similarity loss function if needed
     if loss_func == "tanimotosimilarityloss":
         config_params["tanimoto_similarity_loss_func"] = trial.suggest_categorical(
             "tanimoto_similarity_loss_func", TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS
         )
+
     if config_params["use_2d_matryoshka"]:
         config = Chem2dMRLConfig(**config_params)
     else:
@@ -65,7 +67,7 @@ def objective(
     executable_trainer = WandBTrainerExecutor(
         trainer=ChemMRLTrainer(config), optuna_trial=trial
     )
-    metric = executable_trainer.execute(return_eval_metric=True)
+    metric = executable_trainer.execute()
     return metric
 
 

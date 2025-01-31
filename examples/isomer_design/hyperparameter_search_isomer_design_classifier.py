@@ -45,6 +45,7 @@ def objective(
         ),
         "classifier_hidden_dimension": 768,
         "freeze_model": trial.suggest_categorical("freeze_model", [True, False]),
+        "return_eval_metric": True,
         "use_wandb": True,
         "wandb_config": WandbConfig(
             project_name=PROJECT_NAME,
@@ -69,7 +70,7 @@ def objective(
     executable_trainer = WandBTrainerExecutor(
         trainer=ClassifierTrainer(config), optuna_trial=trial
     )
-    metric = executable_trainer.execute(return_eval_metric=True)
+    metric = executable_trainer.execute()
     return metric
 
 

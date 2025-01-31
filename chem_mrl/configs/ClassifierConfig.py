@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from chem_mrl.configs import BaseConfig
 from chem_mrl.constants import CHEM_MRL_DIMENSIONS
 
+from .BaseConfig import _BaseConfig
 from .types import (
     CLASSIFIER_EVAL_METRIC_OPTIONS,
     CLASSIFIER_LOSS_FCT_OPTIONS,
@@ -13,14 +13,14 @@ from .types import (
 )
 
 
-@dataclass
-class ClassifierConfig(BaseConfig):
+@dataclass(frozen=True)
+class ClassifierConfig(_BaseConfig):
     smiles_column_name: str = "smiles"
     label_column_name: str = "label"
     eval_metric: ClassifierEvalMetricOptionType = "accuracy"  # type: ignore
     loss_func: ClassifierLossFctOptionType = "softmax"  # type: ignore
     classifier_hidden_dimension: int = CHEM_MRL_DIMENSIONS[0]
-    dropout_p: float = 0.15
+    dropout_p: float = 0.1
     freeze_model: bool = False
 
     def __post_init__(self):
@@ -59,7 +59,7 @@ class ClassifierConfig(BaseConfig):
             raise ValueError("dropout_p must be between 0 and 1")
 
 
-@dataclass
+@dataclass(frozen=True)
 class DiceLossClassifierConfig(ClassifierConfig):
     dice_reduction: DiceReductionOptionType = "mean"  # type: ignore
     dice_gamma: float = 1.0

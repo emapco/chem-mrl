@@ -25,6 +25,7 @@ CHEM_MRL_LOSS_FCT_OPTIONS = (
     "tanimotosentloss",
     "tanimotosimilarityloss",
     "cosentloss",
+    "angleloss",
 )
 ChemMrlLossFctOptionType = Literal[*CHEM_MRL_LOSS_FCT_OPTIONS]
 # # For tanimoto similarity base loss functions

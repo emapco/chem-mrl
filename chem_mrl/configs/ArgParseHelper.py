@@ -2,17 +2,21 @@ import argparse
 
 from chem_mrl.constants import BASE_MODEL_NAME, CHEM_MRL_DIMENSIONS
 
-from .BaseConfig import SCHEDULER_OPTIONS, WATCH_LOG_OPTIONS
+from .BaseConfig import SCHEDULER_OPTIONS, WATCH_LOG_OPTIONS, WandbConfig, _BaseConfig
 from .ClassifierConfig import (
     CLASSIFIER_EVAL_METRIC_OPTIONS,
     CLASSIFIER_LOSS_FCT_OPTIONS,
     DICE_REDUCTION_OPTIONS,
+    ClassifierConfig,
+    DiceLossClassifierConfig,
 )
 from .MrlConfig import (
     CHEM_MRL_EVAL_METRIC_OPTIONS,
     CHEM_MRL_LOSS_FCT_OPTIONS,
     EVAL_SIMILARITY_FCT_OPTIONS,
     TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS,
+    Chem2dMRLConfig,
+    ChemMRLConfig,
 )
 
 
@@ -21,19 +25,31 @@ def add_base_config_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
     parser.add_argument("--val_dataset_path", required=True)
     parser.add_argument("--test_dataset_path")
     parser.add_argument(
-        "--num_train_samples",
+        "--n_train_samples",
         type=int,
         help="Number of training samples to load. Uses seeded sampling if a seed is set.",
     )
     parser.add_argument(
-        "--num_val_samples",
+        "--n_val_samples",
         type=int,
         help="Number of evaluation samples to load. Uses seeded sampling if a seed is set.",
     )
     parser.add_argument(
-        "--num_test_samples",
+        "--n_test_samples",
         type=int,
         help="Number of testing samples to load. Uses seeded sampling if a seed is set.",
+    )
+    parser.add_argument(
+        "--n_dataloader_workers",
+        type=int,
+        default=0,
+        help="How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process.",
+    )
+    parser.add_argument(
+        "--generate_dataset_examples_at_init",
+        action="store_true",
+        help="If set, generate `sentence_transformers.InputExample` examples at initialization. "
+        "When off, the `sentence_transformers.InputExample` examples are generated on the fly by the dataloader.",
     )
     parser.add_argument(
         "--model_name",
@@ -102,6 +118,11 @@ def add_base_config_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
         "--checkpoint_save_total_limit", type=int, default=20, help="Save total limit"
     )
     parser.add_argument(
+        "--return_eval_metric",
+        action="store_true",
+        help="Return the final evaluation metric after training",
+    )
+    parser.add_argument(
         "--use_wandb",
         action="store_true",
         help="Use W&B for logging. Must be enabled for other W&B features to work.",
@@ -159,7 +180,7 @@ def add_chem_mrl_config_args(
         "--tanimoto_similarity_loss_func",
         choices=TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS,
         default=None,
-        help="Base loss function for tanimoto similarity loss function",
+        help="Base loss function for tanimoto similarity loss function (only for tanimotosentloss)",
     )
     parser.add_argument(
         "--eval_similarity_fct",
@@ -174,30 +195,63 @@ def add_chem_mrl_config_args(
         help="Metric to use for evaluation",
     )
     # MRL dimension weights
-    parser.add_argument("--first_dim_weight", type=float, default=1.0489590183361719)
-    parser.add_argument("--second_dim_weight", type=float, default=1.126163907196291)
-    parser.add_argument("--third_dim_weight", type=float, default=1.3807986616809407)
-    parser.add_argument("--fourth_dim_weight", type=float, default=1.397331091971628)
-    parser.add_argument("--fifth_dim_weight", type=float, default=1.6522851342433993)
-    parser.add_argument("--sixth_dim_weight", type=float, default=1.9858679040493405)
+    parser.add_argument("--first_dim_weight", type=float, default=1)
+    parser.add_argument("--second_dim_weight", type=float, default=1)
+    parser.add_argument("--third_dim_weight", type=float, default=1)
+    parser.add_argument("--fourth_dim_weight", type=float, default=1)
+    parser.add_argument("--fifth_dim_weight", type=float, default=1)
+    parser.add_argument("--sixth_dim_weight", type=float, default=1)
+    parser.add_argument("--seventh_dim_weight", type=float, default=1)
+    parser.add_argument("--eighth_dim_weight", type=float, default=1)
+    parser.add_argument(
+        "--n_dims_per_step",
+        type=int,
+        default=1,
+        help="The number of dimensions to use per step. If -1, then all dimensions are used. "
+        "If > 0, then a random sample of n_dims_per_step dimensions are used per step.",
+    )
 
     # Chem2dMRLConfig specific params
     parser.add_argument(
-        "--use_2d_matryoshka", action="store_true", help="Use 2D Matryoshka"
+        "--use_2d_matryoshka",
+        action="store_true",
+        help="Use 2D Matryoshka to train over layers in addition to embedding dimensions.",
+    )
+    parser.add_argument(
+        "--n_layers_per_step",
+        type=int,
+        default=1,
+        help="The number of layers to use per step. If -1, then all layers are used. "
+        "If > 0, then a random sample of n_layers_per_step layers are used per step. (only for 2D MRL)",
     )
     parser.add_argument(
         "--last_layer_weight",
         type=float,
-        default=1.8708220063487997,
-        help="Last layer weight used by 2D Matryoshka for computing the loss",
+        default=1.0,
+        help="The weight to use for the loss of the final layer. "
+        "Increase this to focus more on the performance when using all layers. (only for 2D MRL)",
     )
     parser.add_argument(
         "--prior_layers_weight",
         type=float,
-        default=1.4598249321447245,
-        help="Prior layers weight used by 2D Matryoshka for computing compute the loss",
+        default=1.0,
+        help="The weight to use for the loss of the prior layers. "
+        "Increase this to focus more on the performance when using fewer layers. (only for 2D MRL)",
     )
-
+    parser.add_argument(
+        "--kl_div_weight",
+        type=float,
+        default=1.0,
+        help=" The weight to use for the KL-div loss that is used to make the prior layers match that of the last layer. "
+        "Increase this to focus more on the performance when using fewer layers. (only for 2D MRL)",
+    )
+    parser.add_argument(
+        "--kl_temperature",
+        type=float,
+        default=0.3,
+        help="The temperature to use for the KL-divergence loss. "
+        "If 0, then the KL-divergence loss is not used. (only for 2D MRL)",
+    )
     return parser
 
 
@@ -257,3 +311,114 @@ def add_classifier_config_args(
     )
 
     return parser
+
+
+def generate_base_config(args: argparse.Namespace) -> _BaseConfig:
+    wandb_config = None
+    if args.use_wandb:
+        wandb_config = WandbConfig(
+            api_key=args.wandb_api_key,
+            project_name=args.wandb_project_name,
+            run_name=args.wandb_run_name,
+            use_watch=args.wandb_use_watch,
+            watch_log=args.wandb_watch_log,
+            watch_log_freq=args.wandb_watch_log_freq,
+            watch_log_graph=args.wandb_watch_log_graph,
+        )
+
+    return _BaseConfig(
+        model_name=args.model_name,
+        train_dataset_path=args.train_dataset_path,
+        val_dataset_path=args.val_dataset_path,
+        test_dataset_path=args.test_dataset_path,
+        n_train_samples=args.n_train_samples,
+        n_val_samples=args.n_val_samples,
+        n_test_samples=args.n_test_samples,
+        n_dataloader_workers=args.n_dataloader_workers,
+        generate_dataset_examples_at_init=args.generate_dataset_examples_at_init,
+        train_batch_size=args.train_batch_size,
+        num_epochs=args.num_epochs,
+        use_wandb=args.use_wandb,
+        wandb_config=wandb_config,
+        lr_base=args.lr_base,
+        scheduler=args.scheduler,
+        warmup_steps_percent=args.warmup_steps_percent,
+        use_fused_adamw=args.use_fused_adamw,
+        use_tf32=args.use_tf32,
+        use_amp=args.use_amp,
+        seed=args.seed,
+        model_output_path=args.model_output_path,
+        evaluation_steps=args.evaluation_steps,
+        checkpoint_save_steps=args.checkpoint_save_steps,
+        checkpoint_save_total_limit=args.checkpoint_save_total_limit,
+        return_eval_metric=args.return_eval_metric,
+    )
+
+
+def generate_chem_mrl_config(
+    args: argparse.Namespace,
+) -> ChemMRLConfig | Chem2dMRLConfig:
+    base_config = generate_base_config(args)
+
+    mrl_dimension_weights = (
+        args.first_dim_weight,
+        args.second_dim_weight,
+        args.third_dim_weight,
+        args.fourth_dim_weight,
+        args.fifth_dim_weight,
+        args.sixth_dim_weight,
+        args.seventh_dim_weight,
+        args.eighth_dim_weight,
+    )
+
+    chem_mrl_config_params = {
+        **base_config.asdict(),
+        "smiles_a_column_name": args.smiles_a_column_name,
+        "smiles_b_column_name": args.smiles_b_column_name,
+        "label_column_name": args.label_column_name,
+        "loss_func": args.loss_func,
+        "tanimoto_similarity_loss_func": args.tanimoto_similarity_loss_func,
+        "eval_similarity_fct": args.eval_similarity_fct,
+        "use_2d_matryoshka": args.use_2d_matryoshka,
+        "mrl_dimension_weights": mrl_dimension_weights,
+    }
+
+    if args.use_2d_matryoshka:
+        config = Chem2dMRLConfig(
+            **chem_mrl_config_params,
+            last_layer_weight=args.last_layer_weight,
+            prior_layers_weight=args.prior_layers_weight,
+        )
+    else:
+        config = ChemMRLConfig(
+            **chem_mrl_config_params,
+        )
+
+    return config
+
+
+def generate_classifier_config(
+    args: argparse.Namespace,
+) -> ClassifierConfig | DiceLossClassifierConfig:
+    base_config = generate_base_config(args)
+
+    classifier_params = {
+        **base_config.asdict(),
+        "smiles_column_name": args.smiles_column_name,
+        "label_column_name": args.label_column_name,
+        "loss_func": args.loss_func,
+        "classifier_hidden_dimension": args.classifier_hidden_dimension,
+        "dropout_p": args.dropout_p,
+        "freeze_model": args.freeze_model,
+    }
+
+    if args.loss_func == "selfadjdice":
+        config = DiceLossClassifierConfig(
+            **classifier_params,
+            dice_reduction=args.dice_reduction,
+            dice_gamma=args.dice_gamma,
+        )
+    else:
+        config = ClassifierConfig(**classifier_params)
+
+    return config

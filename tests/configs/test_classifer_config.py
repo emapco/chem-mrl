@@ -16,7 +16,7 @@ def test_classifier_config_default_values():
     assert config.eval_metric == "accuracy"
     assert config.loss_func == "softmax"
     assert config.classifier_hidden_dimension == CHEM_MRL_DIMENSIONS[0]
-    assert config.dropout_p == 0.15
+    assert config.dropout_p == 0.1
     assert config.freeze_model is False
 
 

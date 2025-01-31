@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from chem_mrl.configs import BaseConfig
 from chem_mrl.constants import CHEM_MRL_DIMENSIONS
 
+from .BaseConfig import _BaseConfig
 from .types import (
     CHEM_MRL_EVAL_METRIC_OPTIONS,
     CHEM_MRL_LOSS_FCT_OPTIONS,
@@ -15,8 +15,8 @@ from .types import (
 )
 
 
-@dataclass
-class ChemMRLConfig(BaseConfig):
+@dataclass(frozen=True)
+class ChemMRLConfig(_BaseConfig):
     smiles_a_column_name: str = "smiles_a"
     smiles_b_column_name: str = "smiles_b"
     label_column_name: str = "fingerprint_similarity"
@@ -25,14 +25,10 @@ class ChemMRLConfig(BaseConfig):
     eval_similarity_fct: EvalSimilarityMetricOptionType = "tanimoto"  # type: ignore
     eval_metric: ChemMrlEvalMetricOptionType = "spearman"  # type: ignore
     mrl_dimensions = CHEM_MRL_DIMENSIONS
-    mrl_dimension_weights: tuple[float, float, float, float, float, float] = (
-        1.0489590183361719,
-        1.126163907196291,
-        1.3807986616809407,
-        1.397331091971628,
-        1.6522851342433993,
-        1.9858679040493405,
-    )
+    mrl_dimension_weights: tuple[
+        float, float, float, float, float, float, float, float
+    ] = (1, 1, 1, 1, 1, 1, 1, 1)
+    n_dims_per_step: int = -1
     use_2d_matryoshka: bool = False
 
     def __post_init__(self):
@@ -56,6 +52,8 @@ class ChemMRLConfig(BaseConfig):
             raise TypeError("mrl_dimensions must be a list or tuple")
         if not isinstance(self.mrl_dimension_weights, list | tuple):
             raise TypeError("mrl_dimension_weights must be a list or tuple")
+        if not isinstance(self.n_dims_per_step, int):
+            raise TypeError("n_dims_per_step must be an int")
         if not isinstance(self.use_2d_matryoshka, bool):
             raise TypeError("use_2d_matryoshka must be a bool")
         # check values
@@ -93,25 +91,42 @@ class ChemMRLConfig(BaseConfig):
             for i in range(len(self.mrl_dimension_weights) - 1)
         ):
             raise ValueError("Dimension weights must be in increasing order")
+        if self.n_dims_per_step != -1 and self.n_dims_per_step <= 0:
+            raise ValueError("n_dims_per_step must be positive or -1")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Chem2dMRLConfig(ChemMRLConfig):
     use_2d_matryoshka: bool = True  # Explicitly enable 2D Matryoshka
-    last_layer_weight: float | int = 1.8708220063487997
-    prior_layers_weight: float | int = 1.4598249321447245
+    n_layers_per_step: int = -1
+    last_layer_weight: float | int = 1
+    prior_layers_weight: float | int = 1
+    kl_div_weight: float | int = 1
+    kl_temperature: float | int = 0.3
 
     def __post_init__(self):
         super().__post_init__()
         # check types
+        if not isinstance(self.n_layers_per_step, int):
+            raise TypeError("n_layers_per_step must be an int")
         if not isinstance(self.last_layer_weight, float | int):
             raise TypeError("last_layer_weight must be a float or int")
         if not isinstance(self.prior_layers_weight, float | int):
             raise TypeError("prior_layers_weight must be a float or int")
+        if not isinstance(self.kl_div_weight, float | int):
+            raise TypeError("kl_div_weight must be a float or int")
+        if not isinstance(self.kl_temperature, float | int):
+            raise TypeError("kl_temperature must be a float or int")
         # check values
         if self.use_2d_matryoshka is False:
             raise ValueError("use_2d_matryoshka must be True when training Chem2dMRL")
+        if self.n_layers_per_step != -1 and self.n_layers_per_step <= 0:
+            raise ValueError("n_layers_per_step must be positive or -1")
         if self.last_layer_weight <= 0:
             raise ValueError("last_layer_weight must be positive")
         if self.prior_layers_weight <= 0:
             raise ValueError("prior_layers_weight must be positive")
+        if self.kl_div_weight <= 0:
+            raise ValueError("kl_div_weight must be positive")
+        if self.kl_temperature <= 0:
+            raise ValueError("kl_temperature must be positive")
