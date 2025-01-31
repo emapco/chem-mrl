@@ -10,13 +10,13 @@ def pairwise_tanimoto_similarity(x: Tensor, y: Tensor) -> Tensor:
     """
     Computes the Tanimoto similarity between two numpy arrays x and y.
 
-    Defined in 10.1186 (Tanimoto coefficient) as:
-    T(x,y) = <x,y> / (x^2 + y^2 - <x,y>)
+    Tanimoto coefficient as defined in 10.1186/s13321-015-0069-3 for continuous variables:
+    T(X,Y) = <X,Y> / (Σx^2 + Σy^2 - <X,Y>)
 
     References
     ----------
     https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2
-    https://arxiv.org/pdf/2302.05666.pdf
+    https://arxiv.org/pdf/2302.05666.pdf - Other intersection over union (IoU) metrics
 
     Parameters
     ----------

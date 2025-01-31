@@ -1,18 +1,16 @@
-import csv
-import gc
 import logging
-import os
 from contextlib import nullcontext
 from enum import Enum
 from typing import Iterable, Literal
 
 import numpy as np
-import torch
 from scipy.stats import pearsonr, spearmanr
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.evaluation import SentenceEvaluator
 from sklearn.metrics.pairwise import check_paired_arrays, row_norms
 from sklearn.preprocessing import normalize
+
+from .utils import _write_results_to_csv
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +36,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         smiles2: Iterable[str],
         scores: Iterable[float],
         batch_size: int = 16,
-        main_similarity: SimilarityFunction | None = None,
+        main_similarity: SimilarityFunction = SimilarityFunction.TANIMOTO,
         name: str = "",
         show_progress_bar: bool = False,
         write_csv: bool = True,
@@ -104,7 +102,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
     def __call__(
         self,
         model: SentenceTransformer,
-        output_path: str | None = None,
+        output_path: str = ".",
         epoch: int = -1,
         steps: int = -1,
     ) -> float:
@@ -127,9 +125,6 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             if self.truncate_dim is None
             else model.truncate_sentence_embeddings(self.truncate_dim)
         ):
-            torch.clear_autocast_cache()
-            torch.cuda.empty_cache()
-            gc.collect()
             logger.info("Encoding smiles 1 validation data.")
             embeddings1 = model.encode(
                 self.smiles1,  # type: ignore
@@ -148,9 +143,6 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
                 precision=self.precision,
                 normalize_embeddings=bool(self.precision),
             )
-            torch.clear_autocast_cache()
-            torch.cuda.empty_cache()
-            gc.collect()
 
         # Binary and ubinary embeddings are packed, so we need to unpack them for the distance metrics
         if self.precision == "binary":
@@ -171,14 +163,11 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             )
             main_similarity_name = "Cosine-Similarity"
 
-        # OOM issues on WSL2 thus manually clear memory and wait for WSL to release memory
         del embeddings1, embeddings2
-        gc.collect()
 
         eval_pearson, _ = pearsonr(self.labels, main_similarity_scores)
         eval_spearman, _ = spearmanr(self.labels, main_similarity_scores)
         del main_similarity_scores
-        gc.collect()
 
         logger.info(
             "{} :\tPearson: {:.5f}\tSpearman: {:.5f}".format(
@@ -186,36 +175,22 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             )
         )
 
-        if output_path is not None and self.write_csv:
-            csv_path = os.path.join(output_path, self.csv_file)
-            output_file_exists = os.path.isfile(csv_path)
-            with open(
-                csv_path,
-                newline="",
-                mode="a" if output_file_exists else "w",
-                encoding="utf-8",
-            ) as f:
-                writer = csv.writer(f)
-                if not output_file_exists:
-                    writer.writerow(self.csv_headers)
+        _write_results_to_csv(
+            self.write_csv,
+            self.csv_file,
+            self.csv_headers,
+            output_path,
+            results=[
+                epoch,
+                steps,
+                eval_pearson,
+                eval_spearman,
+            ],
+        )
 
-                writer.writerow(
-                    [
-                        epoch,
-                        steps,
-                        eval_pearson,
-                        eval_spearman,
-                    ]
-                )
-
-        if (
-            self.main_similarity == SimilarityFunction.COSINE
-            or self.main_similarity == SimilarityFunction.TANIMOTO
-        ):
-            return eval_spearman
-
-        # main_similarity is None:
-        return max(eval_spearman)
+        eval_pearson = float(eval_spearman)  # type: ignore
+        assert isinstance(eval_pearson, float)
+        return eval_pearson
 
 
 def paired_cosine_distances(X, Y):
@@ -244,29 +219,23 @@ def paired_cosine_distances(X, Y):
     The cosine distance is equivalent to the half the squared
     euclidean distance if each sample is normalized to unit norm.
     """
-    if not isinstance(X, np.ndarray) or not isinstance(Y, np.ndarray):
-        X, Y = check_paired_arrays(X, Y)
-        X = X.astype(np.float16, copy=False)
-        Y = Y.astype(np.float16, copy=False)
-
-    if isinstance(X, np.ndarray):
-        X = normalize(X).astype(np.float16, copy=False)
-    if isinstance(X, np.ndarray):
-        Y = normalize(Y).astype(np.float16, copy=False)
-
-    return 0.5 * row_norms(X - Y, squared=True)
+    X, Y = check_paired_arrays(X, Y)
+    X = normalize(X).astype(np.float32, copy=False)
+    Y = normalize(Y).astype(np.float32, copy=False)
+    return (0.5 * row_norms(X - Y, squared=True)).astype(np.float16)
 
 
 def paired_tanimoto_similarity(X, Y):
     """
     Compute the paired Tanimoto similarity between X and Y.
 
-    Defined in 10.1186 (Tanimoto coefficient) as:
-    T(x,y) = <x,y> / (x^2 + y^2 - <x,y>)
+    Tanimoto coefficient as defined in 10.1186/s13321-015-0069-3 for continuous variables:
+    T(X,Y) = <X,Y> / (Σx^2 + Σy^2 - <X,Y>)
 
     References
     ----------
     https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2
+    https://arxiv.org/pdf/2302.05666.pdf - Other intersection over union (IoU) metrics
 
     Parameters
     ----------
@@ -280,17 +249,13 @@ def paired_tanimoto_similarity(X, Y):
     similarity : ndarray of shape (n_samples,)
         Tanimoto similarity between paired rows of X and Y
     """
-    if not isinstance(X, np.ndarray) or not isinstance(Y, np.ndarray):
-        X, Y = check_paired_arrays(X, Y)
-        X = X.astype(np.float16, copy=False)
-        Y = Y.astype(np.float16, copy=False)
-
-    if isinstance(X, np.ndarray):
-        X = normalize(X).astype(np.float16, copy=False)
-    if isinstance(X, np.ndarray):
-        Y = normalize(Y).astype(np.float16, copy=False)
-
+    X, Y = check_paired_arrays(X, Y)
+    X = X.astype(np.float32, copy=False)
+    Y = Y.astype(np.float32, copy=False)
     dot_product = np.sum(X * Y, axis=1)
-    denominator = np.sum(X**2, axis=1) + np.sum(Y**2, axis=1) - dot_product
-
-    return dot_product / np.maximum(denominator, 1e-9)
+    np.multiply(X, X, out=X)  # X is now X²
+    np.multiply(Y, Y, out=Y)  # Y is now Y²
+    X = np.sum(X, axis=1)
+    Y = np.sum(Y, axis=1)
+    denominator = X + Y - dot_product
+    return (dot_product / np.maximum(denominator, 1e-9)).astype(np.float16)

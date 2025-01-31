@@ -1,12 +1,12 @@
-import csv
 import logging
-import os
 
 import torch
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.evaluation import SentenceEvaluator
 from sentence_transformers.util import batch_to_device
 from torch.utils.data import DataLoader
+
+from .utils import _write_results_to_csv
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +23,8 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
     def __init__(
         self,
         dataloader: DataLoader,
+        softmax_model: torch.nn.Module,
         name: str = "",
-        softmax_model=None,
         write_csv: bool = True,
     ):
         """
@@ -77,18 +77,14 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
             correct += torch.argmax(prediction, dim=1).eq(label_ids).sum().item()
         accuracy = correct / total
 
-        logger.info("Accuracy: {:.4f} ({}/{})\n".format(accuracy, correct, total))
+        logger.info("Accuracy: {:.5f} ({}/{})\n".format(accuracy, correct, total))
 
-        if output_path is not None and self.write_csv:
-            csv_path = os.path.join(output_path, self.csv_file)
-            if not os.path.isfile(csv_path):
-                with open(csv_path, newline="", mode="w", encoding="utf-8") as f:
-                    writer = csv.writer(f)
-                    writer.writerow(self.csv_headers)
-                    writer.writerow([epoch, steps, accuracy])
-            else:
-                with open(csv_path, newline="", mode="a", encoding="utf-8") as f:
-                    writer = csv.writer(f)
-                    writer.writerow([epoch, steps, accuracy])
+        _write_results_to_csv(
+            self.write_csv,
+            self.csv_file,
+            self.csv_headers,
+            output_path,
+            results=[epoch, steps, accuracy],
+        )
 
         return accuracy
