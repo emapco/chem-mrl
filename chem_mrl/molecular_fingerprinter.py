@@ -12,21 +12,21 @@ class _MolecularFingerprinter(ABC):
     @abstractmethod
     def get_fingerprint(self, smiles: str) -> DataStructs.ExplicitBitVect | None:
         """Generate fingerprint for a given SMILES string."""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_functional_fingerprint(
         self, smiles: str
     ) -> DataStructs.ExplicitBitVect | None:
         """Generate functional fingerprint for a given SMILES string."""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def compute_similarity(
         self, row: dict[str, str], fingerprint_type: str = "morgan"
     ) -> float:
         """Compute similarity between two molecules."""
-        pass
+        raise NotImplementedError
 
 
 class MorganFingerprinter(_MolecularFingerprinter):
@@ -144,3 +144,13 @@ class MorganFingerprinter(_MolecularFingerprinter):
             return np.nan
 
         return DataStructs.TanimotoSimilarity(fp1, fp2)
+
+    def get_canonical_smiles(self, smiles: str) -> str | None:
+        """
+        Get canonical SMILES string from a given SMILES string.
+        """
+        mol = self._create_mol_from_smiles(smiles)
+        if mol is None:
+            return None
+        smiles = Chem.MolToSmiles(mol, canonical=True)
+        return smiles

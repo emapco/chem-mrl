@@ -85,11 +85,11 @@ class BenchmarkDataSeeder(ABC):
 
     @abstractmethod
     def generate(self, fp_size: int, **kwargs):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def seed(self):
-        pass
+        raise NotImplementedError
 
 
 class MorganFingerprintSeeder(BenchmarkDataSeeder):

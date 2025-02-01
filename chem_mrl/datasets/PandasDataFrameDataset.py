@@ -37,12 +37,16 @@ class PandasDataFrameDataset(Dataset):
         return self._get(self.__df.iloc[idx])
 
     def _get_smiles_pair_example(self, row):
+        from sentence_transformers import InputExample  # reimport for pandarallel
+
         return InputExample(
             texts=[row[self.__smiles_a_column], row[self.__smiles_b_column]],
             label=row[self.__label_column],
         )
 
     def _get_single_smiles_example(self, row):
+        from sentence_transformers import InputExample  # reimport for pandarallel
+
         return InputExample(
             texts=row[self.__smiles_a_column], label=row[self.__label_column]
         )
@@ -51,7 +55,7 @@ class PandasDataFrameDataset(Dataset):
         return row["examples"]
 
     def _pregenerate_examples(self, apply: Callable):
-        self.__df["examples"] = self.__df.apply(apply, axis=1)
+        self.__df["examples"] = self.__df.parallel_apply(apply, axis=1)  # type: ignore
 
     def _set_get_method(self, smiles_b_column, generate_dataset_examples_at_init):
         if smiles_b_column is None:
@@ -60,6 +64,9 @@ class PandasDataFrameDataset(Dataset):
             getter = self._get_smiles_pair_example
 
         if generate_dataset_examples_at_init:
+            from pandarallel import pandarallel
+
+            pandarallel.initialize(progress_bar=True)
             logger.info(
                 "Pregenerate examples to match expected type by sentence_transformers"
             )

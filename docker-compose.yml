@@ -26,15 +26,14 @@ services:
       - 5431:5432
     networks:
       - chem-network
-    shm_size: 60g # must be greater than the size of the database
+    shm_size: 45g # must be greater than the size of the database
     restart: always
   rapids-notebooks:
-    image: nvcr.io/nvidia/rapidsai/notebooks:24.08-cuda12.2-py3.11
+    image: nvcr.io/nvidia/rapidsai/notebooks:24.12-cuda12.5-py3.12
     volumes:
       - ./:/home/rapids/notebooks/chem-mrl
     environment:
       CUDA_VISIBLE_DEVICES: "0,1"
-    # user: "1001:1001" # standard for ubuntu
     ports:
       - 8888:8888
       - 8787:8787
@@ -52,5 +51,45 @@ services:
       stack: 67108864
     networks:
       - chem-network
+  bionemo:
+    image: nvcr.io/nvidia/clara/bionemo-framework:1.10.1
+    platform: AMD64
+    volumes:
+      - ./:/workspace/bionemo/chem_mrl
+    environment:
+      CUDA_VISIBLE_DEVICES: "0,1"
+    entrypoint: sleep
+    command: infinity
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+    shm_size: 8g
+    ulimits:
+      memlock: -1
+      stack: 67108864
+  molmim:
+    image: nvcr.io/nim/nvidia/molmim:1.0.0
+    platform: AMD64
+    volumes:
+      - ./:/workspace/chem_mrl
+    environment:
+      CUDA_VISIBLE_DEVICES: "0,1"
+    entrypoint: sleep
+    command: infinity
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+              capabilities: [gpu]
+    shm_size: 8g
+    ulimits:
+      memlock: -1
+      stack: 67108864
 networks:
   chem-network:

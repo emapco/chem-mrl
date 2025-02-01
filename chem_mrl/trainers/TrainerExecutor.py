@@ -35,7 +35,7 @@ class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType, BoundConfigType]):
 
     @abstractmethod
     def execute(self) -> float:
-        pass
+        raise NotImplementedError
 
 
 class CallbackTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigType]):

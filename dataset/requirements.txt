@@ -1,0 +1,4 @@
+fastparquet==2024.11.0
+rdkit==2024.9.4
+pandas==2.2.2
+pandarallel==1.6.5

@@ -43,60 +43,77 @@ MODEL_NAME_KEYS = sorted(list(MODEL_NAMES.keys()))
 # CHEM-MRL DATASET MAPS
 ##############################
 TRAIN_DS_DICT = {
-    "functional-qed-pfizer-fp-similarity": os.path.join(
+    "functional-qed-pfizer-fp-sim": os.path.join(
         _data_dir,
-        "train_QED-pfizer_functional_fp_similarity_8192.parquet",
+        "train_QED-pfizer_func_fp_sim_8192.parquet",
     ),
-    "functional-qed-fp-similarity": os.path.join(
-        _data_dir, "train_QED_functional_fp_similarity_8192.parquet"
+    "functional-qed-fp-sim": os.path.join(
+        _data_dir, "train_QED_func_fp_sim_8192.parquet"
     ),
-    "functional-fp-similarity": os.path.join(
-        _data_dir, "train_functional_fp_similarity_8192.parquet"
+    "functional-fp-sim": os.path.join(
+        _data_dir, "train_func_fp_sim_8192.parquet"
     ),
-    "qed-pfizer-fp-similarity": os.path.join(
-        _data_dir, "train_QED-pfizer_fp_similarity_8192.parquet"
+    "functional-pubchem-10m-fp-sim": os.path.join(
+        _data_dir, "train_pubchem_10m_fp_sim_8192.parquet"
     ),
-    "qed-fp-similarity": os.path.join(
-        _data_dir, "train_QED_fp_similarity_8192.parquet"
+    "qed-pfizer-fp-sim": os.path.join(
+        _data_dir, "train_QED-pfizer_fp_sim_8192.parquet"
     ),
-    "fp-similarity": os.path.join(_data_dir, "train_fp_similarity_8192.parquet"),
+    "qed-fp-sim": os.path.join(
+        _data_dir, "train_QED_fp_sim_8192.parquet"
+    ),
+    "fp-sim": os.path.join(_data_dir, "train_fp_sim_8192.parquet"),
+    "pubchem-10m-fp-sim": os.path.join(
+        _data_dir, "train_pubchem_10m_fp_sim_8192.parquet"
+    ),
 }
 CHEM_MRL_DATASET_KEYS = sorted(list(TRAIN_DS_DICT.keys()))
 
 VAL_DS_DICT = {
-    "functional-qed-pfizer-fp-similarity": os.path.join(
+    "functional-qed-pfizer-fp-sim": os.path.join(
         _data_dir,
-        "val_QED-pfizer_functional_fp_similarity_8192.parquet",
+        "val_QED-pfizer_func_fp_sim_8192.parquet",
     ),
-    "functional-qed-fp-similarity": os.path.join(
-        _data_dir, "val_QED_functional_fp_similarity_8192.parquet"
+    "functional-qed-fp-sim": os.path.join(
+        _data_dir, "val_QED_func_fp_sim_8192.parquet"
     ),
-    "functional-fp-similarity": os.path.join(
-        _data_dir, "val_functional_fp_similarity_8192.parquet"
+    "functional-fp-sim": os.path.join(
+        _data_dir, "val_func_fp_sim_8192.parquet"
     ),
-    "qed-pfizer-fp-similarity": os.path.join(
-        _data_dir, "val_QED-pfizer_fp_similarity_8192.parquet"
+    "functional-pubchem-10m-fp-sim": os.path.join(
+        _data_dir, "val_pubchem_10m_fp_sim_8192.parquet"
     ),
-    "qed-fp-similarity": os.path.join(_data_dir, "val_QED_fp_similarity_8192.parquet"),
-    "fp-similarity": os.path.join(_data_dir, "val_fp_similarity_8192.parquet"),
+    "qed-pfizer-fp-sim": os.path.join(
+        _data_dir, "val_QED-pfizer_fp_sim_8192.parquet"
+    ),
+    "qed-fp-sim": os.path.join(_data_dir, "val_QED_fp_sim_8192.parquet"),
+    "fp-sim": os.path.join(_data_dir, "val_fp_sim_8192.parquet"),
+    "pubchem-10m-fp-sim": os.path.join(
+        _data_dir, "val_pubchem_10m_fp_sim_8192.parquet"
+    ),
 }
-
 TEST_DS_DICT = {
-    "functional-qed-pfizer-fp-similarity": os.path.join(
+    "functional-qed-pfizer-fp-sim": os.path.join(
         _data_dir,
-        "test_QED-pfizer_functional_fp_similarity_8192.parquet",
+        "test_QED-pfizer_func_fp_sim_8192.parquet",
     ),
-    "functional-qed-fp-similarity": os.path.join(
-        _data_dir, "test_QED_functional_fp_similarity_8192.parquet"
+    "functional-qed-fp-sim": os.path.join(
+        _data_dir, "test_QED_func_fp_sim_8192.parquet"
     ),
-    "functional-fp-similarity": os.path.join(
-        _data_dir, "test_functional_fp_similarity_8192.parquet"
+    "functional-fp-sim": os.path.join(
+        _data_dir, "test_func_fp_sim_8192.parquet"
     ),
-    "qed-pfizer-fp-similarity": os.path.join(
-        _data_dir, "test_QED-pfizer_fp_similarity_8192.parquet"
+    "functional-pubchem-10m-fp-sim": os.path.join(
+        _data_dir, "test_pubchem_10m_fp_sim_8192.parquet"
     ),
-    "qed-fp-similarity": os.path.join(_data_dir, "test_QED_fp_similarity_8192.parquet"),
-    "fp-similarity": os.path.join(_data_dir, "test_fp_similarity_8192.parquet"),
+    "qed-pfizer-fp-sim": os.path.join(
+        _data_dir, "test_QED-pfizer_fp_sim_8192.parquet"
+    ),
+    "qed-fp-sim": os.path.join(_data_dir, "test_QED_fp_sim_8192.parquet"),
+    "fp-sim": os.path.join(_data_dir, "test_fp_sim_8192.parquet"),
+    "pubchem-10m-fp-sim": os.path.join(
+        _data_dir, "test_pubchem_10m_fp_sim_8192.parquet"
+    ),
 }
 
 

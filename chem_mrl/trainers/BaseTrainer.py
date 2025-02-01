@@ -45,57 +45,57 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
     @property
     @abstractmethod
     def config(self) -> BoundConfigType:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def model(self) -> SentenceTransformer:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def train_dataloader(self) -> torch.utils.data.DataLoader:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def loss_fct(self) -> torch.nn.Module:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def val_evaluator(self) -> SentenceEvaluator:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def test_evaluator(self) -> SentenceEvaluator | None:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def model_save_dir_name(self) -> str:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def steps_per_epoch(self) -> int:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def eval_metric(self) -> str:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def val_eval_file_path(self) -> str:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def test_eval_file_path(self) -> str:
-        pass
+        raise NotImplementedError
 
     ############################################################################
     # abstract methods
@@ -119,11 +119,11 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
 
     @abstractmethod
     def _initialize_loss(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _initialize_output_path(self):
-        pass
+        raise NotImplementedError
 
     ############################################################################
     # concrete methods

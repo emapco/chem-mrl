@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Iterable
+from typing import Dict, Iterable
 
 import torch
 from sentence_transformers import SentenceTransformer
@@ -44,13 +44,14 @@ class _ClassifierLoss(nn.Module):
 
         self.__smiles_embedding_dimension = smiles_embedding_dimension
         self.__num_labels = num_labels
+        self.__dense = nn.Linear(smiles_embedding_dimension, smiles_embedding_dimension)
         self.__dropout_p = dropout
         self.__classifier = nn.Linear(
             smiles_embedding_dimension, num_labels, device=model.device
         )
         # strategy pattern - determine whether to apply dropout or no-op at runtime
         if dropout > 0:
-            self.__dropout = nn.Dropout(self.__dropout_p, inplace=True)
+            self.__dropout = nn.Dropout(self.__dropout_p)
         else:
             self.__dropout = nn.Identity()  # no-op
 
@@ -77,11 +78,14 @@ class _ClassifierLoss(nn.Module):
             self.__model(smiles_feature)["sentence_embedding"]
             for smiles_feature in smiles_features
         ]
-
         # guaranteed to be single smiles (sentence) embedding
         features = self._truncate_embeddings(sent_reps[0])
-        self.__dropout(features)
-        logits: Tensor = self.__classifier(features)
+
+        logits = self.__dropout(features)
+        logits = self.__dense(logits)
+        logits = torch.tanh(logits)
+        logits = self.__dropout(logits)
+        logits = self.__classifier(logits)
 
         return features, logits
 
@@ -225,7 +229,7 @@ class SoftmaxLoss(_ClassifierLoss):
         num_labels: int,
         dropout: float = 0.15,
         freeze_model: bool = False,
-        loss_fct: Callable = nn.CrossEntropyLoss(),
+        loss_fct: nn.Module = nn.CrossEntropyLoss(),
     ):
         """
         This class implements the softmax loss function for SMILES classification.
