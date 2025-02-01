@@ -11,6 +11,7 @@ notes/
 
 .cursorignore
 .coveragerc
+*.nemo
 *.pyc
 *.pkl
 *.ini

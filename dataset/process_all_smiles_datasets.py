@@ -10,9 +10,9 @@ from pandas import DataFrame
 from rdkit import RDLogger
 
 logging.basicConfig(
-    level=logging.INFO,  # Ensure INFO messages are printed
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],  # Ensure logs go to stdout
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 RDLogger.DisableLog("rdApp.*")  # type: ignore - DisableLog is an exported function
 

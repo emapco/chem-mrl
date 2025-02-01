@@ -159,11 +159,6 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
             "lr": learning_rate,
             "weight_decay": weight_decay,
         }
-        if self.config.use_fused_adamw and not isinstance(
-            self.__optimizer, torch.optim.AdamW
-        ):
-            # FusedAdam requires adam_w_mode flag
-            optimizer_params["adam_w_mode"] = True
 
         self.model.old_fit(
             train_objectives=[(self.train_dataloader, self.loss_fct)],
