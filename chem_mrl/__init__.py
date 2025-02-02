@@ -4,9 +4,10 @@ import logging
 
 from sentence_transformers import LoggingHandler
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 from . import (
+    benchmark,
     configs,
     constants,
     datasets,
@@ -27,6 +28,7 @@ logging.basicConfig(
 
 
 __all__ = [
+    "benchmark",
     "configs",
     "constants",
     "datasets",
