@@ -1,5 +1,4 @@
 import os
-from argparse import ArgumentParser
 from time import perf_counter
 
 import pandas as pd
@@ -9,16 +8,16 @@ from chem_mrl.constants import (
     BASE_MODEL_NAME,
     CHEM_MRL_DIMENSIONS,
     EMBEDDING_MODEL_HIDDEN_DIM,
-    OUTPUT_DATA_DIR,
 )
 from chem_mrl.molecular_embedder import ChemMRL
 from chem_mrl.molecular_fingerprinter import MorganFingerprinter
 
 
-class DatabaseBenchmark:
-    def __init__(self, psql_connect_uri: str, knn_k: int = 50):
+class PgVectorBenchmark:
+    def __init__(self, psql_connect_uri: str, output_path: str, knn_k: int = 50):
         self.knn_k = knn_k
         self.engine = create_engine(psql_connect_uri)
+        self.output_path = output_path
 
     def execute_knn_query(
         self,
@@ -201,54 +200,11 @@ class DatabaseBenchmark:
         results_df = pd.DataFrame(results_data)
         summary_stats = results_df.groupby(["model", "dimension"]).describe()
 
-        results_df.to_csv("benchmark_detailed_results.csv", index=False)
-        summary_stats.to_csv("benchmark_summary_stats.csv")
+        results_df.to_csv(
+            os.path.join(self.output_path, "benchmark_detailed_results.csv"),
+            index=False,
+        )
+        summary_stats.to_csv(
+            os.path.join(self.output_path, "benchmark_summary_stats.csv")
+        )
         return results_df, summary_stats
-
-
-def parse_args():
-    parser = ArgumentParser(description="Parse arguments for ZINC20 DB benchmark.")
-    parser.add_argument(
-        "--dataset_path",
-        type=str,
-        default=os.path.join(OUTPUT_DATA_DIR, "zinc20", "smiles_all_99.txt"),
-        help="Path to a ZINC20 dataset file. Dataset files can be found here: https://files.docking.org/zinc20-ML/",
-    )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="Random seed for sampling."
-    )
-    parser.add_argument(
-        "--num_rows", type=int, default=500, help="Number of rows to sample."
-    )
-    parser.add_argument(
-        "--psql_connection_uri",
-        type=str,
-        default="postgresql://postgres:password@127.0.0.1:5431/postgres",
-        help="PostgreSQL connection URI string.",
-    )
-    parser.add_argument(
-        "--knn_k", type=int, default=50, help="Number of neighbors for k-NN."
-    )
-
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    ARGS = parse_args()
-
-    test_queries = pd.read_csv(ARGS.dataset_path, sep=" ", header=None)
-    test_queries = test_queries.sample(ARGS.num_rows, random_state=ARGS.seed)
-    test_queries.columns = ["smiles", "zinc_id"]
-    test_queries = test_queries.drop(columns=["zinc_id"])
-
-    benchmarker = DatabaseBenchmark(
-        psql_connect_uri=ARGS.psql_connection_uri, knn_k=ARGS.knn_k
-    )
-    detailed_results, summary_stats = benchmarker.run_benchmark(
-        model_name="chem_mrl", test_queries=test_queries, smiles_column_name="smiles"
-    )
-
-    header = "Benchmark Results Summary:"
-    print(f"\n{header}")
-    print("=" * len(header))
-    print(summary_stats)
