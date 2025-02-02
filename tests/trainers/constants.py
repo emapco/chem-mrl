@@ -1,8 +1,9 @@
 import os
+from pathlib import Path
 
-_curr_file_dir = os.path.dirname(os.path.abspath(__file__))
-_parent_dir = os.path.dirname(_curr_file_dir)
-_test_data_dir = os.path.join(_parent_dir, "data")
+curr_file_path = Path(__file__).parent
+_parent_dir = Path(curr_file_path).parent
+_test_data_dir = Path(_parent_dir, "data")
 
 
 TEST_CHEM_MRL_PATH = os.path.join(_test_data_dir, "test_chem_mrl.parquet")

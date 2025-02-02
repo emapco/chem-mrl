@@ -72,7 +72,8 @@ class MorganFingerprinter(_MolecularFingerprinter):
     def fp_size(self) -> int:
         return self._fp_size
 
-    def _create_mol_from_smiles(self, smiles: str) -> Chem.Mol | None:
+    @staticmethod
+    def _create_mol_from_smiles(smiles: str) -> Chem.Mol | None:
         """Create a molecule object from SMILES string with standardization fallback."""
         try:
             mol = Chem.MolFromSmiles(smiles)
@@ -145,11 +146,12 @@ class MorganFingerprinter(_MolecularFingerprinter):
 
         return DataStructs.TanimotoSimilarity(fp1, fp2)
 
-    def get_canonical_smiles(self, smiles: str) -> str | None:
+    @classmethod
+    def get_canonical_smiles(cls, smiles: str) -> str | None:
         """
         Get canonical SMILES string from a given SMILES string.
         """
-        mol = self._create_mol_from_smiles(smiles)
+        mol = cls._create_mol_from_smiles(smiles)
         if mol is None:
             return None
         smiles = Chem.MolToSmiles(mol, canonical=True)
