@@ -60,4 +60,5 @@ run_bionemo:
 		--user $(id -u):$(id -g) \
 		-e CUDA_VISIBLE_DEVICES="0" \
 		-v "$(pwd)".:/workspace/bionemo/chem-mrl \
-		nvcr.io/nvidia/clara/bionemo-framework:1.10.1
+		nvcr.io/nvidia/clara/bionemo-framework:1.10.1 \
+		bash
