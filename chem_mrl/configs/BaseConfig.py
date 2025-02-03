@@ -63,8 +63,8 @@ class _BaseConfig:
     lr_base: float | int = 1.1190785944700813e-05
     scheduler: SchedulerOptionType = "warmuplinear"  # type: ignore
     warmup_steps_percent: float = 0.0
-    use_fused_adamw: bool = True
-    use_tf32: bool = True
+    use_fused_adamw: bool = False
+    use_tf32: bool = False
     use_amp: bool = False
     seed: int | None = 42
     model_output_path: str = "output"

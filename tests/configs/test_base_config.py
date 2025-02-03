@@ -94,8 +94,8 @@ def test_base_config_default_values():
     assert config.lr_base == 1.1190785944700813e-05
     assert config.scheduler == "warmuplinear"
     assert config.warmup_steps_percent == 0.0
-    assert config.use_fused_adamw is True
-    assert config.use_tf32 is True
+    assert config.use_fused_adamw is False
+    assert config.use_tf32 is False
     assert config.use_amp is False
     assert config.seed == 42
     assert config.model_output_path == "output"
