@@ -130,7 +130,8 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
     def _initialize_model(self) -> SentenceTransformer:
         word_embedding_model = models.Transformer(self._config.model_name)
         pooling_model = models.Pooling(
-            word_embedding_model.get_word_embedding_dimension(), pooling_mode="mean"
+            word_embedding_model.get_word_embedding_dimension(),
+            pooling_mode=self._config.embedding_pooling,
         )
         return SentenceTransformer(modules=[word_embedding_model, pooling_model])
 

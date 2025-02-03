@@ -3,8 +3,8 @@ from contextlib import nullcontext
 from typing import Callable, Generic, TypeVar
 
 import optuna
-
 import wandb
+
 from chem_mrl.configs import BoundConfigType
 
 from .BaseTrainer import BoundTrainerType
@@ -36,22 +36,6 @@ class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType, BoundConfigType]):
     @abstractmethod
     def execute(self) -> float:
         raise NotImplementedError
-
-
-class CallbackTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigType]):
-    def __init__(
-        self,
-        trainer: BoundTrainerType,
-        eval_callback: Callable[[float, int, int], None] | None = None,
-    ):
-        super().__init__(trainer)
-        if eval_callback is not None and not callable(eval_callback):
-            raise ValueError("eval_callback must be callable")
-        self.__eval_callback = eval_callback
-
-    def execute(self) -> float:
-        metric = self.trainer.train(eval_callback=self.__eval_callback)
-        return metric
 
 
 class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigType]):

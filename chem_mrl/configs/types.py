@@ -20,6 +20,13 @@ SCHEDULER_OPTIONS = (
 SchedulerOptionType = Literal[*SCHEDULER_OPTIONS]
 
 # ChemMrl Config types
+CHEM_MRL_EMBEDDING_POOLING_OPTIONS = (
+    "mean",
+    "mean_sqrt_len_tokens",
+    "weightedmean",
+    "lasttoken",
+)
+ChemMrlPoolingOptionType = Literal[*CHEM_MRL_EMBEDDING_POOLING_OPTIONS]
 # # For tanimoto loss functions
 CHEM_MRL_LOSS_FCT_OPTIONS = (
     "tanimotosentloss",

@@ -20,6 +20,7 @@ def test_chem_mrl_config_default_values():
     assert config.smiles_b_column_name == "smiles_b"
     assert config.label_column_name == "fingerprint_similarity"
     assert config.model_name == BASE_MODEL_NAME
+    assert config.embedding_pooling == "mean"
     assert config.loss_func == "tanimotosentloss"
     assert config.tanimoto_similarity_loss_func is None
     assert config.eval_similarity_fct == "tanimoto"
@@ -36,6 +37,7 @@ def test_chem_mrl_config_custom_values():
         train_dataset_path="train.parquet",
         val_dataset_path="val.parquet",
         model_name="custom_model",
+        embedding_pooling="weightedmean",
         loss_func="angleloss",
         tanimoto_similarity_loss_func="mse",
         mrl_dimension_weights=custom_weights,
@@ -46,6 +48,7 @@ def test_chem_mrl_config_custom_values():
     assert config.train_dataset_path == "train.parquet"
     assert config.val_dataset_path == "val.parquet"
     assert config.model_name == "custom_model"
+    assert config.embedding_pooling == "weightedmean"
     assert config.loss_func == "angleloss"
     assert config.tanimoto_similarity_loss_func == "mse"
     assert config.mrl_dimension_weights == custom_weights
@@ -71,6 +74,12 @@ def test_chem_mrl_config_validation():
             train_dataset_path="train.parquet",
             val_dataset_path="val.parquet",
             label_column_name="",
+        )
+    with pytest.raises(ValueError, match="embedding_pooling must be one of"):
+        ChemMRLConfig(
+            train_dataset_path="train.parquet",
+            val_dataset_path="val.parquet",
+            embedding_pooling="invalid_pooling",
         )
     with pytest.raises(ValueError, match="loss_func must be one of"):
         ChemMRLConfig(
@@ -121,7 +130,7 @@ def test_chem_mrl_config_validation():
             val_dataset_path="val.parquet",
             mrl_dimension_weights=non_increasing_weights,
         )
-    with pytest.raises(ValueError, match="n_dims_per_step must be positive"):
+    with pytest.raises(ValueError, match="n_dims_per_step must be positive or -1"):
         ChemMRLConfig(
             train_dataset_path="train.parquet",
             val_dataset_path="val.parquet",
@@ -343,6 +352,12 @@ def test_chem_mrl_config_type_validation():
             train_dataset_path="train.parquet",
             val_dataset_path="val.parquet",
             label_column_name=1,
+        )
+    with pytest.raises(TypeError):
+        ChemMRLConfig(
+            train_dataset_path="train.parquet",
+            val_dataset_path="val.parquet",
+            embedding_pooling=1,
         )
     with pytest.raises(TypeError):
         ChemMRLConfig(

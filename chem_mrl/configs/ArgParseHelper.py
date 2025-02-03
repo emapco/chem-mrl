@@ -11,6 +11,7 @@ from .ClassifierConfig import (
     DiceLossClassifierConfig,
 )
 from .MrlConfig import (
+    CHEM_MRL_EMBEDDING_POOLING_OPTIONS,
     CHEM_MRL_EVAL_METRIC_OPTIONS,
     CHEM_MRL_LOSS_FCT_OPTIONS,
     EVAL_SIMILARITY_FCT_OPTIONS,
@@ -169,6 +170,14 @@ def add_chem_mrl_config_args(
         "--label_column_name",
         default="fingerprint_similarity",
         help="Label column name",
+    )
+    parser.add_argument(
+        "--embedding_pooling",
+        choices=CHEM_MRL_EMBEDDING_POOLING_OPTIONS,
+        default="mean",
+        help="Pooling layer method applied to the embeddings."
+        "Pooling layer is required to generate a fixed sized SMILES embedding from a variable sized SMILES."
+        "For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling",
     )
     parser.add_argument(
         "--loss_func",
@@ -372,6 +381,7 @@ def generate_chem_mrl_config(
         "smiles_a_column_name": args.smiles_a_column_name,
         "smiles_b_column_name": args.smiles_b_column_name,
         "label_column_name": args.label_column_name,
+        "embedding_pooling": args.embedding_pooling,
         "loss_func": args.loss_func,
         "tanimoto_similarity_loss_func": args.tanimoto_similarity_loss_func,
         "eval_similarity_fct": args.eval_similarity_fct,

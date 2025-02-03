@@ -1,3 +1,5 @@
+import math
+
 import pytest
 from constants import TEST_CLASSIFICATION_PATH
 
@@ -8,11 +10,7 @@ from chem_mrl.configs.types import (
     SCHEDULER_OPTIONS,
 )
 from chem_mrl.constants import BASE_MODEL_NAME, CHEM_MRL_DIMENSIONS
-from chem_mrl.trainers import (
-    CallbackTrainerExecutor,
-    ClassifierTrainer,
-    WandBTrainerExecutor,
-)
+from chem_mrl.trainers import ClassifierTrainer, WandBTrainerExecutor
 
 
 def test_classifier_trainer_instantiation():
@@ -46,10 +44,9 @@ def test_classifier_test_evaluator():
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
@@ -59,10 +56,9 @@ def test_classifier_test_evaluator():
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("scheduler", SCHEDULER_OPTIONS)
@@ -77,10 +73,9 @@ def test_classifier_scheduler_options(
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
@@ -90,10 +85,9 @@ def test_classifier_scheduler_options(
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("dimension", CHEM_MRL_DIMENSIONS)
@@ -108,12 +102,11 @@ def test_classifier_classifier_hidden_dimensions(
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert trainer.model.truncate_dim == dimension
     assert trainer.loss_fct.smiles_embedding_dimension == dimension
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
@@ -123,12 +116,11 @@ def test_classifier_classifier_hidden_dimensions(
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert trainer.model.truncate_dim == dimension
     assert trainer.loss_fct.smiles_embedding_dimension == dimension
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("eval_metric", CLASSIFIER_EVAL_METRIC_OPTIONS)
@@ -141,10 +133,9 @@ def test_classifier_eval_metrics(eval_metric):
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
@@ -154,10 +145,9 @@ def test_classifier_eval_metrics(eval_metric):
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 def test_classifier_freeze_internal_model():
@@ -169,11 +159,10 @@ def test_classifier_freeze_internal_model():
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert trainer.loss_fct.freeze_model is True
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
@@ -183,11 +172,10 @@ def test_classifier_freeze_internal_model():
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert trainer.loss_fct.freeze_model is True
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 def test_classifier_num_labels():
@@ -220,12 +208,10 @@ def test_classifier_dropout(dropout_p):
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
-
+    result = trainer.train()
     assert trainer.loss_fct.dropout_p == dropout_p
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
@@ -235,11 +221,10 @@ def test_classifier_dropout(dropout_p):
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert trainer.loss_fct.dropout_p == dropout_p
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 def test_dice_loss_classifier_trainer_instantiation():
@@ -275,10 +260,9 @@ def test_dice_loss_classifier_dice_reduction_options(dice_reduction):
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("batch_size", [1, 16, 64, 128])
@@ -292,10 +276,9 @@ def test_classifier_batch_sizes(batch_size):
     )
     trainer = ClassifierTrainer(config)
     assert trainer.train_dataloader.batch_size == batch_size
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("lr", [1e-6, 1e-4, 1e-2])
@@ -308,10 +291,9 @@ def test_classifier_learning_rates(lr):
         return_eval_metric=True,
     )
     trainer = ClassifierTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize(

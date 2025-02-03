@@ -32,7 +32,7 @@ class _MolecularFingerprinter(ABC):
 class MorganFingerprinter(_MolecularFingerprinter):
     """A class to generate and compare Morgan molecular fingerprints using RDKit."""
 
-    def __init__(self, radius: int = 2, fp_size: int = 8192) -> None:
+    def __init__(self, radius: int = 2, fp_size: int = 4096) -> None:
         """
         Initialize the fingerprint generator with specified parameters.
         A radius of 2 corresponds to ECFP4/FCFP4 fingerprints.

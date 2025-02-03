@@ -152,7 +152,7 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
         eval_results_df = pd.read_csv(eval_file_path)
         return float(eval_results_df.iloc[-1][eval_metric])
 
-    def train(self, eval_callback: Callable | None):
+    def train(self, eval_callback: Callable[[float, int, int], None] | None = None):
         learning_rate, weight_decay, warmup_steps = self.__calculate_training_params()
 
         optimizer_params: dict[str, object] = {
@@ -191,4 +191,4 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
         if self.config.return_eval_metric:
             metric = self._read_eval_metric(self.val_eval_file_path, self.eval_metric)
             return metric
-        return -1.0
+        return -math.inf

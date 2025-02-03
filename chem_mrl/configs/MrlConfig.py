@@ -4,12 +4,14 @@ from chem_mrl.constants import CHEM_MRL_DIMENSIONS
 
 from .BaseConfig import _BaseConfig
 from .types import (
+    CHEM_MRL_EMBEDDING_POOLING_OPTIONS,
     CHEM_MRL_EVAL_METRIC_OPTIONS,
     CHEM_MRL_LOSS_FCT_OPTIONS,
     EVAL_SIMILARITY_FCT_OPTIONS,
     TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS,
     ChemMrlEvalMetricOptionType,
     ChemMrlLossFctOptionType,
+    ChemMrlPoolingOptionType,
     EvalSimilarityMetricOptionType,
     TanimotoSimilarityBaseLossFctOptionType,
 )
@@ -20,6 +22,7 @@ class ChemMRLConfig(_BaseConfig):
     smiles_a_column_name: str = "smiles_a"
     smiles_b_column_name: str = "smiles_b"
     label_column_name: str = "fingerprint_similarity"
+    embedding_pooling: ChemMrlPoolingOptionType = "mean"  # type: ignore
     loss_func: ChemMrlLossFctOptionType = "tanimotosentloss"  # type: ignore
     tanimoto_similarity_loss_func: TanimotoSimilarityBaseLossFctOptionType | None = None  # type: ignore
     eval_similarity_fct: EvalSimilarityMetricOptionType = "tanimoto"  # type: ignore
@@ -38,6 +41,8 @@ class ChemMRLConfig(_BaseConfig):
             raise TypeError("smiles_b_column_name must be a string")
         if not isinstance(self.label_column_name, str):
             raise TypeError("label_column_name must be a string")
+        if not isinstance(self.embedding_pooling, str):
+            raise TypeError("embedding_pooling must be a string")
         if not isinstance(self.loss_func, str):
             raise TypeError("loss_func must be a string")
         if not isinstance(self.tanimoto_similarity_loss_func, str | None):
@@ -61,6 +66,10 @@ class ChemMRLConfig(_BaseConfig):
             raise ValueError("smiles_b_column_name must be set")
         if self.label_column_name == "":
             raise ValueError("label_column_name must be set")
+        if self.embedding_pooling not in CHEM_MRL_EMBEDDING_POOLING_OPTIONS:
+            raise ValueError(
+                f"embedding_pooling must be one of {CHEM_MRL_EMBEDDING_POOLING_OPTIONS}"
+            )
         if self.loss_func not in CHEM_MRL_LOSS_FCT_OPTIONS:
             raise ValueError(f"loss_func must be one of {CHEM_MRL_LOSS_FCT_OPTIONS}")
         if (self.tanimoto_similarity_loss_func is not None) and (

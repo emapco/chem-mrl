@@ -54,14 +54,14 @@ CREATE TABLE IF NOT EXISTS cme_32 (
 );
 CREATE INDEX IF NOT EXISTS cme_32_embedding_idx ON cme_32 USING hnsw ((embedding::halfvec(32)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
--- Table and index for morgen fingerprint embedding size 4000
--- 4000 is the maximum embedding size supported by pgvector for halfvec
-CREATE TABLE IF NOT EXISTS test_4000 (
+-- Table and index for morgen fingerprint embedding size 2048
+-- 2048 is the maximum embedding size supported by pgvector for halfvec
+CREATE TABLE IF NOT EXISTS test_2048 (
     zinc_id TEXT NOT NULL PRIMARY KEY,
     smiles TEXT NOT NULL,
-    embedding halfvec(4000)
+    embedding halfvec(2048)
 );
-CREATE INDEX IF NOT EXISTS test_4000_embedding_idx ON test_4000 USING hnsw ((embedding::halfvec(4000)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
+CREATE INDEX IF NOT EXISTS test_2048_embedding_idx ON test_2048 USING hnsw ((embedding::halfvec(2048)) halfvec_cosine_ops) WITH (m = 16, ef_construction = 96);
 
 CREATE TABLE IF NOT EXISTS test_768 (
     zinc_id TEXT NOT NULL PRIMARY KEY,

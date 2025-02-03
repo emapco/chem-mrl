@@ -83,7 +83,7 @@ class _ClassifierLoss(nn.Module):
 
         logits = self.__dropout(features)
         logits = self.__dense(logits)
-        logits = torch.tanh(logits)
+        logits = torch.relu(logits)
         logits = self.__dropout(logits)
         logits = self.__classifier(logits)
 

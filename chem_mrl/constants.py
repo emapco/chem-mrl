@@ -6,10 +6,10 @@ _data_dir = os.path.join(_project_root_dir, "data", "chem")
 OUTPUT_MODEL_DIR = os.path.join(_project_root_dir, "output", "old")
 OUTPUT_DATA_DIR = os.path.join(_project_root_dir, "data", "chem")
 EMBEDDING_MODEL_HIDDEN_DIM = 768
-TEST_FP_SIZES = [8, 16, 32, 64, 128, 256, 512, 768, 4000]
+TEST_FP_SIZES = [8, 16, 32, 64, 128, 256, 512, 768, 2048]
 CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32, 16, 8]
 BASE_MODEL_DIMENSIONS = [EMBEDDING_MODEL_HIDDEN_DIM]
-BASE_MODEL_NAME = "seyonec/ChemBERTa-zinc-base-v1"
+BASE_MODEL_NAME = "seyonec/SMILES_tokenized_PubChem_shard00_160k"
 OPTUNA_DB_URI = "postgresql://postgres:password@127.0.0.1:5432/postgres"
 
 
@@ -19,7 +19,7 @@ OPTUNA_DB_URI = "postgresql://postgres:password@127.0.0.1:5432/postgres"
 MODEL_NAMES = {
     # full dataset 2d-mrl-embed preferred in init. hyperparam. search
     # followed by QED_morgan dataset with NON-functional morgan fingerprints
-    "base": "seyonec/ChemBERTa-zinc-base-v1",  # for comparison
+    "base": BASE_MODEL_NAME,  # for comparison
     "full_dataset": os.path.join(
         OUTPUT_MODEL_DIR,
         "ChemBERTa-zinc-base-v1-2d-matryoshka-embeddings"

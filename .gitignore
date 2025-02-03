@@ -9,7 +9,13 @@ __pycache__/
 build/
 notes/
 dist/
+training_output/**
 
+
+*.pt
+*.pth
+*.safetensors
+*.bin
 .cursorignore
 .coveragerc
 *.nemo
@@ -19,6 +25,7 @@ dist/
 .flake8
 *.csv
 *.tsv
+*.json
 *.parquet
 *.egg-info/
 TODO

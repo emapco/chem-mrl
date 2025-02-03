@@ -18,6 +18,7 @@ class PgVectorBenchmark:
         self.knn_k = knn_k
         self.engine = create_engine(psql_connect_uri)
         self.output_path = output_path
+        self.truth_dim = 2048
 
     def execute_knn_query(
         self,
@@ -130,9 +131,8 @@ class PgVectorBenchmark:
         if isinstance(ground_truth_embedding, float):
             return ground_truth_embedding
 
-        dim = 4000
         ground_truth_results, _ = self.execute_knn_query(
-            f"test_{dim}", ground_truth_embedding.tolist(), dim  # type: ignore
+            f"test_{self.truth_dim}", ground_truth_embedding.tolist(), self.truth_dim  # type: ignore
         )
         return ground_truth_results
 
@@ -149,7 +149,7 @@ class PgVectorBenchmark:
         results_data = []
 
         # compute the ground_truth for all rows first
-        ground_truth_fp = MorganFingerprinter(radius=2, fp_size=4000)
+        ground_truth_fp = MorganFingerprinter(radius=2, fp_size=self.truth_dim)
         ground_truth_queries = test_queries.copy()
         ground_truth_queries["ground_truth"] = ground_truth_queries[
             smiles_column_name

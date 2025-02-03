@@ -1,19 +1,18 @@
+import math
+
 import pytest
 from constants import TEST_CHEM_MRL_PATH
 
 from chem_mrl.configs import Chem2dMRLConfig, ChemMRLConfig, WandbConfig
 from chem_mrl.configs.types import (
+    CHEM_MRL_EMBEDDING_POOLING_OPTIONS,
     CHEM_MRL_EVAL_METRIC_OPTIONS,
     EVAL_SIMILARITY_FCT_OPTIONS,
     SCHEDULER_OPTIONS,
     TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS,
 )
 from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.trainers import (
-    CallbackTrainerExecutor,
-    ChemMRLTrainer,
-    WandBTrainerExecutor,
-)
+from chem_mrl.trainers import ChemMRLTrainer, WandBTrainerExecutor
 
 
 def test_chem_mrl_trainer_instantiation():
@@ -48,10 +47,9 @@ def test_chem_mrl_test_evaluator():
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = Chem2dMRLConfig(
         model_name=BASE_MODEL_NAME,
@@ -64,10 +62,9 @@ def test_chem_mrl_test_evaluator():
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("scheduler", SCHEDULER_OPTIONS)
@@ -82,10 +79,10 @@ def test_chem_mrl_scheduler_options(
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    trainer = ChemMRLTrainer(config)
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = Chem2dMRLConfig(
         model_name=BASE_MODEL_NAME,
@@ -95,10 +92,38 @@ def test_chem_mrl_scheduler_options(
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
+
+
+@pytest.mark.parametrize("pooling", CHEM_MRL_EMBEDDING_POOLING_OPTIONS)
+def test_chem_mrl_pooling_options(pooling):
+    config = ChemMRLConfig(
+        model_name=BASE_MODEL_NAME,
+        train_dataset_path=TEST_CHEM_MRL_PATH,
+        val_dataset_path=TEST_CHEM_MRL_PATH,
+        embedding_pooling=pooling,
+        return_eval_metric=True,
+    )
+    trainer = ChemMRLTrainer(config)
+    result = trainer.train()
+    assert trainer.config.embedding_pooling == pooling
+    assert isinstance(result, float)
+    assert result != -math.inf
+
+    config = Chem2dMRLConfig(
+        model_name=BASE_MODEL_NAME,
+        train_dataset_path=TEST_CHEM_MRL_PATH,
+        val_dataset_path=TEST_CHEM_MRL_PATH,
+        embedding_pooling=pooling,
+        return_eval_metric=True,
+    )
+    trainer = ChemMRLTrainer(config)
+    result = trainer.train()
+    assert trainer.config.embedding_pooling == pooling
+    assert isinstance(result, float)
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize(
@@ -118,10 +143,9 @@ def test_chem_mrl_loss_functions(loss_func):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     # can't test tanimotosimilarityloss since it requires an additional parameter
     config = Chem2dMRLConfig(
@@ -132,10 +156,9 @@ def test_chem_mrl_loss_functions(loss_func):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("base_loss", TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS)
@@ -149,10 +172,9 @@ def test_chem_mrl_tanimoto_similarity_loss(base_loss):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = Chem2dMRLConfig(
         model_name=BASE_MODEL_NAME,
@@ -163,10 +185,9 @@ def test_chem_mrl_tanimoto_similarity_loss(base_loss):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("eval_similarity", EVAL_SIMILARITY_FCT_OPTIONS)
@@ -179,10 +200,9 @@ def test_chem_mrl_eval_similarity(eval_similarity):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = Chem2dMRLConfig(
         model_name=BASE_MODEL_NAME,
@@ -192,10 +212,9 @@ def test_chem_mrl_eval_similarity(eval_similarity):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("eval_metric", CHEM_MRL_EVAL_METRIC_OPTIONS)
@@ -208,10 +227,9 @@ def test_chem_mrl_eval_metrics(eval_metric):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
     config = Chem2dMRLConfig(
         model_name=BASE_MODEL_NAME,
@@ -221,10 +239,9 @@ def test_chem_mrl_eval_metrics(eval_metric):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 def test_chem_2d_mrl_trainer_instantiation():
@@ -282,10 +299,9 @@ def test_2d_mrl_layer_weights():
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("batch_size", [1, 16, 64, 128])
@@ -299,10 +315,9 @@ def test_chem_mrl_batch_sizes(batch_size):
     )
     trainer = ChemMRLTrainer(config)
     assert trainer.train_dataloader.batch_size == batch_size
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize("lr", [1e-6, 1e-4, 1e-2])
@@ -315,10 +330,9 @@ def test_chem_mrl_learning_rates(lr):
         return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    executor = CallbackTrainerExecutor(trainer=trainer)
-    result = executor.execute()
+    result = trainer.train()
     assert isinstance(result, float)
-    assert result != -1.0
+    assert result != -math.inf
 
 
 @pytest.mark.parametrize(
