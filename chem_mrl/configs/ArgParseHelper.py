@@ -48,13 +48,13 @@ def add_base_config_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
     parser.add_argument(
         "--generate_dataset_examples_at_init",
         action="store_true",
-        help="If set, generate `sentence_transformers.InputExample` examples at initialization. "
-        "When off, the `sentence_transformers.InputExample` examples are generated on the fly by the dataloader.",
+        help="If set, then all `sentence_transformers.InputExample` examples will be generated at at initialization. "
+        "If not set, the `sentence_transformers.InputExample` examples are generated on the fly by the dataloader.",
     )
     parser.add_argument(
         "--model_name",
         default=BASE_MODEL_NAME,
-        help="Name of the model to use. Either file path or a hugging-face model name.",
+        help="Name of the model to use. Must be either a file path or a hugging-face model name.",
     )
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="Training batch size"
@@ -66,7 +66,7 @@ def add_base_config_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
         "--lr_base",
         type=float,
         default=1.1190785944700813e-05,
-        help="Base learning rate. Will be scaled by the batch size",
+        help="Base learning rate. Will be scaled by the square root of the batch size",
     )
     parser.add_argument(
         "--scheduler",
@@ -97,7 +97,7 @@ def add_base_config_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPa
         "--seed",
         type=int,
         default=42,
-        help="Omit to not set a seed during training. Seed dataloader sampling and transformers.",
+        help="Omit to not set a seed during training. Used to seed the dataloader sampling and the transformer.",
     )
     parser.add_argument(
         "--model_output_path", default="output", help="Path to save model"
@@ -180,13 +180,13 @@ def add_chem_mrl_config_args(
         "--tanimoto_similarity_loss_func",
         choices=TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS,
         default=None,
-        help="Base loss function for tanimoto similarity loss function (only for tanimotosentloss)",
+        help="Base loss function for tanimoto similarity loss function (only for tanimotosimilarityloss)",
     )
     parser.add_argument(
         "--eval_similarity_fct",
         choices=EVAL_SIMILARITY_FCT_OPTIONS,
         default="tanimoto",
-        help="Similarity metric to use for evaluation",
+        help="Similarity function to use for evaluation",
     )
     parser.add_argument(
         "--eval_metric",
@@ -194,15 +194,22 @@ def add_chem_mrl_config_args(
         default="spearman",
         help="Metric to use for evaluation",
     )
-    # MRL dimension weights
-    parser.add_argument("--first_dim_weight", type=float, default=1)
-    parser.add_argument("--second_dim_weight", type=float, default=1)
-    parser.add_argument("--third_dim_weight", type=float, default=1)
-    parser.add_argument("--fourth_dim_weight", type=float, default=1)
-    parser.add_argument("--fifth_dim_weight", type=float, default=1)
-    parser.add_argument("--sixth_dim_weight", type=float, default=1)
-    parser.add_argument("--seventh_dim_weight", type=float, default=1)
-    parser.add_argument("--eighth_dim_weight", type=float, default=1)
+    parser.add_argument(
+        "--mrl_dimensions",
+        nargs="+",
+        default=CHEM_MRL_DIMENSIONS,
+        type=int,
+        help="A list of embedding dimensions to be used for the loss function. "
+        "Each value must be less than equal to the base transformer's hidden dimension.",
+    )
+    parser.add_argument(
+        "--dim_weights",
+        nargs="+",
+        default=[1, 1, 1, 1, 1, 1, 1, 1],
+        type=float,
+        help="A list of weights to be used for the loss function. "
+        "The number of dimension weights must match that of the MRL dimensions.",
+    )
     parser.add_argument(
         "--n_dims_per_step",
         type=int,
@@ -242,8 +249,8 @@ def add_chem_mrl_config_args(
         "--kl_div_weight",
         type=float,
         default=1.0,
-        help=" The weight to use for the KL-div loss that is used to make the prior layers match that of the last layer. "
-        "Increase this to focus more on the performance when using fewer layers. (only for 2D MRL)",
+        help="The weight to use for the KL-div loss that is used to make the prior layers match that of the last layer."
+        " Increase this to focus more on the performance when using fewer layers. (only for 2D MRL)",
     )
     parser.add_argument(
         "--kl_temperature",
@@ -281,9 +288,9 @@ def add_classifier_config_args(
     parser.add_argument(
         "--classifier_hidden_dimension",
         type=int,
-        choices=CHEM_MRL_DIMENSIONS,
         default=CHEM_MRL_DIMENSIONS[0],
-        help="Classifier hidden dimension. The base SMILES model will be truncated to this dimension",
+        help="Classifier hidden dimension. Must be less than equal to the ChemMRL transformer's hidden dimension."
+        " Note, the base model will be truncated to this dimension.",
     )
     parser.add_argument(
         "--dropout_p",
@@ -360,17 +367,6 @@ def generate_chem_mrl_config(
 ) -> ChemMRLConfig | Chem2dMRLConfig:
     base_config = generate_base_config(args)
 
-    mrl_dimension_weights = (
-        args.first_dim_weight,
-        args.second_dim_weight,
-        args.third_dim_weight,
-        args.fourth_dim_weight,
-        args.fifth_dim_weight,
-        args.sixth_dim_weight,
-        args.seventh_dim_weight,
-        args.eighth_dim_weight,
-    )
-
     chem_mrl_config_params = {
         **base_config.asdict(),
         "smiles_a_column_name": args.smiles_a_column_name,
@@ -379,8 +375,9 @@ def generate_chem_mrl_config(
         "loss_func": args.loss_func,
         "tanimoto_similarity_loss_func": args.tanimoto_similarity_loss_func,
         "eval_similarity_fct": args.eval_similarity_fct,
+        "mrl_dimensions": args.mrl_dimensions,
         "use_2d_matryoshka": args.use_2d_matryoshka,
-        "mrl_dimension_weights": mrl_dimension_weights,
+        "mrl_dimension_weights": args.dim_weights,
     }
 
     if args.use_2d_matryoshka:

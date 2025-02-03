@@ -255,7 +255,7 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
             return Matryoshka2dLoss(
                 self.__model,
                 self._get_base_loss(self.__model, self._config),
-                self._config.mrl_dimensions,
+                list(self._config.mrl_dimensions),
                 matryoshka_weights=list(self._config.mrl_dimension_weights),
                 n_layers_per_step=self._config.n_layers_per_step,
                 n_dims_per_step=self._config.n_dims_per_step,
@@ -267,7 +267,7 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
         return MatryoshkaLoss(
             self.__model,
             self._get_base_loss(self.__model, self._config),
-            self._config.mrl_dimensions,
+            list(self._config.mrl_dimensions),
             matryoshka_weights=list(self._config.mrl_dimension_weights),
             n_dims_per_step=self._config.n_dims_per_step,
         )
@@ -279,22 +279,19 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
             mrl_infix = "2d"
             layer_weight_infix = (
                 f"-{self._config.n_layers_per_step}-{self._config.last_layer_weight:2f}"
-                f"-{self._config.prior_layers_weight:2f}-{self._config.kl_div_weight:2f}-{self._config.kl_temperature:2f}"
+                f"-{self._config.prior_layers_weight:2f}-{self._config.kl_div_weight:2f}"
+                f"-{self._config.kl_temperature:2f}"
             )
 
         loss_func_infix = f"{self._config.loss_func}"
         if self._config.tanimoto_similarity_loss_func is not None:
             loss_func_infix += f"{self._config.tanimoto_similarity_loss_func}"
 
-        w1, w2, w3, w4, w5, w6, w7, w8 = self._config.mrl_dimension_weights
-
         dir_name = (
             f"{self._config.train_batch_size}-{self._config.num_epochs}"
             f"-{self._config.lr_base:6f}-{self._config.scheduler}-{self._config.warmup_steps_percent}"
             f"-{loss_func_infix}-{self._config.n_dims_per_step}{layer_weight_infix}"
-            f"-{w1:4f}-{w2:4f}-{w3:4f}"
-            f"-{w4:4f}-{w5:4f}-{w6:4f}"
-            f"-{w7:4f}-{w8:4f}"
+            f"-{list(self._config.mrl_dimension_weights)}"
         )
 
         output_path = os.path.join(

@@ -69,11 +69,13 @@ def test_classifier_config_validation():
             val_dataset_path="val.parquet",
             loss_func="invalid",
         )
-    with pytest.raises(ValueError, match="classifier_hidden_dimension must be one of"):
+    with pytest.raises(
+        ValueError, match="classifier_hidden_dimension must be greater than 0"
+    ):
         ClassifierConfig(
             train_dataset_path="train.parquet",
             val_dataset_path="val.parquet",
-            classifier_hidden_dimension=999,
+            classifier_hidden_dimension=0,
         )
     with pytest.raises(ValueError, match="dropout_p must be between 0 and 1"):
         ClassifierConfig(

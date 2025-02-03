@@ -10,12 +10,7 @@ from chem_mrl.configs.ClassifierConfig import (
     ClassifierConfig,
     DiceLossClassifierConfig,
 )
-from chem_mrl.constants import (
-    BASE_MODEL_NAME,
-    CHEM_MRL_DIMENSIONS,
-    MODEL_NAMES,
-    OPTUNA_DB_URI,
-)
+from chem_mrl.constants import CHEM_MRL_DIMENSIONS, MODEL_NAMES, OPTUNA_DB_URI
 from chem_mrl.trainers import ClassifierTrainer, WandBTrainerExecutor
 
 logger = logging.getLogger(__name__)
@@ -53,7 +48,7 @@ def objective(
             watch_log_graph=True,
         ),
     }
-    if "seyonec" != BASE_MODEL_NAME:
+    if "seyonec" not in model_name:
         config_params["classifier_hidden_dimension"] = trial.suggest_categorical(
             "classifier_hidden_dimension", CHEM_MRL_DIMENSIONS
         )

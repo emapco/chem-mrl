@@ -24,7 +24,7 @@ def test_chem_mrl_config_default_values():
     assert config.tanimoto_similarity_loss_func is None
     assert config.eval_similarity_fct == "tanimoto"
     assert config.eval_metric == "spearman"
-    assert config.mrl_dimensions == CHEM_MRL_DIMENSIONS
+    assert config.mrl_dimensions == tuple(CHEM_MRL_DIMENSIONS)
     assert len(config.mrl_dimension_weights) == len(CHEM_MRL_DIMENSIONS)
     assert config.n_dims_per_step == -1
     assert config.use_2d_matryoshka is False

@@ -4,7 +4,12 @@ from argparse import ArgumentParser
 import pandas as pd
 
 from chem_mrl.benchmark import PgVectorBenchmark
-from chem_mrl.constants import OUTPUT_DATA_DIR
+from chem_mrl.constants import (
+    BASE_MODEL_NAME,
+    CHEM_MRL_DIMENSIONS,
+    EMBEDDING_MODEL_HIDDEN_DIM,
+    OUTPUT_DATA_DIR,
+)
 
 
 def parse_args():
@@ -36,6 +41,36 @@ def parse_args():
     parser.add_argument(
         "--knn_k", type=int, default=50, help="Number of neighbors for k-NN search."
     )
+    parser.add_argument(
+        "--model_name",
+        required=True,
+        help="Name of the model to use. Either file path or a hugging-face model name",
+    )
+    parser.add_argument(
+        "--model_mrl_dimensions",
+        nargs="+",
+        type=int,
+        default=CHEM_MRL_DIMENSIONS,
+        help="A list of embedding dimensions to benchmark. "
+        "Each value must be less than equal to the base transformer's hidden dimension.",
+    )
+    parser.add_argument(
+        "--base_model_name",
+        default=BASE_MODEL_NAME,
+        help="Name of the base model to use. Either file path or a hugging-face model name",
+    )
+    parser.add_argument(
+        "--base_model_hidden_dim",
+        type=int,
+        default=EMBEDDING_MODEL_HIDDEN_DIM,
+        help="Base model hidden dimension",
+    )
+    parser.add_argument(
+        "--smiles_column_name",
+        type=str,
+        default="smiles",
+        help="Name of the SMILES column in the dataset",
+    )
 
     return parser.parse_args()
 
@@ -54,7 +89,12 @@ if __name__ == "__main__":
         knn_k=ARGS.knn_k,
     )
     detailed_results, summary_stats = benchmarker.run_benchmark(
-        model_name="chem_mrl", test_queries=test_queries, smiles_column_name="smiles"
+        test_queries=test_queries,
+        model_name=ARGS.model_name,
+        model_mrl_dimensions=ARGS.model_mrl_dimensions,
+        base_model_name=ARGS.base_model_name,
+        base_model_hidden_dim=ARGS.base_model_hidden_dim,
+        smiles_column_name=ARGS.smiles_column_name,
     )
 
     header = "Benchmark Results Summary:"

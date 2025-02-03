@@ -261,6 +261,15 @@ def parse_args(mode_choice: list[str]) -> argparse.Namespace:
         help="Specify whether to seed test fingerprint, chem_mrl embedding, or base embedding table(s).",
     )
     parser.add_argument(
+        "--chem_mrl_dimensions",
+        nargs="+",
+        type=int,
+        default=CHEM_MRL_DIMENSIONS,
+        help="A list of embedding dimensions to benchmark. "
+        "Each value must be less than equal to the base transformer's hidden dimension. "
+        "Only relevant when mode=chem_mrl.",
+    )
+    parser.add_argument(
         "--file_path",
         type=str,
         default=os.path.join(OUTPUT_DATA_DIR, "zinc20", "smiles_all_00.txt"),
@@ -302,11 +311,11 @@ def parse_args(mode_choice: list[str]) -> argparse.Namespace:
 
 def main():
     modes = ["test", "chem_mrl", "base"]
-    args = parse_args(modes)
+    ARGS = parse_args(modes)
     config_map = {
         "test": (TEST_FP_SIZES, MorganFingerprintSeeder),
         "chem_mrl": (
-            CHEM_MRL_DIMENSIONS,
+            ARGS.chem_mrl_dimensions,
             lambda c: TransformerEmbeddingSeeder(c, "chem_mrl"),
         ),
         "base": (
@@ -315,16 +324,16 @@ def main():
         ),
     }
 
-    fp_sizes, seeder_class = config_map[args.mode]
+    fp_sizes, seeder_class = config_map[ARGS.mode]
 
     config = DBSeederConfig(
-        file_path=args.file_path,
-        total_rows=args.total_rows,
+        file_path=ARGS.file_path,
+        total_rows=ARGS.total_rows,
         fp_sizes=fp_sizes,
-        num_processes=args.num_cpu_processes,
-        db_uri=args.postgres_uri,
-        batch_size=args.batch_size,
-        embedder_batch_size=args.embedder_batch_size,
+        num_processes=ARGS.num_cpu_processes,
+        db_uri=ARGS.postgres_uri,
+        batch_size=ARGS.batch_size,
+        embedder_batch_size=ARGS.embedder_batch_size,
     )
 
     seeder = seeder_class(config)

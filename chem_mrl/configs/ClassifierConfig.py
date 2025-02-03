@@ -51,10 +51,8 @@ class ClassifierConfig(_BaseConfig):
             )
         if self.loss_func not in CLASSIFIER_LOSS_FCT_OPTIONS:
             raise ValueError(f"loss_func must be one of {CLASSIFIER_LOSS_FCT_OPTIONS}")
-        if self.classifier_hidden_dimension not in CHEM_MRL_DIMENSIONS:
-            raise ValueError(
-                f"classifier_hidden_dimension must be one of {CHEM_MRL_DIMENSIONS}"
-            )
+        if self.classifier_hidden_dimension < 1:
+            raise ValueError("classifier_hidden_dimension must be greater than 0")
         if not (0 <= self.dropout_p <= 1):
             raise ValueError("dropout_p must be between 0 and 1")
 

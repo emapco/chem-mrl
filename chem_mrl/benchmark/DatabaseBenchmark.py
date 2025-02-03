@@ -138,8 +138,11 @@ class PgVectorBenchmark:
 
     def run_benchmark(
         self,
-        model_name: str,
         test_queries: pd.DataFrame,
+        model_name: str,
+        model_mrl_dimensions: list[int] = CHEM_MRL_DIMENSIONS,
+        base_model_name: str = BASE_MODEL_NAME,
+        base_model_hidden_dim: int = EMBEDDING_MODEL_HIDDEN_DIM,
         smiles_column_name: str = "smiles",
     ):
         print("Starting benchmark...")
@@ -155,13 +158,13 @@ class PgVectorBenchmark:
             subset=["ground_truth"], ignore_index=True
         )
 
-        for dim in CHEM_MRL_DIMENSIONS:
+        for dim in model_mrl_dimensions:
             print(f"\nProcessing dimension {dim}")
 
             morgan_fp = MorganFingerprinter(radius=2, fp_size=dim)
             mrl_embedder = ChemMRL(model_name=model_name, fp_size=dim)
-            if dim == EMBEDDING_MODEL_HIDDEN_DIM:
-                base_embedder = ChemMRL(model_name=BASE_MODEL_NAME, fp_size=dim)
+            if dim == base_model_hidden_dim:
+                base_embedder = ChemMRL(model_name=base_model_name, fp_size=dim)
 
             for idx, row in ground_truth_queries.iterrows():
                 if idx % 100 == 0:  # type: ignore
@@ -190,7 +193,7 @@ class PgVectorBenchmark:
                         self.test_transformer_embeddings(
                             smiles_embedder=base_embedder,
                             table_name=f"base_{dim}",
-                            model_name=BASE_MODEL_NAME,
+                            model_name=base_model_name,
                             smiles=row[smiles_column_name],
                             ground_truth=row["ground_truth"],
                             dim=dim,

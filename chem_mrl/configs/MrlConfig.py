@@ -24,10 +24,8 @@ class ChemMRLConfig(_BaseConfig):
     tanimoto_similarity_loss_func: TanimotoSimilarityBaseLossFctOptionType | None = None  # type: ignore
     eval_similarity_fct: EvalSimilarityMetricOptionType = "tanimoto"  # type: ignore
     eval_metric: ChemMrlEvalMetricOptionType = "spearman"  # type: ignore
-    mrl_dimensions = CHEM_MRL_DIMENSIONS
-    mrl_dimension_weights: tuple[
-        float, float, float, float, float, float, float, float
-    ] = (1, 1, 1, 1, 1, 1, 1, 1)
+    mrl_dimensions: tuple = tuple(CHEM_MRL_DIMENSIONS)
+    mrl_dimension_weights: tuple = (1, 1, 1, 1, 1, 1, 1, 1)
     n_dims_per_step: int = -1
     use_2d_matryoshka: bool = False
 
