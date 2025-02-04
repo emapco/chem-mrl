@@ -168,7 +168,7 @@ def add_chem_mrl_config_args(
     )
     parser.add_argument(
         "--label_column_name",
-        default="fingerprint_similarity",
+        default="similarity",
         help="Label column name",
     )
     parser.add_argument(

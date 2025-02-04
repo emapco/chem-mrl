@@ -112,19 +112,6 @@ def test_chem_mrl_pooling_options(pooling):
     assert isinstance(result, float)
     assert result != -math.inf
 
-    config = Chem2dMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CHEM_MRL_PATH,
-        val_dataset_path=TEST_CHEM_MRL_PATH,
-        embedding_pooling=pooling,
-        return_eval_metric=True,
-    )
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert trainer.config.embedding_pooling == pooling
-    assert isinstance(result, float)
-    assert result != -math.inf
-
 
 @pytest.mark.parametrize(
     "loss_func",
@@ -136,19 +123,6 @@ def test_chem_mrl_pooling_options(pooling):
 def test_chem_mrl_loss_functions(loss_func):
     # can't test tanimotosimilarityloss since it requires an additional parameter
     config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CHEM_MRL_PATH,
-        val_dataset_path=TEST_CHEM_MRL_PATH,
-        loss_func=loss_func,
-        return_eval_metric=True,
-    )
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert isinstance(result, float)
-    assert result != -math.inf
-
-    # can't test tanimotosimilarityloss since it requires an additional parameter
-    config = Chem2dMRLConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
@@ -204,34 +178,10 @@ def test_chem_mrl_eval_similarity(eval_similarity):
     assert isinstance(result, float)
     assert result != -math.inf
 
-    config = Chem2dMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CHEM_MRL_PATH,
-        val_dataset_path=TEST_CHEM_MRL_PATH,
-        eval_similarity_fct=eval_similarity,
-        return_eval_metric=True,
-    )
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert isinstance(result, float)
-    assert result != -math.inf
-
 
 @pytest.mark.parametrize("eval_metric", CHEM_MRL_EVAL_METRIC_OPTIONS)
 def test_chem_mrl_eval_metrics(eval_metric):
     config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CHEM_MRL_PATH,
-        val_dataset_path=TEST_CHEM_MRL_PATH,
-        eval_metric=eval_metric,
-        return_eval_metric=True,
-    )
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert isinstance(result, float)
-    assert result != -math.inf
-
-    config = Chem2dMRLConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,

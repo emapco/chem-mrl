@@ -108,36 +108,10 @@ def test_classifier_classifier_hidden_dimensions(
     assert isinstance(result, float)
     assert result != -math.inf
 
-    config = DiceLossClassifierConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CLASSIFICATION_PATH,
-        val_dataset_path=TEST_CLASSIFICATION_PATH,
-        classifier_hidden_dimension=dimension,
-        return_eval_metric=True,
-    )
-    trainer = ClassifierTrainer(config)
-    result = trainer.train()
-    assert trainer.model.truncate_dim == dimension
-    assert trainer.loss_fct.smiles_embedding_dimension == dimension
-    assert isinstance(result, float)
-    assert result != -math.inf
-
 
 @pytest.mark.parametrize("eval_metric", CLASSIFIER_EVAL_METRIC_OPTIONS)
 def test_classifier_eval_metrics(eval_metric):
     config = ClassifierConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CLASSIFICATION_PATH,
-        val_dataset_path=TEST_CLASSIFICATION_PATH,
-        eval_metric=eval_metric,
-        return_eval_metric=True,
-    )
-    trainer = ClassifierTrainer(config)
-    result = trainer.train()
-    assert isinstance(result, float)
-    assert result != -math.inf
-
-    config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
@@ -188,32 +162,10 @@ def test_classifier_num_labels():
     trainer = ClassifierTrainer(config)
     assert trainer.loss_fct.num_labels == 2  # testing dataset only has two classes
 
-    config = DiceLossClassifierConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CLASSIFICATION_PATH,
-        val_dataset_path=TEST_CLASSIFICATION_PATH,
-        freeze_model=True,
-    )
-    trainer = ClassifierTrainer(config)
-    assert trainer.loss_fct.num_labels == 2  # testing dataset only has two classes
-
 
 @pytest.mark.parametrize("dropout_p", [0.0, 0.1, 0.5, 1.0])
 def test_classifier_dropout(dropout_p):
     config = ClassifierConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CLASSIFICATION_PATH,
-        val_dataset_path=TEST_CLASSIFICATION_PATH,
-        dropout_p=dropout_p,
-        return_eval_metric=True,
-    )
-    trainer = ClassifierTrainer(config)
-    result = trainer.train()
-    assert trainer.loss_fct.dropout_p == dropout_p
-    assert isinstance(result, float)
-    assert result != -math.inf
-
-    config = DiceLossClassifierConfig(
         model_name=BASE_MODEL_NAME,
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,

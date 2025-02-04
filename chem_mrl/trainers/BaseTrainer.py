@@ -129,6 +129,12 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
     # concrete methods
     ############################################################################
 
+    def _device(self) -> str:
+        cuda_visible_devices = os.getenv("CUDA_VISIBLE_DEVICES", "-1")
+        use_cuda = torch.cuda.is_available() and cuda_visible_devices != "-1"
+        device = "cuda" if use_cuda else "cpu"
+        return device
+
     def __calculate_training_params(self) -> tuple[float, float, int]:
         total_training_points = self.steps_per_epoch * self.config.train_batch_size
         # Normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf

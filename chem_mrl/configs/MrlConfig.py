@@ -21,7 +21,7 @@ from .types import (
 class ChemMRLConfig(_BaseConfig):
     smiles_a_column_name: str = "smiles_a"
     smiles_b_column_name: str = "smiles_b"
-    label_column_name: str = "fingerprint_similarity"
+    label_column_name: str = "similarity"
     embedding_pooling: ChemMrlPoolingOptionType = "mean"  # type: ignore
     loss_func: ChemMrlLossFctOptionType = "tanimotosentloss"  # type: ignore
     tanimoto_similarity_loss_func: TanimotoSimilarityBaseLossFctOptionType | None = None  # type: ignore

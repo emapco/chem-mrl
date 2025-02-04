@@ -12,13 +12,161 @@ Hyperparameter tuning indicates that a custom Tanimoto similarity loss function,
 pip install chem-mrl
 ```
 
+## Usage
+
+### Basic Training Workflow
+
+To train a model, initialize the configuration with dataset paths and model parameters, then pass it to `ChemMRLTrainer` for training.
+
+```python
+from chem_mrl.configs import ChemMRLConfig
+from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.trainers import ChemMRLTrainer
+
+# Define training configuration
+config = ChemMRLConfig(
+    model_name=BASE_MODEL_NAME,  # Predefined model name - Can be a any transformer model name or path that is compatible with sentence-transformers
+    train_dataset_path="train.parquet",  # Path to training data
+    val_dataset_path="val.parquet",  # Path to validation data
+    test_dataset_path="test.parquet",  # Optional test dataset
+    smiles_a_column_name="smiles_a",  # Column with first molecule SMILES representation
+    smiles_b_column_name="smiles_b",  # Column with second molecule SMILES representation
+    label_column_name="similarity",  # Similarity score between molecules
+    return_eval_metric=True,  # Compute and return test metric if test dataset is provided
+    n_dims_per_step=3,  # Model-specific hyperparameter
+)
+
+# Initialize trainer and start training
+trainer = ChemMRLTrainer(config)
+test_eval_metric = trainer.train()  # Returns evaluation metric (if test dataset exists) otherwise returns the final validation eval metric
+```
+
+### Custom Evaluation Callbacks
+
+You can provide a callback function that is executed every `evaluation_steps` steps, allowing custom logic such as logging, early stopping, or model checkpointing.
+
+```python
+from chem_mrl.configs import Chem2dMRLConfig
+from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.trainers import ChemMRLTrainer
+
+# Define a callback function for logging evaluation metrics
+def eval_callback(score: float, epoch: int, steps: int):
+    print(f"Step {steps}, Epoch {epoch}: Evaluation Score = {score}")
+
+# Define configuration for a 2D MRL model with additional hyperparameters
+config = Chem2dMRLConfig(
+    model_name=BASE_MODEL_NAME,
+    train_dataset_path="train.parquet",
+    val_dataset_path="val.parquet",
+    smiles_a_column_name="smiles_a",
+    smiles_b_column_name="smiles_b",
+    label_column_name="similarity",
+    evaluation_steps=1000,  # Callback execution frequency
+    return_eval_metric=True,  # Returns validation metric instead of test metric
+    n_dims_per_step=3,  # Model-specific hyperparameter
+    n_layers_per_step=2,  # Additional parameter specific to 2D MRL models
+    kl_div_weight=0.7,  # Weight for KL divergence regularization
+    kl_temperature=0.5,  # Temperature parameter for KL loss
+)
+
+# Train with callback
+trainer = ChemMRLTrainer(config)
+val_eval_metric = trainer.train(eval_callback=eval_callback)  # Callback executed every `evaluation_steps`
+```
+
+### W&B Integration
+
+This library includes a `WandBTrainerExecutor` class for seamless Weights & Biases (W&B) integration. It handles authentication, initialization, and logging at the frequency specified by `evaluation_steps`. This setup ensures seamless logging and experiment tracking, allowing for better visualization and monitoring of model performance.
+
+
+```python
+from chem_mrl.configs import Chem2dMRLConfig, ChemMRLConfig
+from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.trainers import ChemMRLTrainer, WandBTrainerExecutor
+
+# Define W&B configuration for experiment tracking
+wandb_config = WandbConfig(
+    project_name="chem_mrl_test",  # W&B project name
+    run_name="test",  # Name for the experiment run
+    use_watch=True,  # Enables model watching for tracking gradients
+    watch_log="all",  # Logs all model parameters and gradients
+    watch_log_freq=1000,  # Logging frequency
+    watch_log_graph=True,  # Logs model computation graph
+)
+
+# Configure training with W&B integration
+config = ChemMRLConfig(
+    model_name=BASE_MODEL_NAME,
+    train_dataset_path="train.parquet",
+    val_dataset_path="val.parquet",
+    evaluation_steps=1000,
+    use_wandb=True,  # Enables W&B logging
+    wandb_config=wandb_config,
+)
+
+# Initialize trainer and W&B executor
+trainer = ChemMRLTrainer(config)
+executor = WandBTrainerExecutor(trainer)
+executor.execute()  # Handles training and W&B logging
+```
+
 ## Classifier
 
-This repository includes code for training a linear SBERT classifier with optional dropout regularization. The classifier categorizes substances based on SMILES and category features. While demonstrated on the Isomer Design dataset, it is generalizable to any dataset containing `smiles` and `label` columns. The training scripts (see below) allow users to specify these column names.
+This repository includes code for training a linear classifier with optional dropout regularization. The classifier categorizes substances based on SMILES and category features. While demonstrated on the Isomer Design dataset, it is generalizable to any dataset containing `smiles` and `label` columns. The training scripts (see below) allow users to specify these column names.
 
 Currently, the dataset must be in Parquet format.
 
 Hyperparameter tuning shows that cross-entropy loss (`softmax` option) outperforms self-adjusting dice loss in terms of accuracy, making it the preferred choice for molecular property classification.
+
+## Usage
+
+### Basic Classification Training
+
+To train a classifier, configure the model with dataset paths and column names, then initialize `ClassifierTrainer` to start training.
+
+```python
+from chem_mrl.configs import ClassifierConfig
+from chem_mrl.trainers import ClassifierTrainer
+
+# Define classification training configuration
+config = ClassifierConfig(
+    model_name="path/to/trained_mrl_model",  # Pretrained MRL model path
+    train_dataset_path="train_classification.parquet",  # Path to training dataset
+    val_dataset_path="val_classification.parquet",  # Path to validation dataset
+    smiles_column_name="smiles",  # Column containing SMILES representations of molecules
+    label_column_name="label",  # Column containing classification labels
+)
+
+# Initialize and train the classifier
+trainer = ClassifierTrainer(config)
+trainer.train()
+```
+
+### Training with Dice Loss
+
+For imbalanced classification tasks, **Dice Loss** can improve performance by focusing on hard-to-classify samples. Below is a configuration using `DiceLossClassifierConfig`, which introduces additional hyperparameters.
+
+```python
+from chem_mrl.configs import DiceLossClassifierConfig
+from chem_mrl.trainers import ClassifierTrainer
+from chem_mrl.constants import BASE_MODEL_NAME
+
+# Define classification training configuration with Dice Loss
+config = DiceLossClassifierConfig(
+    model_name=BASE_MODEL_NAME,  # Predefined base model
+    train_dataset_path="train_classification.parquet",
+    val_dataset_path="val_classification.parquet",
+    smiles_column_name="smiles",
+    label_column_name="label",
+    dice_reduction="sum",  # Reduction method for Dice Loss (e.g., 'mean' or 'sum')
+    dice_gamma=1.0,  # Hyperparameter controlling the impact of Dice Loss
+)
+
+# Initialize and train the classifier with Dice Loss
+trainer = ClassifierTrainer(config)
+trainer.train()
+```
 
 ## Scripts
 
@@ -112,7 +260,7 @@ options:
   --smiles_b_column_name SMILES_B_COLUMN_NAME
                         SMILES B column name (default: smiles_b)
   --label_column_name LABEL_COLUMN_NAME
-                        Label column name (default: fingerprint_similarity)
+                        Label column name (default: similarity)
   --embedding_pooling {mean,mean_sqrt_len_tokens,weightedmean,lasttoken}
                         Pooling layer method applied to the embeddings.Pooling layer is required to generate a fixed sized SMILES embedding from a variable sized SMILES.For details
                         visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling (default: mean)

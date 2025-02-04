@@ -18,7 +18,7 @@ def test_chem_mrl_config_default_values():
 
     assert config.smiles_a_column_name == "smiles_a"
     assert config.smiles_b_column_name == "smiles_b"
-    assert config.label_column_name == "fingerprint_similarity"
+    assert config.label_column_name == "similarity"
     assert config.model_name == BASE_MODEL_NAME
     assert config.embedding_pooling == "mean"
     assert config.loss_func == "tanimotosentloss"

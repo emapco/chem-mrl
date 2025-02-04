@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
-from typing import Callable, Generic, TypeVar
+from typing import Generic, TypeVar
 
 import optuna
-import wandb
 
+import wandb
 from chem_mrl.configs import BoundConfigType
 
 from .BaseTrainer import BoundTrainerType

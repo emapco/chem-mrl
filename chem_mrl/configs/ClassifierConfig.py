@@ -59,6 +59,7 @@ class ClassifierConfig(_BaseConfig):
 
 @dataclass(frozen=True)
 class DiceLossClassifierConfig(ClassifierConfig):
+    loss_func = "selfadjdice"
     dice_reduction: DiceReductionOptionType = "mean"  # type: ignore
     dice_gamma: float = 1.0
 

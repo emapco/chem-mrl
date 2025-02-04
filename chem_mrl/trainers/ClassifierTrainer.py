@@ -147,6 +147,10 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
         test_file: str | None = None,
     ):
         logging.info(f"Loading {train_file} dataset")
+
+        pin_device = self._device()
+        pin_memory = True if pin_device != "cpu" else False
+
         train_df = pd.read_parquet(
             train_file,
             columns=[
@@ -172,8 +176,8 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
             ),
             batch_size=self._config.train_batch_size,
             shuffle=True,
-            pin_memory=True,
-            pin_memory_device="cuda",
+            pin_memory=pin_memory,
+            pin_memory_device=pin_device,
             num_workers=self._config.n_dataloader_workers,
         )
 
@@ -203,8 +207,8 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
             ),
             batch_size=self._config.train_batch_size,
             shuffle=False,
-            pin_memory=True,
-            pin_memory_device="cuda",
+            pin_memory=pin_memory,
+            pin_memory_device=pin_device,
             num_workers=self._config.n_dataloader_workers,
         )
 
@@ -236,8 +240,8 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
                 ),
                 batch_size=self._config.train_batch_size,
                 shuffle=False,
-                pin_memory=True,
-                pin_memory_device="cuda",
+                pin_memory=pin_memory,
+                pin_memory_device=pin_device,
                 num_workers=self._config.n_dataloader_workers,
             )
 
