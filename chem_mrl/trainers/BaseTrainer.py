@@ -1,7 +1,7 @@
 import math
 import os
 from abc import ABC, abstractmethod
-from typing import Callable, Generic, TypeVar
+from typing import Callable, TypeVar
 
 import pandas as pd
 import torch
@@ -9,12 +9,12 @@ import transformers
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.evaluation import SentenceEvaluator
 
-from chem_mrl.configs import BoundConfigType
+from chem_mrl.schemas import BaseConfig
 
 BoundTrainerType = TypeVar("BoundTrainerType", bound="_BaseTrainer")
 
 
-class _BaseTrainer(ABC, Generic[BoundConfigType]):
+class _BaseTrainer(ABC):
     """Base abstract trainer class.
     Concrete trainer classes should inherit from this class and implement the abstract methods and properties.
     Concrete trainer classes can be trained directly (via fit method) or through an executor.
@@ -22,7 +22,7 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
 
     def __init__(
         self,
-        config: BoundConfigType,
+        config: BaseConfig,
     ):
         self._config = config
         if self._config.seed is not None:
@@ -44,7 +44,7 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
 
     @property
     @abstractmethod
-    def config(self) -> BoundConfigType:
+    def config(self) -> BaseConfig:
         raise NotImplementedError
 
     @property
@@ -75,6 +75,11 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
     @property
     @abstractmethod
     def model_save_dir_name(self) -> str:
+        raise NotImplementedError
+
+    @model_save_dir_name.setter
+    @abstractmethod
+    def model_save_dir_name(self, value: str):
         raise NotImplementedError
 
     @property
@@ -194,7 +199,5 @@ class _BaseTrainer(ABC, Generic[BoundConfigType]):
             metric = self._read_eval_metric(self.test_eval_file_path, self.eval_metric)
             return metric
 
-        if self.config.return_eval_metric:
-            metric = self._read_eval_metric(self.val_eval_file_path, self.eval_metric)
-            return metric
-        return -math.inf
+        metric = self._read_eval_metric(self.val_eval_file_path, self.eval_metric)
+        return metric

@@ -1,0 +1,4 @@
+defaults:
+  - base
+  # can be replaced with chem_2d_mrl
+  - /model: chem_mrl

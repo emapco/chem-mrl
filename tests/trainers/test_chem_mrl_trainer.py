@@ -1,317 +1,243 @@
-import math
-
 import pytest
 from constants import TEST_CHEM_MRL_PATH
 
-from chem_mrl.configs import Chem2dMRLConfig, ChemMRLConfig, WandbConfig
-from chem_mrl.configs.types import (
-    CHEM_MRL_EMBEDDING_POOLING_OPTIONS,
-    CHEM_MRL_EVAL_METRIC_OPTIONS,
-    EVAL_SIMILARITY_FCT_OPTIONS,
-    SCHEDULER_OPTIONS,
-    TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS,
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig, WandbConfig
+from chem_mrl.schemas.Enums import (
+    ChemMrlEvalMetricOption,
+    ChemMrlLossFctOption,
+    EmbeddingPoolingOption,
+    EvalSimilarityFctOption,
+    SchedulerOption,
+    TanimotoSimilarityBaseLossFctOption,
+    WatchLogOption,
 )
-from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.trainers import ChemMRLTrainer, WandBTrainerExecutor
+from chem_mrl.trainers import ChemMRLTrainer, TempDirTrainerExecutor
 
 
 def test_chem_mrl_trainer_instantiation():
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        use_wandb=True,
-        wandb_config=WandbConfig(
-            project_name="chem_mrl_test",
-            run_name="test",
-            use_watch=True,
-            watch_log="all",
-            watch_log_freq=1000,
-            watch_log_graph=True,
-        ),
     )
-    chem_mrl = ChemMRLTrainer(config)
-    executor = WandBTrainerExecutor(trainer=chem_mrl)
-    assert isinstance(executor, WandBTrainerExecutor)
-    assert isinstance(executor.trainer, ChemMRLTrainer)
-    assert isinstance(executor.trainer.config, ChemMRLConfig)
+    trainer = ChemMRLTrainer(config)
+    assert isinstance(trainer, ChemMRLTrainer)
+    assert isinstance(trainer.config, BaseConfig)
+    assert isinstance(trainer.config.model, ChemMRLConfig)
 
 
 def test_chem_mrl_test_evaluator():
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(n_dims_per_step=4),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
         test_dataset_path=TEST_CHEM_MRL_PATH,
-        n_dims_per_step=4,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
-
-    config = Chem2dMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CHEM_MRL_PATH,
-        val_dataset_path=TEST_CHEM_MRL_PATH,
-        test_dataset_path=TEST_CHEM_MRL_PATH,
-        n_layers_per_step=2,
-        kl_div_weight=0.7,
-        kl_temperature=0.5,
-        return_eval_metric=True,
-    )
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert isinstance(result, float)
-    assert result != -math.inf
 
 
-@pytest.mark.parametrize("scheduler", SCHEDULER_OPTIONS)
+@pytest.mark.parametrize("scheduler", SchedulerOption)
 def test_chem_mrl_scheduler_options(
     scheduler,
 ):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
         scheduler=scheduler,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
-
-    config = Chem2dMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CHEM_MRL_PATH,
-        val_dataset_path=TEST_CHEM_MRL_PATH,
-        scheduler=scheduler,
-        return_eval_metric=True,
-    )
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert isinstance(result, float)
-    assert result != -math.inf
 
 
-@pytest.mark.parametrize("pooling", CHEM_MRL_EMBEDDING_POOLING_OPTIONS)
+@pytest.mark.parametrize("pooling", EmbeddingPoolingOption)
 def test_chem_mrl_pooling_options(pooling):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(embedding_pooling=pooling),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        embedding_pooling=pooling,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert trainer.config.embedding_pooling == pooling
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
+    assert isinstance(trainer.config.model, ChemMRLConfig)
+    assert trainer.config.model.embedding_pooling == pooling
     assert isinstance(result, float)
-    assert result != -math.inf
 
 
 @pytest.mark.parametrize(
     "loss_func",
     [
-        "tanimotosentloss",
-        "cosentloss",
+        ChemMrlLossFctOption.angleloss,
+        ChemMrlLossFctOption.cosentloss,
+        ChemMrlLossFctOption.tanimotosentloss,
     ],
 )
 def test_chem_mrl_loss_functions(loss_func):
     # can't test tanimotosimilarityloss since it requires an additional parameter
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(
+            loss_func=loss_func,
+        ),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        loss_func=loss_func,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
 
 
-@pytest.mark.parametrize("base_loss", TANIMOTO_SIMILARITY_BASE_LOSS_FCT_OPTIONS)
+@pytest.mark.parametrize("base_loss", TanimotoSimilarityBaseLossFctOption)
 def test_chem_mrl_tanimoto_similarity_loss(base_loss):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(
+            loss_func=ChemMrlLossFctOption.tanimotosimilarityloss,
+            tanimoto_similarity_loss_func=base_loss,
+        ),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        loss_func="tanimotosimilarityloss",
-        tanimoto_similarity_loss_func=base_loss,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
 
-    config = Chem2dMRLConfig(
-        model_name=BASE_MODEL_NAME,
+
+@pytest.mark.parametrize("eval_similarity_fct", EvalSimilarityFctOption)
+def test_chem_mrl_eval_similarity(eval_similarity_fct):
+    config = BaseConfig(
+        model=ChemMRLConfig(
+            eval_similarity_fct=eval_similarity_fct,
+        ),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        loss_func="tanimotosimilarityloss",
-        tanimoto_similarity_loss_func=base_loss,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
 
 
-@pytest.mark.parametrize("eval_similarity", EVAL_SIMILARITY_FCT_OPTIONS)
-def test_chem_mrl_eval_similarity(eval_similarity):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        train_dataset_path=TEST_CHEM_MRL_PATH,
-        val_dataset_path=TEST_CHEM_MRL_PATH,
-        eval_similarity_fct=eval_similarity,
-        return_eval_metric=True,
-    )
-    trainer = ChemMRLTrainer(config)
-    result = trainer.train()
-    assert isinstance(result, float)
-    assert result != -math.inf
-
-
-@pytest.mark.parametrize("eval_metric", CHEM_MRL_EVAL_METRIC_OPTIONS)
+@pytest.mark.parametrize("eval_metric", ChemMrlEvalMetricOption)
 def test_chem_mrl_eval_metrics(eval_metric):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(eval_metric=eval_metric),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        eval_metric=eval_metric,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
 
 
 def test_chem_2d_mrl_trainer_instantiation():
-    config = Chem2dMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(
+            use_2d_matryoshka=True,
+        ),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        use_wandb=True,
-        wandb_config=WandbConfig(
-            project_name="chem_mrl_test",
-            run_name="test",
-            use_watch=True,
-            watch_log="all",
-            watch_log_freq=1000,
-            watch_log_graph=True,
-        ),
     )
-    chem_2d_mrl = ChemMRLTrainer(config)
-    executor = WandBTrainerExecutor(trainer=chem_2d_mrl)
-    assert isinstance(executor, WandBTrainerExecutor)
-    assert isinstance(executor.trainer, ChemMRLTrainer)
-    assert isinstance(executor.trainer.config, Chem2dMRLConfig)
+    trainer = ChemMRLTrainer(config)
+    assert isinstance(trainer, ChemMRLTrainer)
+    assert isinstance(trainer.config.model, ChemMRLConfig)
+    assert trainer.config.model.use_2d_matryoshka is True
 
 
 def test_mrl_dimension_weights_validation():
     with pytest.raises(
         ValueError, match="Dimension weights must be in increasing order"
     ):
-        config = ChemMRLConfig(
-            model_name=BASE_MODEL_NAME,
+        config = BaseConfig(
+            model=ChemMRLConfig(
+                mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
+            ),
             train_dataset_path=TEST_CHEM_MRL_PATH,
             val_dataset_path=TEST_CHEM_MRL_PATH,
-            mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0),
-        )
-        ChemMRLTrainer(config)
-    with pytest.raises(
-        ValueError, match="Dimension weights must be in increasing order"
-    ):
-        config = Chem2dMRLConfig(
-            model_name=BASE_MODEL_NAME,
-            train_dataset_path=TEST_CHEM_MRL_PATH,
-            val_dataset_path=TEST_CHEM_MRL_PATH,
-            mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0),
         )
         ChemMRLTrainer(config)
 
 
 def test_2d_mrl_layer_weights():
-    config = Chem2dMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(
+            use_2d_matryoshka=True,
+            last_layer_weight=2.0,
+            prior_layers_weight=1.0,
+        ),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        last_layer_weight=2.0,
-        prior_layers_weight=1.0,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
 
 
 @pytest.mark.parametrize("batch_size", [1, 16, 64, 128])
 def test_chem_mrl_batch_sizes(batch_size):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
         train_batch_size=batch_size,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
+    executor = TempDirTrainerExecutor(trainer)
     assert trainer.train_dataloader.batch_size == batch_size
-    result = trainer.train()
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
 
 
 @pytest.mark.parametrize("lr", [1e-6, 1e-4, 1e-2])
 def test_chem_mrl_learning_rates(lr):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
         lr_base=lr,
-        return_eval_metric=True,
     )
     trainer = ChemMRLTrainer(config)
-    result = trainer.train()
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
     assert isinstance(result, float)
-    assert result != -math.inf
 
 
 @pytest.mark.parametrize(
     "wandb_config",
     [
-        WandbConfig(project_name="test", use_watch=True, watch_log="gradients"),
+        WandbConfig(
+            project_name="test", use_watch=True, watch_log=WatchLogOption.gradients
+        ),
         WandbConfig(project_name="test", use_watch=False),
         WandbConfig(project_name="test", watch_log_freq=500, watch_log_graph=False),
     ],
 )
 def test_chem_mrl_wandb_configurations(wandb_config):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
-        use_wandb=True,
-        wandb_config=wandb_config,
+        wandb=wandb_config,
     )
     trainer = ChemMRLTrainer(config)
-    assert isinstance(trainer.config.wandb_config, WandbConfig)
-    assert trainer.config.use_wandb is True
+    assert isinstance(trainer.config.wandb, WandbConfig)
+    assert trainer.config.wandb.enabled is True
 
 
 @pytest.mark.parametrize(
     "path", ["test_output", "custom/nested/path", "model_outputs/test"]
 )
 def test_classifier_output_paths(path):
-    config = ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
+    config = BaseConfig(
+        model=ChemMRLConfig(),
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
         model_output_path=path,

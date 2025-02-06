@@ -1,0 +1,4 @@
+defaults:
+  - base
+  # can be replaced with dice_loss_classifier
+  - /model: classifier

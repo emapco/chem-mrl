@@ -7,9 +7,9 @@ from sentence_transformers import SentenceTransformer, models
 from torch import nn
 from torch.utils.data import DataLoader
 
-from chem_mrl.configs import Chem2dMRLConfig, ChemMRLConfig
 from chem_mrl.datasets import PandasDataFrameDataset
 from chem_mrl.evaluation import EmbeddingSimilarityEvaluator, SimilarityFunction
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 
 from .BaseTrainer import _BaseTrainer
 
@@ -34,10 +34,10 @@ class ChemMrlDatasetCollection:
             raise TypeError("test_dataloader must be a DataFrame")
 
 
-class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
+class ChemMRLTrainer(_BaseTrainer):
     def __init__(
         self,
-        config: ChemMRLConfig | Chem2dMRLConfig,
+        config: BaseConfig,
         chem_mrl_dataset_collection: ChemMrlDatasetCollection | None = None,
     ):
         super().__init__(config=config)
@@ -101,13 +101,17 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
     def model_save_dir_name(self):
         return self.__model_save_dir_name
 
+    @model_save_dir_name.setter
+    def model_save_dir_name(self, value: str):
+        self.__model_save_dir_name = value
+
     @property
     def steps_per_epoch(self):
         return len(self.__train_dataloader)
 
     @property
     def eval_metric(self) -> str:
-        return self._config.eval_metric
+        return self._config.model.eval_metric
 
     @property
     def val_eval_file_path(self):
@@ -128,10 +132,11 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
     ############################################################################
 
     def _initialize_model(self) -> SentenceTransformer:
-        word_embedding_model = models.Transformer(self._config.model_name)
+        assert isinstance(self._config.model, ChemMRLConfig)
+        word_embedding_model = models.Transformer(self._config.model.model_name)
         pooling_model = models.Pooling(
             word_embedding_model.get_word_embedding_dimension(),
-            pooling_mode=self._config.embedding_pooling,
+            pooling_mode=self._config.model.embedding_pooling,
         )
         return SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
@@ -141,16 +146,17 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
         val_file: str,
         test_file: str | None = None,
     ):
+        assert isinstance(self._config.model, ChemMRLConfig)
         logging.info(f"Loading {train_file} dataset")
         train_df = pd.read_parquet(
             train_file,
             columns=[
-                self._config.smiles_a_column_name,
-                self._config.smiles_b_column_name,
-                self._config.label_column_name,
+                self._config.model.smiles_a_column_name,
+                self._config.model.smiles_b_column_name,
+                self._config.model.label_column_name,
             ],
         )
-        train_df = train_df.astype({self._config.label_column_name: "float32"})
+        train_df = train_df.astype({self._config.model.label_column_name: "float32"})
         if self._config.n_train_samples is not None:
             train_df = train_df.sample(
                 n=self._config.n_train_samples,
@@ -162,9 +168,9 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
         train_dl = DataLoader(
             PandasDataFrameDataset(
                 train_df,
-                smiles_a_column=self._config.smiles_a_column_name,
-                smiles_b_column=self._config.smiles_b_column_name,
-                label_column=self._config.label_column_name,
+                smiles_a_column=self._config.model.smiles_a_column_name,
+                smiles_b_column=self._config.model.smiles_b_column_name,
+                label_column=self._config.model.label_column_name,
                 generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
             ),
             batch_size=self._config.train_batch_size,
@@ -176,13 +182,13 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
         val_df = pd.read_parquet(
             val_file,
             columns=[
-                self._config.smiles_a_column_name,
-                self._config.smiles_b_column_name,
-                self._config.label_column_name,
+                self._config.model.smiles_a_column_name,
+                self._config.model.smiles_b_column_name,
+                self._config.model.label_column_name,
             ],
         )
         # validation uses int8 tensors but keep it as a float for now
-        val_df = val_df.astype({self._config.label_column_name: "float16"})
+        val_df = val_df.astype({self._config.model.label_column_name: "float16"})
         if self._config.n_val_samples is not None:
             val_df = val_df.sample(
                 n=self._config.n_val_samples,
@@ -197,12 +203,12 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
             test_df = pd.read_parquet(
                 test_file,
                 columns=[
-                    self._config.smiles_a_column_name,
-                    self._config.smiles_b_column_name,
-                    self._config.label_column_name,
+                    self._config.model.smiles_a_column_name,
+                    self._config.model.smiles_b_column_name,
+                    self._config.model.label_column_name,
                 ],
             )
-            test_df = test_df.astype({self._config.label_column_name: "float32"})
+            test_df = test_df.astype({self._config.model.label_column_name: "float32"})
             if self._config.n_test_samples is not None:
                 test_df = test_df.sample(
                     n=self._config.n_test_samples,
@@ -214,14 +220,15 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
         return train_dl, val_df, test_df
 
     def _initialize_val_evaluator(self):
+        assert isinstance(self._config.model, ChemMRLConfig)
         return EmbeddingSimilarityEvaluator(
-            self.__val_df[self._config.smiles_a_column_name],
-            self.__val_df[self._config.smiles_b_column_name],
-            self.__val_df[self._config.label_column_name],
+            self.__val_df[self._config.model.smiles_a_column_name],
+            self.__val_df[self._config.model.smiles_b_column_name],
+            self.__val_df[self._config.model.label_column_name],
             batch_size=self._config.train_batch_size * 4,
             main_similarity=(
                 SimilarityFunction.TANIMOTO
-                if self._config.eval_similarity_fct == "tanimoto"
+                if self._config.model.eval_similarity_fct == "tanimoto"
                 else SimilarityFunction.COSINE
             ),
             name="val",
@@ -233,14 +240,15 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
     def _initialize_test_evaluator(self):
         if self.__test_df is None:
             return None
+        assert isinstance(self._config.model, ChemMRLConfig)
         return EmbeddingSimilarityEvaluator(
-            self.__test_df[self._config.smiles_a_column_name],
-            self.__test_df[self._config.smiles_b_column_name],
-            self.__test_df[self._config.label_column_name],
+            self.__test_df[self._config.model.smiles_a_column_name],
+            self.__test_df[self._config.model.smiles_b_column_name],
+            self.__test_df[self._config.model.label_column_name],
             batch_size=self._config.train_batch_size * 4,
             main_similarity=(
                 SimilarityFunction.TANIMOTO
-                if self._config.eval_similarity_fct == "tanimoto"
+                if self._config.model.eval_similarity_fct == "tanimoto"
                 else SimilarityFunction.COSINE
             ),
             name="test",
@@ -252,47 +260,50 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
     def _initialize_loss(self):
         from chem_mrl.losses import Matryoshka2dLoss, MatryoshkaLoss
 
-        if isinstance(self._config, Chem2dMRLConfig) and self._config.use_2d_matryoshka:
+        assert isinstance(self._config.model, ChemMRLConfig)
+        if self._config.model.use_2d_matryoshka:
             return Matryoshka2dLoss(
                 self.__model,
-                self._get_base_loss(self.__model, self._config),
-                list(self._config.mrl_dimensions),
-                matryoshka_weights=list(self._config.mrl_dimension_weights),
-                n_layers_per_step=self._config.n_layers_per_step,
-                n_dims_per_step=self._config.n_dims_per_step,
-                last_layer_weight=self._config.last_layer_weight,
-                prior_layers_weight=self._config.prior_layers_weight,
-                kl_div_weight=self._config.kl_div_weight,
-                kl_temperature=self._config.kl_temperature,
+                self._get_base_loss(self.__model, self._config.model),
+                list(self._config.model.mrl_dimensions),
+                matryoshka_weights=list(self._config.model.mrl_dimension_weights),
+                n_layers_per_step=self._config.model.n_layers_per_step,
+                n_dims_per_step=self._config.model.n_dims_per_step,
+                last_layer_weight=self._config.model.last_layer_weight,
+                prior_layers_weight=self._config.model.prior_layers_weight,
+                kl_div_weight=self._config.model.kl_div_weight,
+                kl_temperature=self._config.model.kl_temperature,
             )
         return MatryoshkaLoss(
             self.__model,
-            self._get_base_loss(self.__model, self._config),
-            list(self._config.mrl_dimensions),
-            matryoshka_weights=list(self._config.mrl_dimension_weights),
-            n_dims_per_step=self._config.n_dims_per_step,
+            self._get_base_loss(self.__model, self._config.model),
+            list(self._config.model.mrl_dimensions),
+            matryoshka_weights=list(self._config.model.mrl_dimension_weights),
+            n_dims_per_step=self._config.model.n_dims_per_step,
         )
 
     def _initialize_output_path(self):
+        assert isinstance(self._config.model, ChemMRLConfig)
+
         mrl_infix = ""
         layer_weight_infix = ""
-        if isinstance(self._config, Chem2dMRLConfig) and self._config.use_2d_matryoshka:
+        if self._config.model.use_2d_matryoshka:
             mrl_infix = "2d"
             layer_weight_infix = (
-                f"-{self._config.n_layers_per_step}-{self._config.last_layer_weight:2f}"
-                f"-{self._config.prior_layers_weight:2f}-{self._config.kl_div_weight:2f}"
-                f"-{self._config.kl_temperature:2f}"
+                f"-{self._config.model.n_layers_per_step}-{self._config.model.last_layer_weight:2f}"
+                f"-{self._config.model.prior_layers_weight:2f}-{self._config.model.kl_div_weight:2f}"
+                f"-{self._config.model.kl_temperature:2f}"
             )
 
-        loss_func_infix = f"{self._config.loss_func}"
-        if self._config.tanimoto_similarity_loss_func is not None:
-            loss_func_infix += f"{self._config.tanimoto_similarity_loss_func}"
+        loss_func_infix = f"{self._config.model.loss_func}"
+        if self._config.model.tanimoto_similarity_loss_func is not None:
+            loss_func_infix += f"{self._config.model.tanimoto_similarity_loss_func}"
 
         dir_name = (
             f"{self._config.train_batch_size}-{self._config.num_epochs}"
             f"-{self._config.lr_base:6f}-{self._config.scheduler}-{self._config.warmup_steps_percent}"
-            f"-{loss_func_infix}-{self._config.n_dims_per_step}{layer_weight_infix}"
-            f"-{list(self._config.mrl_dimension_weights)}"
+            f"-{loss_func_infix}-{self._config.model.n_dims_per_step}{layer_weight_infix}"
+            f"-{list(self._config.model.mrl_dimension_weights)}"
         )
 
         output_path = os.path.join(
@@ -310,7 +321,7 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
     @staticmethod
     def _get_base_loss(
         model: SentenceTransformer,
-        config: ChemMRLConfig | Chem2dMRLConfig,
+        config: ChemMRLConfig,
     ) -> nn.Module:
         from sentence_transformers import losses
 
@@ -340,9 +351,13 @@ class ChemMRLTrainer(_BaseTrainer[ChemMRLConfig | Chem2dMRLConfig]):
                 ),
             },
         }
-        if config.loss_func in ["tanimotosentloss", "cosentloss"]:
-            return LOSS_FUNCTIONS[config.loss_func](model)
+        if config.loss_func.value in ["tanimotosentloss", "cosentloss", "angleloss"]:
+            return LOSS_FUNCTIONS[config.loss_func.value](model)
 
+        if config.tanimoto_similarity_loss_func is None:
+            raise ValueError(
+                "tanimoto_similarity_loss_func must be specified if loss_func='tanimotosimilarityloss'"
+            )
         return LOSS_FUNCTIONS["tanimotosimilarityloss"][
-            config.tanimoto_similarity_loss_func
+            config.tanimoto_similarity_loss_func.value
         ](model)

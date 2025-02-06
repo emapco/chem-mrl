@@ -44,16 +44,19 @@ class _ClassifierLoss(nn.Module):
 
         self.__smiles_embedding_dimension = smiles_embedding_dimension
         self.__num_labels = num_labels
-        self.__dense = nn.Linear(smiles_embedding_dimension, smiles_embedding_dimension)
         self.__dropout_p = dropout
-        self.__classifier = nn.Linear(
-            smiles_embedding_dimension, num_labels, device=model.device
-        )
         # strategy pattern - determine whether to apply dropout or no-op at runtime
         if dropout > 0:
             self.__dropout = nn.Dropout(self.__dropout_p)
         else:
             self.__dropout = nn.Identity()  # no-op
+        self.__net = nn.Sequential(
+            self.__dropout,
+            nn.Linear(smiles_embedding_dimension, smiles_embedding_dimension),
+            nn.ReLU(),
+            self.__dropout,
+            nn.Linear(smiles_embedding_dimension, num_labels, device=model.device),
+        )
 
     @property
     def freeze_model(self):
@@ -78,15 +81,9 @@ class _ClassifierLoss(nn.Module):
             self.__model(smiles_feature)["sentence_embedding"]
             for smiles_feature in smiles_features
         ]
-        # guaranteed to be single smiles (sentence) embedding
+        # guaranteed to be a single smiles (sentence) embedding
         features = self._truncate_embeddings(sent_reps[0])
-
-        logits = self.__dropout(features)
-        logits = self.__dense(logits)
-        logits = torch.relu(logits)
-        logits = self.__dropout(logits)
-        logits = self.__classifier(logits)
-
+        logits = self.__net(features)
         return features, logits
 
     def _truncate_embeddings(self, embeddings: Tensor) -> Tensor:

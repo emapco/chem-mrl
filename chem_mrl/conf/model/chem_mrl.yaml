@@ -1,0 +1,52 @@
+defaults:
+  - chem_mrl_schema
+
+model_name: "seyonec/SMILES_tokenized_PubChem_shard00_160k" # Name of the model to use. Must be either a file path or a hugging-face model name.
+smiles_a_column_name: "smiles_a"
+smiles_b_column_name: "smiles_b"
+label_column_name: "similarity"
+embedding_pooling:
+  mean # Pooling layer method applied to the embeddings.
+  # Pooling layer is required to generate a fixed sized SMILES embedding from a variable sized SMILES.
+  # For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling
+loss_func: tanimotosentloss # ChemMRL loss function
+tanimoto_similarity_loss_func: null # Base loss function for tanimoto similarity loss function (only for tanimotosimilarityloss)
+eval_similarity_fct: tanimoto # Similarity function to use for evaluation
+eval_metric: spearman # Metric to use for evaluation
+mrl_dimensions:
+  [768, 512, 256, 128, 64, 32, 16, 8] # A list of embedding dimensions to be used for the loss function.
+  # Each value must be less than equal to the base transformer's hidden dimension.
+mrl_dimension_weights:
+  [1, 1, 1, 1, 1, 1, 1, 1] # A list of weights to be used for the loss function.
+  # The number of dimension weights must match that of the MRL dimensions.
+n_dims_per_step:
+  -1 # The number of dimensions to use per step. If -1, then all dimensions are used.
+  # If > 0, then a random sample of n_dims_per_step dimensions are used per step.
+use_2d_matryoshka: false # Use 2D Matryoshka to train over transformer layers in addition to embedding dimensions.
+
+# Valid choices - will raise error otherwise
+# embedding_pooling:
+#   - mean
+#   - mean_sqrt_len_tokens
+#   - weightedmean
+#   - lasttoken
+# loss_func:
+#   - tanimotosentloss
+#   - tanimotosimilarityloss
+#   - cosentloss
+#   - angleloss
+# tanimoto_similarity_loss_func:
+#   - null
+#   - mse
+#   - l1
+#   - smooth_l1
+#   - huber
+#   - bin_cross_entropy
+#   - kldiv
+#   - cosine_embedding_loss
+# eval_similarity_fct:
+#   - cosine
+#   - tanimoto
+# eval_metric:
+#   - spearman
+#   - pearson

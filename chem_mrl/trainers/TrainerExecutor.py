@@ -1,3 +1,4 @@
+import tempfile
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from typing import Generic, TypeVar
@@ -5,7 +6,7 @@ from typing import Generic, TypeVar
 import optuna
 
 import wandb
-from chem_mrl.configs import BoundConfigType
+from chem_mrl.schemas import BaseConfig
 
 from .BaseTrainer import BoundTrainerType
 
@@ -14,7 +15,7 @@ BoundTrainerExecutorType = TypeVar(
 )
 
 
-class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType, BoundConfigType]):
+class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType]):
     """Base abstract executor class.
     Concrete executor classes should inherit from this class and implement the abstract methods and properties.
 
@@ -30,7 +31,7 @@ class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType, BoundConfigType]):
         return self.__trainer
 
     @property
-    def config(self) -> BoundConfigType:
+    def config(self) -> BaseConfig:
         return self.__trainer.config
 
     @abstractmethod
@@ -38,7 +39,40 @@ class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType, BoundConfigType]):
         raise NotImplementedError
 
 
-class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigType]):
+class TempDirTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
+    """
+    Executor that runs the trainer within a temporary directory.
+    All files stored during execution are removed once the program exits.
+    """
+
+    def __init__(self, trainer: BoundTrainerType):
+        super().__init__(trainer)
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self.trainer.model_save_dir_name = self._temp_dir.name
+
+    def execute(self) -> float:
+        """
+        Execute the trainer within the temporary directory context.
+        """
+        try:
+            return self.trainer.train()
+        finally:
+            self.cleanup()
+
+    def cleanup(self) -> None:
+        """
+        Cleanup temporary directory.
+        """
+        self._temp_dir.cleanup()
+
+    def __del__(self):
+        """
+        Ensure cleanup occurs when the instance is deleted.
+        """
+        self.cleanup()
+
+
+class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
     def __init__(
         self,
         trainer: BoundTrainerType,
@@ -50,7 +84,7 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
         )
 
     def execute(self) -> float:
-        wandb_config = self.config.wandb_config
+        wandb_config = self.config.wandb
         wandb_project_name = None
         wandb_run_name = None
         if wandb_config is not None:
@@ -61,7 +95,6 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
         parsed_config = self.config.asdict()
         parsed_config.pop("use_wandb", None)
         parsed_config.pop("wandb_config", None)
-        parsed_config.pop("return_eval_metric", None)
         parsed_config.pop("n_dataloader_workers", None)
         parsed_config.pop("generate_dataset_examples_at_init", None)
         parsed_config.pop("evaluation_steps", None)
@@ -69,24 +102,22 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
         parsed_config.pop("checkpoint_save_total_limit", None)
         parsed_config.pop("model_output_path", None)
 
+        wandb_enabled = self.config.wandb is not None and self.config.wandb.enabled
+        wandb_config = self.config.wandb
         with (
             wandb.init(
                 project=wandb_project_name,
                 name=wandb_run_name,
                 config=parsed_config,
             )
-            if self.config.use_wandb
+            if wandb_enabled
             else nullcontext()
         ):
-            if (
-                self.config.use_wandb
-                and wandb_config is not None
-                and wandb_config.use_watch
-            ):
+            if wandb_enabled and wandb_config and wandb_config.use_watch:
                 wandb.watch(
                     self.trainer.model,
                     criterion=self.trainer.loss_fct,
-                    log=wandb_config.watch_log,
+                    log=wandb_config.watch_log.value,
                     log_freq=wandb_config.watch_log_freq,
                     log_graph=wandb_config.watch_log_graph,
                 )
@@ -96,12 +127,12 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType, BoundConfigTyp
 
     @staticmethod
     def _signed_in_wandb_callback_factory(
-        config: BoundConfigType,
+        config: BaseConfig,
         steps_per_epoch: int,
         trial: optuna.Trial | None = None,
     ):
-        if config.use_wandb:
-            wandb_config = config.wandb_config
+        if config.wandb and config.wandb.enabled:
+            wandb_config = config.wandb
             if wandb_config is not None and wandb_config.api_key is not None:
                 wandb.login(key=wandb_config.api_key, verify=True)
 

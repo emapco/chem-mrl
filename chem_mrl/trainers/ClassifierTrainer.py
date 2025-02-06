@@ -7,9 +7,9 @@ import torch
 from sentence_transformers import SentenceTransformer
 from torch.utils.data import DataLoader
 
-from chem_mrl.configs import ClassifierConfig, DiceLossClassifierConfig
 from chem_mrl.datasets import PandasDataFrameDataset
 from chem_mrl.evaluation import LabelAccuracyEvaluator
+from chem_mrl.schemas import BaseConfig, ClassifierConfig
 
 from .BaseTrainer import _BaseTrainer
 
@@ -37,13 +37,15 @@ class ClassifierDatasetCollection:
             raise TypeError("num_classes must be an integer")
 
 
-class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig]):
+class ClassifierTrainer(_BaseTrainer):
     def __init__(
         self,
-        config: ClassifierConfig | DiceLossClassifierConfig,
+        config: BaseConfig,
         classifier_dataset_collection: ClassifierDatasetCollection | None = None,
     ):
         super().__init__(config=config)
+        if not isinstance(config.model, ClassifierConfig):
+            raise TypeError("config.model must be a ClassifierConfig")
         self.__model = self._initialize_model()
 
         if classifier_dataset_collection is not None:
@@ -81,7 +83,7 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
     ############################################################################
 
     @property
-    def config(self) -> ClassifierConfig | DiceLossClassifierConfig:
+    def config(self):
         return self._config
 
     @property
@@ -108,13 +110,17 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
     def model_save_dir_name(self):
         return self.__model_save_dir_name
 
+    @model_save_dir_name.setter
+    def model_save_dir_name(self, value: str):
+        self.__model_save_dir_name = value
+
     @property
     def steps_per_epoch(self):
         return len(self.__train_dataloader)
 
     @property
     def eval_metric(self) -> str:
-        return self._config.eval_metric
+        return self._config.model.eval_metric
 
     @property
     def val_eval_file_path(self):
@@ -135,9 +141,10 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
     ############################################################################
 
     def _initialize_model(self):
+        assert isinstance(self._config.model, ClassifierConfig)
         return SentenceTransformer(
-            self._config.model_name,
-            truncate_dim=self._config.classifier_hidden_dimension,
+            self._config.model.model_name,
+            truncate_dim=self._config.model.classifier_hidden_dimension,
         )
 
     def _initialize_data(
@@ -147,18 +154,18 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
         test_file: str | None = None,
     ):
         logging.info(f"Loading {train_file} dataset")
-
+        assert isinstance(self._config.model, ClassifierConfig)
         pin_device = self._device()
-        pin_memory = True if pin_device != "cpu" else False
+        pin_memory = pin_device != "cpu"
 
         train_df = pd.read_parquet(
             train_file,
             columns=[
-                self._config.smiles_column_name,
-                self._config.label_column_name,
+                self._config.model.smiles_column_name,
+                self._config.model.label_column_name,
             ],
         )
-        train_df = train_df.astype({self._config.label_column_name: "int64"})
+        train_df = train_df.astype({self._config.model.label_column_name: "int64"})
         if self._config.n_train_samples is not None:
             train_df = train_df.sample(
                 n=self._config.n_train_samples,
@@ -170,8 +177,8 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
         train_dl = DataLoader(
             PandasDataFrameDataset(
                 train_df,
-                smiles_a_column=self._config.smiles_column_name,
-                label_column=self._config.label_column_name,
+                smiles_a_column=self._config.model.smiles_column_name,
+                label_column=self._config.model.label_column_name,
                 generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
             ),
             batch_size=self._config.train_batch_size,
@@ -185,11 +192,11 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
         val_df = pd.read_parquet(
             val_file,
             columns=[
-                self._config.smiles_column_name,
-                self._config.label_column_name,
+                self._config.model.smiles_column_name,
+                self._config.model.label_column_name,
             ],
         )
-        val_df = val_df.astype({self._config.label_column_name: "int64"})
+        val_df = val_df.astype({self._config.model.label_column_name: "int64"})
         if self._config.n_val_samples is not None:
             val_df = val_df.sample(
                 n=self._config.n_val_samples,
@@ -201,8 +208,8 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
         val_dl = DataLoader(
             PandasDataFrameDataset(
                 val_df,
-                smiles_a_column=self._config.smiles_column_name,
-                label_column=self._config.label_column_name,
+                smiles_a_column=self._config.model.smiles_column_name,
+                label_column=self._config.model.label_column_name,
                 generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
             ),
             batch_size=self._config.train_batch_size,
@@ -218,11 +225,11 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
             test_df = pd.read_parquet(
                 test_file,
                 columns=[
-                    self._config.smiles_column_name,
-                    self._config.label_column_name,
+                    self._config.model.smiles_column_name,
+                    self._config.model.label_column_name,
                 ],
             )
-            test_df = test_df.astype({self._config.label_column_name: "int64"})
+            test_df = test_df.astype({self._config.model.label_column_name: "int64"})
             if self._config.n_test_samples is not None:
                 test_df = test_df.sample(
                     n=self._config.n_test_samples,
@@ -234,8 +241,8 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
             test_dl = DataLoader(
                 PandasDataFrameDataset(
                     test_df,
-                    smiles_a_column=self._config.smiles_column_name,
-                    label_column=self._config.label_column_name,
+                    smiles_a_column=self._config.model.smiles_column_name,
+                    label_column=self._config.model.label_column_name,
                     generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
                 ),
                 batch_size=self._config.train_batch_size,
@@ -245,7 +252,7 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
                 num_workers=self._config.n_dataloader_workers,
             )
 
-        num_labels = train_df[self._config.label_column_name].nunique()
+        num_labels = train_df[self._config.model.label_column_name].nunique()
 
         return train_dl, val_dl, test_dl, num_labels
 
@@ -270,37 +277,38 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
     def _initialize_loss(self):
         from chem_mrl.losses import SelfAdjDiceLoss, SoftmaxLoss
 
-        if self._config.loss_func == "softmax":
+        assert isinstance(self._config.model, ClassifierConfig)
+        if self._config.model.loss_func == "softmax":
             return SoftmaxLoss(
                 model=self.__model,
-                smiles_embedding_dimension=self._config.classifier_hidden_dimension,
+                smiles_embedding_dimension=self._config.model.classifier_hidden_dimension,
                 num_labels=self.__num_labels,
-                dropout=self._config.dropout_p,
-                freeze_model=self._config.freeze_model,
+                dropout=self._config.model.dropout_p,
+                freeze_model=self._config.model.freeze_model,
             )
 
-        assert isinstance(self._config, DiceLossClassifierConfig)
         return SelfAdjDiceLoss(
             model=self.__model,
-            smiles_embedding_dimension=self._config.classifier_hidden_dimension,
+            smiles_embedding_dimension=self._config.model.classifier_hidden_dimension,
             num_labels=self.__num_labels,
-            dropout=self._config.dropout_p,
-            freeze_model=self._config.freeze_model,
-            reduction=self._config.dice_reduction,
-            gamma=self._config.dice_gamma,
+            dropout=self._config.model.dropout_p,
+            freeze_model=self._config.model.freeze_model,
+            reduction=self._config.model.dice_reduction,
+            gamma=self._config.model.dice_gamma,
         )
 
     def _initialize_output_path(self):
-        if isinstance(self._config, DiceLossClassifierConfig):
+        assert isinstance(self._config.model, ClassifierConfig)
+        if self._config.model.loss_func == "selfadjdice":
             dice_loss_suffix = (
-                f"-{self._config.dice_reduction}-{self._config.dice_gamma}"
+                f"-{self._config.model.dice_reduction}-{self._config.model.dice_gamma}"
             )
         else:
             dice_loss_suffix = ""
 
-        truncated_model_name = self._config.model_name
+        truncated_model_name = self._config.model.model_name
         try:
-            truncated_model_name = self._config.model_name.rsplit("/", 1)[1]
+            truncated_model_name = self._config.model.model_name.rsplit("/", 1)[1]
         except IndexError:
             pass
 
@@ -310,8 +318,8 @@ class ClassifierTrainer(_BaseTrainer[ClassifierConfig | DiceLossClassifierConfig
             f"-{self._config.num_epochs}"
             f"-{self._config.lr_base:6f}"
             f"-{self._config.scheduler}-{self._config.warmup_steps_percent}"
-            f"-{self._config.loss_func}-{self._config.dropout_p:3f}"
-            f"-{self._config.classifier_hidden_dimension}{dice_loss_suffix}"
+            f"-{self._config.model.loss_func}-{self._config.model.dropout_p:3f}"
+            f"-{self._config.model.classifier_hidden_dimension}{dice_loss_suffix}"
         )
 
         output_path = os.path.join(

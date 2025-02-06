@@ -1,0 +1,11 @@
+defaults:
+  - classifier
+
+loss_func: selfadjdice
+dice_reduction: mean # Dice loss reduction
+dice_gamma: 1.0 # Dice loss gamma hyperparameter
+
+# Valid choices - will raise error otherwise
+# dice_reduction:
+#   - mean
+#   - sum

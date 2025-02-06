@@ -1,27 +1,21 @@
 from dataclasses import asdict, dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
-from chem_mrl.constants import BASE_MODEL_NAME
+from .Enums import SchedulerOption, WatchLogOption
 
-from .types import (
-    SCHEDULER_OPTIONS,
-    WATCH_LOG_OPTIONS,
-    SchedulerOptionType,
-    WatchLogOptionType,
-)
-
-BoundConfigType = TypeVar("BoundConfigType", bound="_BaseConfig")
+BoundConfigType = TypeVar("BoundConfigType", bound="BaseConfig")
 
 
-@dataclass(frozen=True)
+@dataclass
 class WandbConfig:
     api_key: str | None = None
     project_name: str | None = None
     run_name: str | None = None
     use_watch: bool = False
-    watch_log: WatchLogOptionType | None = "all"  # type: ignore
+    watch_log: WatchLogOption = WatchLogOption.all
     watch_log_freq: int = 1000
     watch_log_graph: bool = True
+    enabled: bool = True
     asdict = asdict
 
     def __post_init__(self):
@@ -41,27 +35,29 @@ class WandbConfig:
         if not isinstance(self.watch_log_graph, bool):
             raise TypeError("watch_log_graph must be a boolean")
         # check values
-        if self.watch_log is not None and self.watch_log not in WATCH_LOG_OPTIONS:
-            raise ValueError(f"watch_log must be one of {WATCH_LOG_OPTIONS}")
+        if self.watch_log is not None and not isinstance(
+            self.watch_log, WatchLogOption
+        ):
+            raise ValueError(f"watch_log must be one of {WatchLogOption.to_list()}")
         if self.watch_log_freq < 1:
             raise ValueError("watch_log_freq must be positive")
 
 
-@dataclass(frozen=True)
-class _BaseConfig:
-    train_dataset_path: str | None = None
-    val_dataset_path: str | None = None
+@dataclass
+class BaseConfig:
+    model: Any
+    train_dataset_path: str
+    val_dataset_path: str
     test_dataset_path: str | None = None
     n_train_samples: int | None = None
     n_val_samples: int | None = None
     n_test_samples: int | None = None
     n_dataloader_workers: int = 0
     generate_dataset_examples_at_init: bool = True
-    model_name: str = BASE_MODEL_NAME
     train_batch_size: int = 32
     num_epochs: int = 3
     lr_base: float | int = 1.1190785944700813e-05
-    scheduler: SchedulerOptionType = "warmuplinear"  # type: ignore
+    scheduler: SchedulerOption = SchedulerOption.warmuplinear
     warmup_steps_percent: float = 0.0
     use_fused_adamw: bool = False
     use_tf32: bool = False
@@ -71,15 +67,11 @@ class _BaseConfig:
     evaluation_steps: int = 0
     checkpoint_save_steps: int = 0
     checkpoint_save_total_limit: int = 20
-    return_eval_metric: bool = False
-    use_wandb: bool = False
-    wandb_config: WandbConfig | None = None
+    wandb: WandbConfig | None = None
     asdict = asdict
 
     def __post_init__(self):
         # check types
-        if not isinstance(self.model_name, str):
-            raise TypeError("model_name must be a string")
         if self.train_dataset_path is not None and not isinstance(
             self.train_dataset_path, str
         ):
@@ -130,15 +122,9 @@ class _BaseConfig:
             raise TypeError("checkpoint_save_steps must be an integer")
         if not isinstance(self.checkpoint_save_total_limit, int):
             raise TypeError("checkpoint_save_total_limit must be an integer")
-        if not isinstance(self.return_eval_metric, bool):
-            raise TypeError("return_eval_metric must be a boolean")
-        if not isinstance(self.use_wandb, bool):
-            raise TypeError("use_wandb must be a boolean")
-        if not isinstance(self.wandb_config, WandbConfig | None):
-            raise TypeError("wandb_config must be a WandbConfig or None")
+        if not isinstance(self.wandb, WandbConfig | None):
+            raise TypeError("wandb must be a WandbConfig or None")
         # check values
-        if self.model_name == "":
-            raise ValueError("model_name must be set")
         if self.train_dataset_path is not None and self.train_dataset_path == "":
             raise ValueError("train_dataset_path must be set")
         if self.val_dataset_path is not None and self.val_dataset_path == "":
@@ -146,38 +132,28 @@ class _BaseConfig:
         if self.test_dataset_path is not None and self.test_dataset_path == "":
             raise ValueError("test_dataset_path must be set")
         if self.n_train_samples is not None and self.n_train_samples < 1:
-            raise ValueError("n_train_samples must be positive")
+            raise ValueError("n_train_samples must be greater than 0")
         if self.n_val_samples is not None and self.n_val_samples < 1:
-            raise ValueError("n_val_samples must be positive")
+            raise ValueError("n_val_samples must be greater than 0")
         if self.n_test_samples is not None and self.n_test_samples < 1:
-            raise ValueError("n_test_samples must be positive")
+            raise ValueError("n_test_samples must be greater than 0")
         if self.n_dataloader_workers < 0:
             raise ValueError("n_dataloader_workers must be positive")
         if self.train_batch_size < 1:
-            raise ValueError("train_batch_size must be positive")
+            raise ValueError("train_batch_size must be greater than 0")
         if self.num_epochs < 1:
-            raise ValueError("num_epochs must be positive")
+            raise ValueError("num_epochs must be greater than 0")
         if self.lr_base <= 0:
             raise ValueError("lr_base must be positive")
-        if self.scheduler not in SCHEDULER_OPTIONS:
-            raise ValueError(f"scheduler must be one of {SCHEDULER_OPTIONS}")
+        if not isinstance(self.scheduler, SchedulerOption):
+            raise ValueError(f"scheduler must be one of {SchedulerOption.to_list()}")
         if not (0 <= self.warmup_steps_percent <= 1.0):
             raise ValueError("warmup_steps_percent must be between 0 and 1")
         if self.model_output_path == "":
             raise ValueError("model_output_path cannot be empty")
         if self.evaluation_steps < 0:
             raise ValueError("evaluation_steps must be positive")
-        if self.n_train_samples is not None and self.n_train_samples <= 0:
-            raise ValueError("if specified, n_train_samples must be greater than 0")
-        if self.n_val_samples is not None and self.n_val_samples <= 0:
-            raise ValueError("if specified, n_val_samples must be greater than 0")
-        if self.n_test_samples is not None and self.n_test_samples <= 0:
-            raise ValueError("if specified, n_test_samples must be greater than 0")
         if self.checkpoint_save_steps < 0:
             raise ValueError("checkpoint_save_steps must be positive")
         if self.checkpoint_save_total_limit < 0:
             raise ValueError("checkpoint_save_total_limit must be positive")
-        if self.return_eval_metric is None:
-            raise ValueError("return_eval_metric must be set")
-        if self.use_wandb and self.wandb_config is None:
-            raise ValueError("wandb_config must be provided when use_wandb is True")

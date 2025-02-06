@@ -1,0 +1,19 @@
+defaults:
+  - chem_mrl
+
+use_2d_matryoshka: true # Use 2D Matryoshka to train over transformer layers in addition to embedding dimensions.
+n_layers_per_step:
+  -1 # The number of layers to use per step. If -1, then all layers are used.
+  # If > 0, then a random sample of n_layers_per_step layers are used per step.
+last_layer_weight:
+  1.0 # The weight to use for the loss of the final layer.
+  # Increase this to focus more on the performance when using all layers.
+prior_layers_weight:
+  1.0 # The weight to use for the loss of the prior layers.
+  # Increase this to focus more on the performance when using fewer layers.
+kl_div_weight:
+  1.0 # The weight to use for the KL-div loss that is used to make the prior layers match that of the last layer.
+  # Increase this to focus more on the performance when using fewer layers.
+kl_temperature:
+  0.3 # The temperature to use for the KL-divergence loss.
+  # If 0, then the KL-divergence loss is not used.

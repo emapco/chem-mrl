@@ -14,31 +14,54 @@ pip install chem-mrl
 
 ## Usage
 
+### Hydra & Training Scripts
+
+Hydra configuration files are in `chem_mrl/conf`. The base config defines shared arguments, while model-specific configs are located in `chem_mrl/conf/model`. Use `chem_mrl_config.yaml` or `classifier_config.yaml` to run specific models.
+
+The `scripts` directory provides training scripts with Hydra for parameter management:
+
+- **Train Chem-MRL model:**
+  ```bash
+  python scripts/train_chem_mrl.py train_dataset_path=/path/to/training.parquet val_dataset_path=/path/to/val.parquet
+  ```
+- **Train a linear classifier:**
+  ```bash
+  python scripts/train_classifier.py train_dataset_path=/path/to/training.parquet val_dataset_path=/path/to/val.parquet
+  ```
+
 ### Basic Training Workflow
 
 To train a model, initialize the configuration with dataset paths and model parameters, then pass it to `ChemMRLTrainer` for training.
 
 ```python
-from chem_mrl.configs import ChemMRLConfig
+from chem_mrl.schemas import ChemMRLConfig
 from chem_mrl.constants import BASE_MODEL_NAME
 from chem_mrl.trainers import ChemMRLTrainer
 
 # Define training configuration
-config = ChemMRLConfig(
-    model_name=BASE_MODEL_NAME,  # Predefined model name - Can be a any transformer model name or path that is compatible with sentence-transformers
+config = BaseConfig(
+    model=ChemMRLConfig(
+        model_name=BASE_MODEL_NAME,  # Predefined model name - Can be a any transformer model name or path that is compatible with sentence-transformers
+        smiles_a_column_name="smiles_a",  # Column with first molecule SMILES representation
+        smiles_b_column_name="smiles_b",  # Column with second molecule SMILES representation
+        label_column_name="similarity",  # Similarity score between molecules
+        n_dims_per_step=3,  # Model-specific hyperparameter
+        use_2d_matryoshka=True,  # Enable 2d MRL
+        # Additional parameters specific to 2D MRL models
+        n_layers_per_step=2,
+        kl_div_weight=0.7,  # Weight for KL divergence regularization
+        kl_temperature=0.5,  # Temperature parameter for KL loss
+    ),
     train_dataset_path="train.parquet",  # Path to training data
     val_dataset_path="val.parquet",  # Path to validation data
     test_dataset_path="test.parquet",  # Optional test dataset
-    smiles_a_column_name="smiles_a",  # Column with first molecule SMILES representation
-    smiles_b_column_name="smiles_b",  # Column with second molecule SMILES representation
-    label_column_name="similarity",  # Similarity score between molecules
-    return_eval_metric=True,  # Compute and return test metric if test dataset is provided
-    n_dims_per_step=3,  # Model-specific hyperparameter
 )
 
 # Initialize trainer and start training
 trainer = ChemMRLTrainer(config)
-test_eval_metric = trainer.train()  # Returns evaluation metric (if test dataset exists) otherwise returns the final validation eval metric
+test_eval_metric = (
+    trainer.train()
+)  # Returns evaluation metric (if test dataset exists) otherwise returns the final validation eval metric
 ```
 
 ### Custom Evaluation Callbacks
@@ -46,42 +69,40 @@ test_eval_metric = trainer.train()  # Returns evaluation metric (if test dataset
 You can provide a callback function that is executed every `evaluation_steps` steps, allowing custom logic such as logging, early stopping, or model checkpointing.
 
 ```python
-from chem_mrl.configs import Chem2dMRLConfig
+from chem_mrl.schemas import Chem2dMRLConfig
 from chem_mrl.constants import BASE_MODEL_NAME
 from chem_mrl.trainers import ChemMRLTrainer
+
 
 # Define a callback function for logging evaluation metrics
 def eval_callback(score: float, epoch: int, steps: int):
     print(f"Step {steps}, Epoch {epoch}: Evaluation Score = {score}")
 
-# Define configuration for a 2D MRL model with additional hyperparameters
-config = Chem2dMRLConfig(
-    model_name=BASE_MODEL_NAME,
+
+config = BaseConfig(
+    model=ChemMRLConfig(
+        model_name=BASE_MODEL_NAME,
+        smiles_a_column_name="smiles_a",
+        smiles_b_column_name="smiles_b",
+        label_column_name="similarity",
+    ),
     train_dataset_path="train.parquet",
     val_dataset_path="val.parquet",
-    smiles_a_column_name="smiles_a",
-    smiles_b_column_name="smiles_b",
-    label_column_name="similarity",
-    evaluation_steps=1000,  # Callback execution frequency
-    return_eval_metric=True,  # Returns validation metric instead of test metric
-    n_dims_per_step=3,  # Model-specific hyperparameter
-    n_layers_per_step=2,  # Additional parameter specific to 2D MRL models
-    kl_div_weight=0.7,  # Weight for KL divergence regularization
-    kl_temperature=0.5,  # Temperature parameter for KL loss
 )
 
 # Train with callback
 trainer = ChemMRLTrainer(config)
-val_eval_metric = trainer.train(eval_callback=eval_callback)  # Callback executed every `evaluation_steps`
+val_eval_metric = trainer.train(
+    eval_callback=eval_callback
+)  # Callback executed every `evaluation_steps`
 ```
 
 ### W&B Integration
 
 This library includes a `WandBTrainerExecutor` class for seamless Weights & Biases (W&B) integration. It handles authentication, initialization, and logging at the frequency specified by `evaluation_steps`. This setup ensures seamless logging and experiment tracking, allowing for better visualization and monitoring of model performance.
 
-
 ```python
-from chem_mrl.configs import Chem2dMRLConfig, ChemMRLConfig
+from chem_mrl.schemas import Chem2dMRLConfig, ChemMRLConfig
 from chem_mrl.constants import BASE_MODEL_NAME
 from chem_mrl.trainers import ChemMRLTrainer, WandBTrainerExecutor
 
@@ -96,8 +117,13 @@ wandb_config = WandbConfig(
 )
 
 # Configure training with W&B integration
-config = ChemMRLConfig(
-    model_name=BASE_MODEL_NAME,
+config = BaseConfig(
+    model=ChemMRLConfig(
+        model_name=BASE_MODEL_NAME,
+        smiles_a_column_name="smiles_a",
+        smiles_b_column_name="smiles_b",
+        label_column_name="similarity",
+    ),
     train_dataset_path="train.parquet",
     val_dataset_path="val.parquet",
     evaluation_steps=1000,
@@ -126,16 +152,18 @@ Hyperparameter tuning shows that cross-entropy loss (`softmax` option) outperfor
 To train a classifier, configure the model with dataset paths and column names, then initialize `ClassifierTrainer` to start training.
 
 ```python
-from chem_mrl.configs import ClassifierConfig
+from chem_mrl.schemas import ClassifierConfig
 from chem_mrl.trainers import ClassifierTrainer
 
 # Define classification training configuration
-config = ClassifierConfig(
-    model_name="path/to/trained_mrl_model",  # Pretrained MRL model path
+config = BaseConfig(
+    model=ClassifierConfig(
+        model_name="path/to/trained_mrl_model",  # Pretrained MRL model path
+        smiles_column_name="smiles",  # Column containing SMILES representations of molecules
+        label_column_name="label",  # Column containing classification labels
+    ),
     train_dataset_path="train_classification.parquet",  # Path to training dataset
     val_dataset_path="val_classification.parquet",  # Path to validation dataset
-    smiles_column_name="smiles",  # Column containing SMILES representations of molecules
-    label_column_name="label",  # Column containing classification labels
 )
 
 # Initialize and train the classifier
@@ -148,249 +176,26 @@ trainer.train()
 For imbalanced classification tasks, **Dice Loss** can improve performance by focusing on hard-to-classify samples. Below is a configuration using `DiceLossClassifierConfig`, which introduces additional hyperparameters.
 
 ```python
-from chem_mrl.configs import DiceLossClassifierConfig
+from chem_mrl.schemas import DiceLossClassifierConfig
 from chem_mrl.trainers import ClassifierTrainer
 from chem_mrl.constants import BASE_MODEL_NAME
 
 # Define classification training configuration with Dice Loss
-config = DiceLossClassifierConfig(
-    model_name=BASE_MODEL_NAME,  # Predefined base model
-    train_dataset_path="train_classification.parquet",
-    val_dataset_path="val_classification.parquet",
-    smiles_column_name="smiles",
-    label_column_name="label",
-    dice_reduction="sum",  # Reduction method for Dice Loss (e.g., 'mean' or 'sum')
-    dice_gamma=1.0,  # Hyperparameter controlling the impact of Dice Loss
+config = BaseConfig(
+    model=ClassifierConfig(
+        model_name="path/to/trained_mrl_model",
+        smiles_column_name="smiles",
+        label_column_name="label",
+        dice_reduction="sum",  # Reduction method for Dice Loss (e.g., 'mean' or 'sum')
+        dice_gamma=1.0,  # Dice loss hyperparameter
+    ),
+    train_dataset_path="train_classification.parquet",  # Path to training dataset
+    val_dataset_path="val_classification.parquet",  # Path to validation dataset
 )
 
 # Initialize and train the classifier with Dice Loss
 trainer = ClassifierTrainer(config)
 trainer.train()
-```
-
-## Scripts
-
-The `scripts` directory contains two training scripts:
-
-- `scripts/train_chem_mrl.py` – Trains a Chem-MRL model
-- `scripts/train_classifier.py` – Trains a linear classifier
-
-### train_chem_mrl.py
-
-For usage details, run:
-
-```bash
-python scripts/train_chem_mrl.py -h
-```
-
-Example output:
-
-```
-usage: train_chem_mrl.py [-h] --train_dataset_path TRAIN_DATASET_PATH --val_dataset_path VAL_DATASET_PATH [--test_dataset_path TEST_DATASET_PATH]
-                         [--n_train_samples N_TRAIN_SAMPLES] [--n_val_samples N_VAL_SAMPLES] [--n_test_samples N_TEST_SAMPLES] [--n_dataloader_workers N_DATALOADER_WORKERS]
-                         [--generate_dataset_examples_at_init] [--model_name MODEL_NAME] [--train_batch_size TRAIN_BATCH_SIZE] [--num_epochs NUM_EPOCHS] [--lr_base LR_BASE]
-                         [--scheduler {warmupconstant,warmuplinear,warmupcosine,warmupcosinewithhardrestarts}] [--warmup_steps_percent WARMUP_STEPS_PERCENT] [--use_fused_adamw]
-                         [--use_tf32] [--use_amp] [--seed SEED] [--model_output_path MODEL_OUTPUT_PATH] [--evaluation_steps EVALUATION_STEPS]
-                         [--checkpoint_save_steps CHECKPOINT_SAVE_STEPS] [--checkpoint_save_total_limit CHECKPOINT_SAVE_TOTAL_LIMIT] [--return_eval_metric] [--use_wandb]
-                         [--wandb_api_key WANDB_API_KEY] [--wandb_project_name WANDB_PROJECT_NAME] [--wandb_run_name WANDB_RUN_NAME] [--wandb_use_watch]
-                         [--wandb_watch_log {gradients,parameters,all}] [--wandb_watch_log_freq WANDB_WATCH_LOG_FREQ] [--wandb_watch_log_graph]
-                         [--smiles_a_column_name SMILES_A_COLUMN_NAME] [--smiles_b_column_name SMILES_B_COLUMN_NAME] [--label_column_name LABEL_COLUMN_NAME]
-                         [--embedding_pooling {mean,mean_sqrt_len_tokens,weightedmean,lasttoken}] [--loss_func {tanimotosentloss,tanimotosimilarityloss,cosentloss,angleloss}]
-                         [--tanimoto_similarity_loss_func {mse,l1,smooth_l1,huber,bin_cross_entropy,kldiv,cosine_embedding_loss}] [--eval_similarity_fct {cosine,tanimoto}]
-                         [--eval_metric {spearman,pearson}] [--mrl_dimensions MRL_DIMENSIONS [MRL_DIMENSIONS ...]] [--dim_weights DIM_WEIGHTS [DIM_WEIGHTS ...]]
-                         [--n_dims_per_step N_DIMS_PER_STEP] [--use_2d_matryoshka] [--n_layers_per_step N_LAYERS_PER_STEP] [--last_layer_weight LAST_LAYER_WEIGHT]
-                         [--prior_layers_weight PRIOR_LAYERS_WEIGHT] [--kl_div_weight KL_DIV_WEIGHT] [--kl_temperature KL_TEMPERATURE]
-
-Train SMILES-based MRL embeddings model
-
-options:
-  -h, --help            show this help message and exit
-  --train_dataset_path TRAIN_DATASET_PATH
-  --val_dataset_path VAL_DATASET_PATH
-  --test_dataset_path TEST_DATASET_PATH
-  --n_train_samples N_TRAIN_SAMPLES
-                        Number of training samples to load. Uses seeded sampling if a seed is set. (default: None)
-  --n_val_samples N_VAL_SAMPLES
-                        Number of evaluation samples to load. Uses seeded sampling if a seed is set. (default: None)
-  --n_test_samples N_TEST_SAMPLES
-                        Number of testing samples to load. Uses seeded sampling if a seed is set. (default: None)
-  --n_dataloader_workers N_DATALOADER_WORKERS
-                        How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process. (default: 0)
-  --generate_dataset_examples_at_init
-                        If set, then all `sentence_transformers.InputExample` examples will be generated at at initialization. If not set, the `sentence_transformers.InputExample`
-                        examples are generated on the fly by the dataloader. (default: False)
-  --model_name MODEL_NAME
-                        Name of the model to use. Must be either a file path or a hugging-face model name. (default: seyonec/SMILES_tokenized_PubChem_shard00_160k)
-  --train_batch_size TRAIN_BATCH_SIZE
-                        Training batch size (default: 32)
-  --num_epochs NUM_EPOCHS
-                        Number of epochs to train (default: 3)
-  --lr_base LR_BASE     Base learning rate. Will be scaled by the square root of the batch size (default: 1.1190785944700813e-05)
-  --scheduler {warmupconstant,warmuplinear,warmupcosine,warmupcosinewithhardrestarts}
-                        Learning rate scheduler (default: warmuplinear)
-  --warmup_steps_percent WARMUP_STEPS_PERCENT
-                        Number of warmup steps that the scheduler will use (default: 0.0)
-  --use_fused_adamw     Use cuda-optimized FusedAdamW optimizer. ~10% faster than torch.optim.AdamW (default: False)
-  --use_tf32            Use TensorFloat-32 for matrix multiplication and convolutions (default: False)
-  --use_amp             Use automatic mixed precision (default: False)
-  --seed SEED           Omit to not set a seed during training. Used to seed the dataloader sampling and the transformer. (default: 42)
-  --model_output_path MODEL_OUTPUT_PATH
-                        Path to save model (default: output)
-  --evaluation_steps EVALUATION_STEPS
-                        Run evaluator every evaluation_steps (default: 0)
-  --checkpoint_save_steps CHECKPOINT_SAVE_STEPS
-                        Save checkpoint every checkpoint_save_steps (default: 0)
-  --checkpoint_save_total_limit CHECKPOINT_SAVE_TOTAL_LIMIT
-                        Save total limit (default: 20)
-  --return_eval_metric  Return the final evaluation metric after training (default: False)
-  --use_wandb           Use W&B for logging. Must be enabled for other W&B features to work. (default: False)
-  --wandb_api_key WANDB_API_KEY
-                        W&B API key. Can be omitted if W&B cli is installed and logged in (default: None)
-  --wandb_project_name WANDB_PROJECT_NAME
-  --wandb_run_name WANDB_RUN_NAME
-  --wandb_use_watch     Enable W&B watch (default: False)
-  --wandb_watch_log {gradients,parameters,all}
-                        Specify which logs to W&B should watch (default: all)
-  --wandb_watch_log_freq WANDB_WATCH_LOG_FREQ
-                        How often to log (default: 1000)
-  --wandb_watch_log_graph
-                        Specify if graphs should be logged by W&B (default: False)
-  --smiles_a_column_name SMILES_A_COLUMN_NAME
-                        SMILES A column name (default: smiles_a)
-  --smiles_b_column_name SMILES_B_COLUMN_NAME
-                        SMILES B column name (default: smiles_b)
-  --label_column_name LABEL_COLUMN_NAME
-                        Label column name (default: similarity)
-  --embedding_pooling {mean,mean_sqrt_len_tokens,weightedmean,lasttoken}
-                        Pooling layer method applied to the embeddings.Pooling layer is required to generate a fixed sized SMILES embedding from a variable sized SMILES.For details
-                        visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling (default: mean)
-  --loss_func {tanimotosentloss,tanimotosimilarityloss,cosentloss,angleloss}
-                        Loss function (default: tanimotosentloss)
-  --tanimoto_similarity_loss_func {mse,l1,smooth_l1,huber,bin_cross_entropy,kldiv,cosine_embedding_loss}
-                        Base loss function for tanimoto similarity loss function (only for tanimotosimilarityloss) (default: None)
-  --eval_similarity_fct {cosine,tanimoto}
-                        Similarity function to use for evaluation (default: tanimoto)
-  --eval_metric {spearman,pearson}
-                        Metric to use for evaluation (default: spearman)
-  --mrl_dimensions MRL_DIMENSIONS [MRL_DIMENSIONS ...]
-                        A list of embedding dimensions to be used for the loss function. Each value must be less than equal to the base transformer's hidden dimension. (default:
-                        [768, 512, 256, 128, 64, 32, 16, 8])
-  --dim_weights DIM_WEIGHTS [DIM_WEIGHTS ...]
-                        A list of weights to be used for the loss function. The number of dimension weights must match that of the MRL dimensions. (default: [1, 1, 1, 1, 1, 1, 1,
-                        1])
-  --n_dims_per_step N_DIMS_PER_STEP
-                        The number of dimensions to use per step. If -1, then all dimensions are used. If > 0, then a random sample of n_dims_per_step dimensions are used per step.
-                        (default: 1)
-  --use_2d_matryoshka   Use 2D Matryoshka to train over layers in addition to embedding dimensions. (default: False)
-  --n_layers_per_step N_LAYERS_PER_STEP
-                        The number of layers to use per step. If -1, then all layers are used. If > 0, then a random sample of n_layers_per_step layers are used per step. (only for
-                        2D MRL) (default: 1)
-  --last_layer_weight LAST_LAYER_WEIGHT
-                        The weight to use for the loss of the final layer. Increase this to focus more on the performance when using all layers. (only for 2D MRL) (default: 1.0)
-  --prior_layers_weight PRIOR_LAYERS_WEIGHT
-                        The weight to use for the loss of the prior layers. Increase this to focus more on the performance when using fewer layers. (only for 2D MRL) (default: 1.0)
-  --kl_div_weight KL_DIV_WEIGHT
-                        The weight to use for the KL-div loss that is used to make the prior layers match that of the last layer. Increase this to focus more on the performance
-                        when using fewer layers. (only for 2D MRL) (default: 1.0)
-  --kl_temperature KL_TEMPERATURE
-                        The temperature to use for the KL-divergence loss. If 0, then the KL-divergence loss is not used. (only for 2D MRL) (default: 0.3)
-```
-
-### train_classifier.py
-
-For usage details, run:
-
-```bash
-$ python scripts/train_classifier.py -h
-```
-
-Example output:
-
-```
-usage: train_classifier.py [-h] --train_dataset_path TRAIN_DATASET_PATH --val_dataset_path VAL_DATASET_PATH [--test_dataset_path TEST_DATASET_PATH]
-                           [--n_train_samples N_TRAIN_SAMPLES] [--n_val_samples N_VAL_SAMPLES] [--n_test_samples N_TEST_SAMPLES] [--n_dataloader_workers N_DATALOADER_WORKERS]
-                           [--generate_dataset_examples_at_init] [--model_name MODEL_NAME] [--train_batch_size TRAIN_BATCH_SIZE] [--num_epochs NUM_EPOCHS] [--lr_base LR_BASE]
-                           [--scheduler {warmupconstant,warmuplinear,warmupcosine,warmupcosinewithhardrestarts}] [--warmup_steps_percent WARMUP_STEPS_PERCENT] [--use_fused_adamw]
-                           [--use_tf32] [--use_amp] [--seed SEED] [--model_output_path MODEL_OUTPUT_PATH] [--evaluation_steps EVALUATION_STEPS]
-                           [--checkpoint_save_steps CHECKPOINT_SAVE_STEPS] [--checkpoint_save_total_limit CHECKPOINT_SAVE_TOTAL_LIMIT] [--return_eval_metric] [--use_wandb]
-                           [--wandb_api_key WANDB_API_KEY] [--wandb_project_name WANDB_PROJECT_NAME] [--wandb_run_name WANDB_RUN_NAME] [--wandb_use_watch]
-                           [--wandb_watch_log {gradients,parameters,all}] [--wandb_watch_log_freq WANDB_WATCH_LOG_FREQ] [--wandb_watch_log_graph]
-                           [--smiles_column_name SMILES_COLUMN_NAME] [--label_column_name LABEL_COLUMN_NAME] [--eval_metric {accuracy}] [--loss_func {softmax,selfadjdice}]
-                           [--classifier_hidden_dimension CLASSIFIER_HIDDEN_DIMENSION] [--dropout_p DROPOUT_P] [--freeze_model] [--dice_reduction {mean,sum}]
-                           [--dice_gamma DICE_GAMMA]
-
-Train SMILES-based classifier model
-
-options:
-  -h, --help            show this help message and exit
-  --train_dataset_path TRAIN_DATASET_PATH
-  --val_dataset_path VAL_DATASET_PATH
-  --test_dataset_path TEST_DATASET_PATH
-  --n_train_samples N_TRAIN_SAMPLES
-                        Number of training samples to load. Uses seeded sampling if a seed is set. (default: None)
-  --n_val_samples N_VAL_SAMPLES
-                        Number of evaluation samples to load. Uses seeded sampling if a seed is set. (default: None)
-  --n_test_samples N_TEST_SAMPLES
-                        Number of testing samples to load. Uses seeded sampling if a seed is set. (default: None)
-  --n_dataloader_workers N_DATALOADER_WORKERS
-                        How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process. (default: 0)
-  --generate_dataset_examples_at_init
-                        If set, then all `sentence_transformers.InputExample` examples will be generated at at initialization. If not set, the `sentence_transformers.InputExample`
-                        examples are generated on the fly by the dataloader. (default: False)
-  --model_name MODEL_NAME
-                        Name of the model to use. Must be either a file path or a hugging-face model name. (default: seyonec/SMILES_tokenized_PubChem_shard00_160k)
-  --train_batch_size TRAIN_BATCH_SIZE
-                        Training batch size (default: 32)
-  --num_epochs NUM_EPOCHS
-                        Number of epochs to train (default: 3)
-  --lr_base LR_BASE     Base learning rate. Will be scaled by the square root of the batch size (default: 1.1190785944700813e-05)
-  --scheduler {warmupconstant,warmuplinear,warmupcosine,warmupcosinewithhardrestarts}
-                        Learning rate scheduler (default: warmuplinear)
-  --warmup_steps_percent WARMUP_STEPS_PERCENT
-                        Number of warmup steps that the scheduler will use (default: 0.0)
-  --use_fused_adamw     Use cuda-optimized FusedAdamW optimizer. ~10% faster than torch.optim.AdamW (default: False)
-  --use_tf32            Use TensorFloat-32 for matrix multiplication and convolutions (default: False)
-  --use_amp             Use automatic mixed precision (default: False)
-  --seed SEED           Omit to not set a seed during training. Used to seed the dataloader sampling and the transformer. (default: 42)
-  --model_output_path MODEL_OUTPUT_PATH
-                        Path to save model (default: output)
-  --evaluation_steps EVALUATION_STEPS
-                        Run evaluator every evaluation_steps (default: 0)
-  --checkpoint_save_steps CHECKPOINT_SAVE_STEPS
-                        Save checkpoint every checkpoint_save_steps (default: 0)
-  --checkpoint_save_total_limit CHECKPOINT_SAVE_TOTAL_LIMIT
-                        Save total limit (default: 20)
-  --return_eval_metric  Return the final evaluation metric after training (default: False)
-  --use_wandb           Use W&B for logging. Must be enabled for other W&B features to work. (default: False)
-  --wandb_api_key WANDB_API_KEY
-                        W&B API key. Can be omitted if W&B cli is installed and logged in (default: None)
-  --wandb_project_name WANDB_PROJECT_NAME
-  --wandb_run_name WANDB_RUN_NAME
-  --wandb_use_watch     Enable W&B watch (default: False)
-  --wandb_watch_log {gradients,parameters,all}
-                        Specify which logs to W&B should watch (default: all)
-  --wandb_watch_log_freq WANDB_WATCH_LOG_FREQ
-                        How often to log (default: 1000)
-  --wandb_watch_log_graph
-                        Specify if graphs should be logged by W&B (default: False)
-  --smiles_column_name SMILES_COLUMN_NAME
-                        SMILES column name (default: smiles)
-  --label_column_name LABEL_COLUMN_NAME
-                        Label column name (default: label)
-  --eval_metric {accuracy}
-                        Metric to use for evaluation (default: accuracy)
-  --loss_func {softmax,selfadjdice}
-                        Loss function (default: softmax)
-  --classifier_hidden_dimension CLASSIFIER_HIDDEN_DIMENSION
-                        Classifier hidden dimension. Must be less than equal to the ChemMRL transformer's hidden dimension. Note, the base model will be truncated to this
-                        dimension. (default: 768)
-  --dropout_p DROPOUT_P
-                        Dropout probability for linear layer regularization (default: 0.15)
-  --freeze_model        Freeze internal base SMILES model (default: False)
-  --dice_reduction {mean,sum}
-                        Dice loss reduction. Used if loss_func=selfadjdice (default: mean)
-  --dice_gamma DICE_GAMMA
-                        Dice loss gamma. Used if loss_func=selfadjdice (default: 1.0)
 ```
 
 ## References:

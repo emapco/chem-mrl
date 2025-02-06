@@ -4,11 +4,10 @@ import logging
 
 from sentence_transformers import LoggingHandler
 
-__version__ = "0.3.7"
+__version__ = "0.4.0"
 
 from . import (
     benchmark,
-    configs,
     constants,
     datasets,
     device_manager,
@@ -16,6 +15,7 @@ from . import (
     losses,
     molecular_embedder,
     molecular_fingerprinter,
+    schemas,
     trainers,
 )
 
@@ -29,7 +29,6 @@ logging.basicConfig(
 
 __all__ = [
     "benchmark",
-    "configs",
     "constants",
     "datasets",
     "device_manager",
@@ -37,5 +36,6 @@ __all__ = [
     "losses",
     "molecular_embedder",
     "molecular_fingerprinter",
+    "schemas",
     "trainers",
 ]
