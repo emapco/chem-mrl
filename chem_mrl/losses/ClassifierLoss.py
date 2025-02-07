@@ -55,7 +55,7 @@ class _ClassifierLoss(nn.Module):
             nn.Linear(smiles_embedding_dimension, smiles_embedding_dimension),
             nn.ReLU(),
             self.__dropout,
-            nn.Linear(smiles_embedding_dimension, num_labels, device=model.device),
+            nn.Linear(smiles_embedding_dimension, num_labels),
         )
 
     @property

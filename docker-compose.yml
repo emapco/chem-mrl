@@ -71,8 +71,8 @@ services:
     ulimits:
       memlock: -1
       stack: 67108864
-  molmim:
-    image: nvcr.io/nim/nvidia/molmim:1.0.0
+  genmol:
+    image: nvcr.io/nim/nvidia/genmol:1.0.0
     platform: AMD64
     volumes:
       - ./:/workspace/chem_mrl

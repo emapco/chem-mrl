@@ -1,20 +1,18 @@
 defaults:
   - classifier_schema
 
-model_name: "seyonec/SMILES_tokenized_PubChem_shard00_160k" # Name of the model to use. Must be either a file path or a hugging-face model name.
-smiles_column_name: "smiles"
-label_column_name: "label"
+model_name: seyonec/SMILES_tokenized_PubChem_shard00_160k # Name of the model to use. Must be either a file path or a HF transformer model name.
+smiles_column_name: smiles
+label_column_name: label
 eval_metric: accuracy # Metric to use for evaluation
+# Valid options
+# - accuracy
 loss_func: softmax
+# Valid options
+# - softmax
+# - selfadjdice
 classifier_hidden_dimension:
   768 # Classifier hidden dimension. Must be less than equal to the ChemMRL transformer's hidden dimension.
   # Note, the base model will be truncated to this dimension.
 dropout_p: 0.1 # Dropout probability for linear layer regularization
 freeze_model: false # Freeze internal base MRL model
-
-# Valid choices - will raise error otherwise
-# loss_func:
-#   - softmax
-#   - selfadjdice
-# eval_metric:
-#   - accuracy

@@ -41,6 +41,8 @@ class ChemMRLTrainer(_BaseTrainer):
         chem_mrl_dataset_collection: ChemMrlDatasetCollection | None = None,
     ):
         super().__init__(config=config)
+        if not isinstance(config.model, ChemMRLConfig):
+            raise TypeError("config.model must be a ChemMRLConfig instance")
         self.__model = self._initialize_model()
 
         if chem_mrl_dataset_collection is not None:

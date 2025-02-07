@@ -45,7 +45,7 @@ class ClassifierTrainer(_BaseTrainer):
     ):
         super().__init__(config=config)
         if not isinstance(config.model, ClassifierConfig):
-            raise TypeError("config.model must be a ClassifierConfig")
+            raise TypeError("config.model must be a ClassifierConfig instance")
         self.__model = self._initialize_model()
 
         if classifier_dataset_collection is not None:

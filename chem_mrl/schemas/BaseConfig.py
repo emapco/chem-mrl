@@ -45,6 +45,7 @@ class WandbConfig:
 
 @dataclass
 class BaseConfig:
+    # Hydra's structured config schema doesn't support generics nor unions of containers (e.g. ChemMRLConfig)
     model: Any
     train_dataset_path: str
     val_dataset_path: str

@@ -1,14 +1,15 @@
 import hydra
-from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig, OmegaConf
 
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig, WandbConfig
+from chem_mrl.schemas import (
+    BaseConfig,
+    ChemMRLConfig,
+    WandbConfig,
+    register_chem_mrl_configs,
+)
 from chem_mrl.trainers import ChemMRLTrainer, WandBTrainerExecutor
 
-cs = ConfigStore.instance()
-cs.store(name="base_config_schema", node=BaseConfig)
-cs.store(name="wandb_schema", node=WandbConfig)
-cs.store(group="model", name="chem_mrl_schema", node=ChemMRLConfig)
+register_chem_mrl_configs()
 
 
 @hydra.main(

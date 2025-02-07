@@ -1,7 +1,7 @@
 # type: ignore
 import pytest
 
-from chem_mrl.schemas.MrlConfig import (
+from chem_mrl.schemas.ChemMRLConfig import (
     ChemMRLConfig,
     ChemMrlLossFctOption,
     EmbeddingPoolingOption,

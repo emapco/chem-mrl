@@ -93,11 +93,9 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
 
         # Do not pass unnecessary values to wandb
         parsed_config = self.config.asdict()
-        parsed_config.pop("use_wandb", None)
-        parsed_config.pop("wandb_config", None)
+        parsed_config.pop("wandb", None)
         parsed_config.pop("n_dataloader_workers", None)
         parsed_config.pop("generate_dataset_examples_at_init", None)
-        parsed_config.pop("evaluation_steps", None)
         parsed_config.pop("checkpoint_save_steps", None)
         parsed_config.pop("checkpoint_save_total_limit", None)
         parsed_config.pop("model_output_path", None)

@@ -2,14 +2,24 @@
 
 Chem-MRL is a SMILES embedding transformer model that leverages Matryoshka Representation Learning (MRL) to generate efficient, truncatable embeddings for downstream tasks such as classification, clustering, and database querying.
 
-The dataset (split 75%/15%/10% for train/val/test) consists of SMILES pairs and their corresponding [Morgan fingerprint](https://www.rdkit.org/docs/GettingStartedInPython.html#morgan-fingerprints-circular-fingerprints) (8192-bit vectors) Tanimoto similarity scores. The model employs [SentenceTransformers' (SBERT)](https://sbert.net/) [2D Matryoshka Sentence Embeddings](https://sbert.net/examples/training/matryoshka/README.html) (`Matryoshka2dLoss`) to enable truncatable embeddings with minimal accuracy loss, improving query performance in downstream applications.
+The model employs [SentenceTransformers' (SBERT)](https://sbert.net/) [2D Matryoshka Sentence Embeddings](https://sbert.net/examples/training/matryoshka/README.html) (`Matryoshka2dLoss`) to enable truncatable embeddings with minimal accuracy loss, improving query performance and flexibility in downstream applications.
 
-Hyperparameter tuning indicates that a custom Tanimoto similarity loss function, based on CoSENTLoss, outperforms [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), CoSENTLoss, [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
+Datasets should consists of SMILES pairs and their corresponding [Morgan fingerprint](https://www.rdkit.org/docs/GettingStartedInPython.html#morgan-fingerprints-circular-fingerprints) Tanimoto similarity scores. Currently, datasets must be in Parquet format.
+
+Hyperparameter tuning indicates that a custom Tanimoto similarity loss function, `TanimotoSentLoss`, based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), CoSENTLoss, [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
 
 ## Installation
 
+**Install with pip**
+
 ```bash
 pip install chem-mrl
+```
+
+**Install from source code**
+
+```bash
+pip install -e .
 ```
 
 ## Usage
@@ -99,7 +109,7 @@ val_eval_metric = trainer.train(
 
 ### W&B Integration
 
-This library includes a `WandBTrainerExecutor` class for seamless Weights & Biases (W&B) integration. It handles authentication, initialization, and logging at the frequency specified by `evaluation_steps`. This setup ensures seamless logging and experiment tracking, allowing for better visualization and monitoring of model performance.
+This library includes a `WandBTrainerExecutor` class for seamless Weights & Biases (W&B) integration. It handles authentication, initialization, and logging at the frequency specified by `evaluation_steps`.
 
 ```python
 from chem_mrl.schemas import Chem2dMRLConfig, ChemMRLConfig
@@ -127,8 +137,7 @@ config = BaseConfig(
     train_dataset_path="train.parquet",
     val_dataset_path="val.parquet",
     evaluation_steps=1000,
-    use_wandb=True,  # Enables W&B logging
-    wandb_config=wandb_config,
+    wandb=wandb_config,
 )
 
 # Initialize trainer and W&B executor
@@ -139,15 +148,13 @@ executor.execute()  # Handles training and W&B logging
 
 ## Classifier
 
-This repository includes code for training a linear classifier with optional dropout regularization. The classifier categorizes substances based on SMILES and category features. While demonstrated on the Isomer Design dataset, it is generalizable to any dataset containing `smiles` and `label` columns. The training scripts (see below) allow users to specify these column names.
-
-Currently, the dataset must be in Parquet format.
+This repository includes code for training a linear classifier with optional dropout regularization. The classifier categorizes substances based on SMILES and category features.
 
 Hyperparameter tuning shows that cross-entropy loss (`softmax` option) outperforms self-adjusting dice loss in terms of accuracy, making it the preferred choice for molecular property classification.
 
-## Usage
+### Usage
 
-### Basic Classification Training
+#### Basic Classification Training
 
 To train a classifier, configure the model with dataset paths and column names, then initialize `ClassifierTrainer` to start training.
 
@@ -171,7 +178,7 @@ trainer = ClassifierTrainer(config)
 trainer.train()
 ```
 
-### Training with Dice Loss
+#### Training with Dice Loss
 
 For imbalanced classification tasks, **Dice Loss** can improve performance by focusing on hard-to-classify samples. Below is a configuration using `DiceLossClassifierConfig`, which introduces additional hyperparameters.
 
@@ -179,6 +186,7 @@ For imbalanced classification tasks, **Dice Loss** can improve performance by fo
 from chem_mrl.schemas import DiceLossClassifierConfig
 from chem_mrl.trainers import ClassifierTrainer
 from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.schemas.Enums import ClassifierLossFctOption, DiceReductionOption
 
 # Define classification training configuration with Dice Loss
 config = BaseConfig(
@@ -186,8 +194,9 @@ config = BaseConfig(
         model_name="path/to/trained_mrl_model",
         smiles_column_name="smiles",
         label_column_name="label",
-        dice_reduction="sum",  # Reduction method for Dice Loss (e.g., 'mean' or 'sum')
-        dice_gamma=1.0,  # Dice loss hyperparameter
+        loss_fct=ClassifierLossFctOption.selfadjdice,
+        dice_reduction=DiceReductionOption.sum,  # Reduction method for Dice Loss (e.g., 'mean' or 'sum')
+        dice_gamma=1.0,  # Smoothing factor hyperparameter
     ),
     train_dataset_path="train_classification.parquet",  # Path to training dataset
     val_dataset_path="val_classification.parquet",  # Path to validation dataset
@@ -206,3 +215,4 @@ trainer.train()
 - Li, Xianming, et al. "2D Matryoshka Sentence Embeddings." _arXiv [Cs.CL]_, 2024. [Link](http://arxiv.org/abs/2402.14776).
 - Bajusz, Dávid, et al. "Why is the Tanimoto Index an Appropriate Choice for Fingerprint-Based Similarity Calculations?" _J Cheminform_, 7, 20 (2015). [Link](https://doi.org/10.1186/s13321-015-0069-3).
 - Li, Xiaoya, et al. "Dice Loss for Data-imbalanced NLP Tasks." _arXiv [Cs.CL]_, 2020. [Link](https://arxiv.org/abs/1911.02855)
+- Reimers, Nils, and Gurevych, Iryna. "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." _Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing_, 2019. [Link](https://arxiv.org/abs/1908.10084).

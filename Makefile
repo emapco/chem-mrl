@@ -8,6 +8,15 @@ install:
 install-pep:
 	pip install .[dev,benchmark,data] --use-pep517
 
+release-testing:
+	pip uninstall chem_mrl -y
+	python -m build
+	pip install dist/*.whl
+	rm -r dist/
+	CUDA_VISIBLE_DEVICES=-1 pytest tests
+	pip uninstall chem_mrl -y
+	make install
+
 docker:
 	docker compose up -d --build benchmark-postgres optuna-postgres
 
@@ -19,8 +28,8 @@ bionemo:
 
 # https://docs.nvidia.com/launchpad/ai/base-command-coe/latest/bc-coe-docker-basics-step-02.html
 # need ngc account and api key to download
-molmim:
-	sudo docker compose up -d --build molmim
+genmol:
+	sudo docker compose up -d --build genmol
 
 benchmark_db:
 	docker compose up -d --build benchmark-postgres

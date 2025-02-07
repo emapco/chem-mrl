@@ -68,7 +68,7 @@ class PandasDataFrameDataset(Dataset):
 
             pandarallel.initialize(progress_bar=True)
             logger.info(
-                "Pregenerate examples to match expected type by sentence_transformers"
+                "Pregenerate examples to match the expected type by sentence_transformers"
             )
             self._pregenerate_examples(getter)
             getter = self._get_pregenerated
