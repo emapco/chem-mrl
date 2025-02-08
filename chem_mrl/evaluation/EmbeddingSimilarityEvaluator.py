@@ -1,7 +1,6 @@
 import logging
 from collections.abc import Iterable
 from contextlib import nullcontext
-from enum import Enum
 from typing import Literal
 
 import numpy as np
@@ -11,14 +10,11 @@ from sentence_transformers.evaluation import SentenceEvaluator
 from sklearn.metrics.pairwise import check_paired_arrays, row_norms
 from sklearn.preprocessing import normalize
 
+from chem_mrl.schemas.Enums import ChemMrlEvalMetricOption, EvalSimilarityFctOption
+
 from .utils import _write_results_to_csv
 
 logger = logging.getLogger(__name__)
-
-
-class SimilarityFunction(Enum):
-    COSINE = 0
-    TANIMOTO = 1
 
 
 class EmbeddingSimilarityEvaluator(SentenceEvaluator):
@@ -37,7 +33,8 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         smiles2: Iterable[str],
         scores: Iterable[float],
         batch_size: int = 16,
-        main_similarity: SimilarityFunction = SimilarityFunction.TANIMOTO,
+        main_similarity: EvalSimilarityFctOption = EvalSimilarityFctOption.tanimoto,
+        metric: ChemMrlEvalMetricOption = ChemMrlEvalMetricOption.spearman,
         name: str = "",
         show_progress_bar: bool = False,
         write_csv: bool = True,
@@ -71,6 +68,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         assert len(self.smiles1) == len(self.smiles2)  # type: ignore
         assert len(self.smiles1) == len(self.labels)  # type: ignore
 
+        self.metric = metric
         self.main_similarity = main_similarity
         self.name = name
 
@@ -92,8 +90,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         self.csv_headers = [
             "epoch",
             "steps",
-            "pearson",
-            "spearman",
+            self.metric,
         ]
 
     def __call__(
@@ -151,21 +148,22 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             embeddings1 = np.unpackbits(embeddings1, axis=1)
             embeddings2 = np.unpackbits(embeddings2, axis=1)
 
-        if self.main_similarity == SimilarityFunction.TANIMOTO:
+        if self.main_similarity == EvalSimilarityFctOption.tanimoto:
             main_similarity_scores = paired_tanimoto_similarity(embeddings1, embeddings2)
-            main_similarity_name = "Tanimoto-Similarity"
         else:
             main_similarity_scores = 1 - (paired_cosine_distances(embeddings1, embeddings2))
-            main_similarity_name = "Cosine-Similarity"
 
         del embeddings1, embeddings2
 
-        eval_pearson, _ = pearsonr(self.labels, main_similarity_scores)
-        eval_spearman, _ = spearmanr(self.labels, main_similarity_scores)
+        if self.metric == ChemMrlEvalMetricOption.pearson:
+            eval_metric, _ = pearsonr(self.labels, main_similarity_scores)
+        else:
+            eval_metric, _ = spearmanr(self.labels, main_similarity_scores)
         del main_similarity_scores
 
         logger.info(
-            f"{main_similarity_name} :\tPearson: {eval_pearson:.5f}\tSpearman: {eval_spearman:.5f}"
+            f"{self.main_similarity.capitalize()} Similarity :"
+            f"\t{self.metric.capitalize()}: {eval_metric:.5f}"
         )
 
         _write_results_to_csv(
@@ -176,14 +174,13 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             results=[
                 epoch,
                 steps,
-                eval_pearson,
-                eval_spearman,
+                eval_metric,
             ],
         )
 
-        eval_pearson = float(eval_spearman)  # type: ignore
-        assert isinstance(eval_pearson, float)
-        return eval_pearson
+        eval_metric = float(eval_metric)  # type: ignore
+        assert isinstance(eval_metric, float)
+        return eval_metric
 
 
 def paired_cosine_distances(X, Y):
@@ -215,7 +212,7 @@ def paired_cosine_distances(X, Y):
     X, Y = check_paired_arrays(X, Y)
     X = normalize(X).astype(np.float32, copy=False)
     Y = normalize(Y).astype(np.float32, copy=False)
-    return (0.5 * row_norms(X - Y, squared=True)).astype(np.float16)
+    return (0.5 * row_norms(X - Y, squared=True)).astype(np.float32)
 
 
 def paired_tanimoto_similarity(X, Y):
@@ -251,4 +248,4 @@ def paired_tanimoto_similarity(X, Y):
     X = np.sum(X, axis=1)
     Y = np.sum(Y, axis=1)
     denominator = X + Y - dot_product
-    return (dot_product / np.maximum(denominator, 1e-9)).astype(np.float16)
+    return (dot_product / np.maximum(denominator, 1e-9)).astype(np.float32)

@@ -12,8 +12,6 @@ from .Enums import (
 @dataclass
 class ClassifierConfig:
     model_name: str = BASE_MODEL_NAME
-    smiles_column_name: str = "smiles"
-    label_column_name: str = "label"
     eval_metric: ClassifierEvalMetricOption = ClassifierEvalMetricOption.accuracy
     loss_func: ClassifierLossFctOption = ClassifierLossFctOption.softmax
     classifier_hidden_dimension: int = CHEM_MRL_DIMENSIONS[0]
@@ -27,10 +25,6 @@ class ClassifierConfig:
         # check types
         if not isinstance(self.model_name, str):
             raise TypeError("model_name must be a string")
-        if not isinstance(self.smiles_column_name, str):
-            raise TypeError("smiles_column_name must be a string")
-        if not isinstance(self.label_column_name, str):
-            raise TypeError("label_column_name must be a string")
         if not isinstance(self.eval_metric, str):
             raise TypeError("eval_metric must be a string")
         if not isinstance(self.loss_func, str):
@@ -48,10 +42,6 @@ class ClassifierConfig:
         # check values
         if self.model_name == "":
             raise ValueError("model_name must be set")
-        if self.smiles_column_name == "":
-            raise ValueError("smiles_column_name must be set")
-        if self.label_column_name == "":
-            raise ValueError("label_column_name must be set")
         if not isinstance(self.eval_metric, ClassifierEvalMetricOption):
             raise ValueError(f"eval_metric must be one of {ClassifierEvalMetricOption.to_list()}")
         if not isinstance(self.loss_func, ClassifierLossFctOption):

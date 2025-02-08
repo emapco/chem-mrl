@@ -155,11 +155,11 @@ class ClassifierTrainer(_BaseTrainer):
         train_df = pd.read_parquet(
             train_file,
             columns=[
-                self._config.model.smiles_column_name,
-                self._config.model.label_column_name,
+                self._config.smiles_a_column_name,
+                self._config.label_column_name,
             ],
         )
-        train_df = train_df.astype({self._config.model.label_column_name: "int64"})
+        train_df = train_df.astype({self._config.label_column_name: "int64"})
         if self._config.n_train_samples is not None:
             train_df = train_df.sample(
                 n=self._config.n_train_samples,
@@ -171,8 +171,8 @@ class ClassifierTrainer(_BaseTrainer):
         train_dl = DataLoader(
             PandasDataFrameDataset(
                 train_df,
-                smiles_a_column=self._config.model.smiles_column_name,
-                label_column=self._config.model.label_column_name,
+                smiles_a_column=self._config.smiles_a_column_name,
+                label_column=self._config.label_column_name,
                 generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
             ),
             batch_size=self._config.train_batch_size,
@@ -187,11 +187,11 @@ class ClassifierTrainer(_BaseTrainer):
         val_df = pd.read_parquet(
             val_file,
             columns=[
-                self._config.model.smiles_column_name,
-                self._config.model.label_column_name,
+                self._config.smiles_a_column_name,
+                self._config.label_column_name,
             ],
         )
-        val_df = val_df.astype({self._config.model.label_column_name: "int64"})
+        val_df = val_df.astype({self._config.label_column_name: "int64"})
         if self._config.n_val_samples is not None:
             val_df = val_df.sample(
                 n=self._config.n_val_samples,
@@ -203,11 +203,11 @@ class ClassifierTrainer(_BaseTrainer):
         val_dl = DataLoader(
             PandasDataFrameDataset(
                 val_df,
-                smiles_a_column=self._config.model.smiles_column_name,
-                label_column=self._config.model.label_column_name,
+                smiles_a_column=self._config.smiles_a_column_name,
+                label_column=self._config.label_column_name,
                 generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
             ),
-            batch_size=self._config.train_batch_size,
+            batch_size=self._config.eval_batch_size,
             shuffle=False,
             pin_memory=self._config.pin_memory,
             pin_memory_device=pin_device,
@@ -221,11 +221,11 @@ class ClassifierTrainer(_BaseTrainer):
             test_df = pd.read_parquet(
                 test_file,
                 columns=[
-                    self._config.model.smiles_column_name,
-                    self._config.model.label_column_name,
+                    self._config.smiles_a_column_name,
+                    self._config.label_column_name,
                 ],
             )
-            test_df = test_df.astype({self._config.model.label_column_name: "int64"})
+            test_df = test_df.astype({self._config.label_column_name: "int64"})
             if self._config.n_test_samples is not None:
                 test_df = test_df.sample(
                     n=self._config.n_test_samples,
@@ -237,11 +237,11 @@ class ClassifierTrainer(_BaseTrainer):
             test_dl = DataLoader(
                 PandasDataFrameDataset(
                     test_df,
-                    smiles_a_column=self._config.model.smiles_column_name,
-                    label_column=self._config.model.label_column_name,
+                    smiles_a_column=self._config.smiles_a_column_name,
+                    label_column=self._config.label_column_name,
                     generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
                 ),
-                batch_size=self._config.train_batch_size,
+                batch_size=self._config.eval_batch_size,
                 shuffle=False,
                 pin_memory=self._config.pin_memory,
                 pin_memory_device=pin_device,
@@ -249,7 +249,7 @@ class ClassifierTrainer(_BaseTrainer):
                 persistent_workers=self._config.persistent_workers,
             )
 
-        num_labels = train_df[self._config.model.label_column_name].nunique()
+        num_labels = train_df[self._config.label_column_name].nunique()
 
         return train_dl, val_dl, test_dl, num_labels
 

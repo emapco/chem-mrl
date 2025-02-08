@@ -201,6 +201,7 @@ def test_classifier_batch_sizes(batch_size):
         train_dataset_path=TEST_CLASSIFICATION_PATH,
         val_dataset_path=TEST_CLASSIFICATION_PATH,
         train_batch_size=batch_size,
+        eval_batch_size=batch_size,
     )
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)

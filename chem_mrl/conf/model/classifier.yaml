@@ -1,9 +1,8 @@
 defaults:
   - classifier_schema
+  - _self_
 
 model_name: Derify/ChemBERTa_augmented_pubchem_13m # Name of the model to use. Must be either a file path or a HF transformer model name.
-smiles_column_name: smiles
-label_column_name: label
 eval_metric: accuracy # Metric to use for evaluation
 # Valid options
 # - accuracy

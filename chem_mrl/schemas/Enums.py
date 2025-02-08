@@ -38,7 +38,6 @@ class EmbeddingPoolingOption(ExplicitEnum):
     mean = "mean"
     mean_sqrt_len_tokens = "mean_sqrt_len_tokens"
     weightedmean = "weightedmean"
-    lasttoken = "lasttoken"
 
 
 class ChemMrlLossFctOption(ExplicitEnum):

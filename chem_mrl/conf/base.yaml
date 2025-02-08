@@ -3,6 +3,7 @@ defaults:
   - _self_
 
 seed: 42 # Omit to not set a seed during training. Used to seed the dataloader sampling and the transformer.
+show_progress_bar: True # Display a progress bar for training and evaluation
 
 # dataset params
 # train_dataset_path and val_dataset_path must be parquet files
@@ -10,19 +11,32 @@ seed: 42 # Omit to not set a seed during training. Used to seed the dataloader s
 train_dataset_path: ???
 val_dataset_path: ???
 test_dataset_path: null
+smiles_a_column_name: ??? # overridden in model specific root config
+smiles_b_column_name: ??? # overridden in model specific root config
+label_column_name: ??? # overridden in model specific root config
 n_train_samples: null # Number of training samples to load. Uses seeded sampling if a seed is set.
 n_val_samples: null # Number of evaluation samples to load. Uses seeded sampling if a seed is set.
 n_test_samples: null # Number of testing samples to load. Uses seeded sampling if a seed is set.
 n_dataloader_workers: 0 # How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process.
+persistent_workers: false # Only applies to dataloaders if n_dataloader_workers > 0
+pin_memory: true # Whether to pin memory for the dataloader
 generate_dataset_examples_at_init:
   false
-  # If set, then all `sentence_transformers.InputExample` examples will be generated at at initialization.
+  # If set, then all `sentence_transformers.InputExample` examples will be generated at initialization.
   # If not set, the `sentence_transformers.InputExample` examples are generated on the fly by the dataloader.
 
 # trainer params
-train_batch_size: 32
+train_batch_size: 24
+eval_batch_size: 32
 num_epochs: 3
-lr_base: 1.1190785944700813e-05 # Base learning rate. Will be scaled by the square root of the batch size
+lr_base: 2.0e-05 # Base learning rate. Will be scaled by the square root of the batch size
+weight_decay: null # Weight decay for AdamW optimizer
+use_normalized_weight_decay: # Either weight_decay or enable use_normalized_weight_decay must be set
+  true
+  # Normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf
+  # optimized hyperparameter lambda_norm = 0.05 for AdamW optimizer
+  # Hyperparameter search indicates a normalized weight decay outperforms
+  # the default adamw weight decay
 scheduler: warmuplinear # Learning rate scheduler
 # Valid options - will raise error otherwise
 # - constantlr
@@ -31,20 +45,20 @@ scheduler: warmuplinear # Learning rate scheduler
 # - warmupcosine
 # - warmupcosinewithhardrestarts
 warmup_steps_percent: 0.0 # Percentage of warmup steps that the scheduler will use
-use_fused_adamw: false # Use cuda-optimized FusedAdamW optimizer. ~10% faster than torch.optim.AdamW
-use_tf32: false # Use TensorFloat-32 for matrix multiplication and convolutions
-use_amp: false # Use automatic mixed precision
+use_fused_adamw: true # Use cuda-optimized FusedAdamW optimizer. ~10% faster than torch.optim.AdamW
+use_tf32: true # Use TensorFloat-32 for matrix multiplication and convolutions
+use_amp: true # Use automatic mixed precision
 model_output_path: output # Path to save model, checkpoints and evaluation results
 evaluation_steps: 0 # Run evaluator and call provided callback every evaluation_steps
 checkpoint_save_steps: 0 # Save checkpoint every checkpoint_save_steps
 checkpoint_save_total_limit: 20
 
 wandb:
-  enabled: false # Use W&B for logging. Must be enabled for other W&B features to work.
+  enabled: true # Use W&B for logging. Must be enabled for other W&B features to work.
   api_key: null # W&B API key. Can be omitted if W&B cli is installed and logged in
-  project_name: null
-  run_name: null
-  use_watch: false # Enable W&B watch
+  project_name: chem-mrl
+  run_name: full-ds
+  use_watch: true # Enable W&B watch
   watch_log: all # Specify which logs to W&B should watch
   # Valid options:
   # - all

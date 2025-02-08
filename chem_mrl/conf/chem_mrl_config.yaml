@@ -1,3 +1,7 @@
 defaults:
   - base
   - /model: chem_mrl # chem_mrl or chem_2d_mrl
+
+smiles_a_column_name: smiles_a
+smiles_b_column_name: smiles_b
+label_column_name: similarity

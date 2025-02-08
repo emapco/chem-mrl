@@ -1,5 +1,6 @@
 defaults:
   - classifier
+  - _self_
 
 loss_func: selfadjdice
 dice_reduction: mean # Reduction to apply to the output

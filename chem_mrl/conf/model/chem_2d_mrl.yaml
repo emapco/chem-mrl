@@ -1,5 +1,6 @@
 defaults:
   - chem_mrl
+  - _self_
 
 use_2d_matryoshka: true # Use 2D Matryoshka to train over transformer layers in addition to embedding dimensions.
 n_layers_per_step:

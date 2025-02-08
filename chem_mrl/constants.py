@@ -5,10 +5,10 @@ _project_root_dir = os.path.dirname(_curr_file_dir)
 _data_dir = os.path.join(_project_root_dir, "data", "chem")
 OUTPUT_MODEL_DIR = os.path.join(_project_root_dir, "output", "old")
 OUTPUT_DATA_DIR = os.path.join(_project_root_dir, "data", "chem")
-EMBEDDING_MODEL_HIDDEN_DIM = 768
+BASE_MODEL_HIDDEN_DIM = 768
 TEST_FP_SIZES = [8, 16, 32, 64, 128, 256, 512, 768, 2048]
 CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32, 16, 8]
-BASE_MODEL_DIMENSIONS = [EMBEDDING_MODEL_HIDDEN_DIM]
+BASE_MODEL_DIMENSIONS = [BASE_MODEL_HIDDEN_DIM]
 BASE_MODEL_NAME = "Derify/ChemBERTa_augmented_pubchem_13m"
 OPTUNA_DB_URI = "postgresql://postgres:password@127.0.0.1:5432/postgres"
 

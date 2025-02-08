@@ -90,6 +90,9 @@ def test_base_config_custom_values():
         train_dataset_path="train.parquet",
         val_dataset_path="val.parquet",
         test_dataset_path="test.parquet",
+        smiles_a_column_name="asdf",
+        smiles_b_column_name=None,
+        label_column_name="adsf",
         n_train_samples=1000,
         n_val_samples=500,
         n_test_samples=200,
@@ -98,6 +101,7 @@ def test_base_config_custom_values():
         pin_memory=True,
         generate_dataset_examples_at_init=False,
         train_batch_size=64,
+        eval_batch_size=128,
         num_epochs=5,
         lr_base=0.001,
         weight_decay=0.1,
@@ -110,11 +114,15 @@ def test_base_config_custom_values():
         evaluation_steps=100,
         checkpoint_save_steps=500,
         checkpoint_save_total_limit=10,
+        show_progress_bar=False,
         wandb=wandb_config,
     )
     assert config.train_dataset_path == "train.parquet"
     assert config.val_dataset_path == "val.parquet"
     assert config.test_dataset_path == "test.parquet"
+    assert config.smiles_a_column_name == "asdf"
+    assert config.smiles_b_column_name is None
+    assert config.label_column_name == "adsf"
     assert config.n_train_samples == 1000
     assert config.n_val_samples == 500
     assert config.n_test_samples == 200
@@ -123,6 +131,7 @@ def test_base_config_custom_values():
     assert config.pin_memory is True
     assert config.generate_dataset_examples_at_init is False
     assert config.train_batch_size == 64
+    assert config.eval_batch_size == 128
     assert config.num_epochs == 5
     assert config.lr_base == 0.001
     assert config.weight_decay == 0.1
@@ -135,6 +144,7 @@ def test_base_config_custom_values():
     assert config.evaluation_steps == 100
     assert config.checkpoint_save_steps == 500
     assert config.checkpoint_save_total_limit == 10
+    assert config.show_progress_bar is False
     assert config.wandb == wandb_config
 
 
@@ -142,14 +152,42 @@ def test_base_config_validation():
     with pytest.raises(ValueError, match="train_dataset_path must be set"):
         BaseConfig(
             model=ChemMRLConfig(),
-            val_dataset_path="test",
             train_dataset_path="",
+            val_dataset_path="test",
         )
     with pytest.raises(ValueError, match="val_dataset_path must be set"):
         BaseConfig(
             model=ChemMRLConfig(),
             train_dataset_path="test",
             val_dataset_path="",
+        )
+    with pytest.raises(ValueError, match="test_dataset_path must be set"):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            test_dataset_path="",
+        )
+    with pytest.raises(ValueError, match="smiles_a_column_name must be set"):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            smiles_a_column_name="",
+        )
+    with pytest.raises(ValueError, match="smiles_b_column_name must be set"):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            smiles_b_column_name="",
+        )
+    with pytest.raises(ValueError, match="label_column_name must be set"):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            label_column_name="",
         )
     with pytest.raises(ValueError, match="n_train_samples must be greater than 0"):
         BaseConfig(
@@ -185,6 +223,13 @@ def test_base_config_validation():
             train_dataset_path="test",
             val_dataset_path="test",
             train_batch_size=0,
+        )
+    with pytest.raises(ValueError, match="eval_batch_size must be greater than 0"):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            eval_batch_size=0,
         )
     with pytest.raises(ValueError, match="num_epochs must be greater than 0"):
         BaseConfig(
@@ -303,6 +348,12 @@ def test_base_config_type_validation():
     with pytest.raises(TypeError):
         BaseConfig(test_dataset_path=123)
     with pytest.raises(TypeError):
+        ChemMRLConfig(smiles_a_column_name=1)
+    with pytest.raises(TypeError):
+        ChemMRLConfig(smiles_b_column_name=1)
+    with pytest.raises(TypeError):
+        ChemMRLConfig(label_column_name=1)
+    with pytest.raises(TypeError):
         BaseConfig(n_train_samples=1.5)
     with pytest.raises(TypeError):
         BaseConfig(n_val_samples=1.5)
@@ -324,6 +375,8 @@ def test_base_config_type_validation():
         BaseConfig(n_test_samples="123")
     with pytest.raises(TypeError):
         BaseConfig(train_batch_size="123")
+    with pytest.raises(TypeError):
+        BaseConfig(eval_batch_size="123")
     with pytest.raises(TypeError):
         BaseConfig(num_epochs="123")
     with pytest.raises(TypeError):
@@ -354,3 +407,7 @@ def test_base_config_type_validation():
         BaseConfig(checkpoint_save_steps="123")
     with pytest.raises(TypeError):
         BaseConfig(checkpoint_save_total_limit="123")
+    with pytest.raises(TypeError):
+        BaseConfig(wandb="invalid")
+    with pytest.raises(TypeError):
+        BaseConfig(show_progress_bar="invalid")

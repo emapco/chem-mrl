@@ -11,8 +11,6 @@ from chem_mrl.schemas.ClassifierConfig import (
 
 def test_classifier_config_custom_values():
     config = ClassifierConfig(
-        smiles_column_name="smiles_col",
-        label_column_name="labels_col",
         loss_func=ClassifierLossFctOption.selfadjdice,
         classifier_hidden_dimension=CHEM_MRL_DIMENSIONS[1],
         dropout_p=0.3,
@@ -20,8 +18,6 @@ def test_classifier_config_custom_values():
         dice_reduction=DiceReductionOption.sum,
         dice_gamma=2.0,
     )
-    assert config.smiles_column_name == "smiles_col"
-    assert config.label_column_name == "labels_col"
     assert config.loss_func == "selfadjdice"
     assert config.classifier_hidden_dimension == CHEM_MRL_DIMENSIONS[1]
     assert config.dropout_p == 0.3
@@ -45,25 +41,17 @@ def test_classifier_config_dice_reduction(reduction: str):
 def test_classifier_config_validation():
     with pytest.raises(ValueError, match="model_name must be set"):
         ClassifierConfig(model_name="")
-    with pytest.raises(ValueError, match="smiles_column_name must be set"):
-        ClassifierConfig(smiles_column_name="")
-    with pytest.raises(ValueError, match="label_column_name must be set"):
-        ClassifierConfig(label_column_name="")
     with pytest.raises(ValueError, match="eval_metric must be one of"):
         ClassifierConfig(eval_metric="invalid_metric")
     with pytest.raises(ValueError, match="loss_func must be one of"):
         ClassifierConfig(loss_func="invalid")
-    with pytest.raises(
-        ValueError, match="classifier_hidden_dimension must be greater than 0"
-    ):
+    with pytest.raises(ValueError, match="classifier_hidden_dimension must be greater than 0"):
         ClassifierConfig(classifier_hidden_dimension=0)
     with pytest.raises(ValueError, match="dropout_p must be between 0 and 1"):
         ClassifierConfig(dropout_p=1.5)
     with pytest.raises(ValueError, match="dice_gamma must be positive"):
         ClassifierConfig(dice_gamma=-1.0)
-    with pytest.raises(
-        ValueError, match="dice_reduction must be either 'mean' or 'sum'"
-    ):
+    with pytest.raises(ValueError, match="dice_reduction must be either 'mean' or 'sum'"):
         ClassifierConfig(dice_reduction="invalid")
 
 
@@ -85,10 +73,6 @@ def test_classifier_config_type_validation():
     """Test type validation for classifier config parameters"""
     with pytest.raises(TypeError):
         ClassifierConfig(model_name=1)
-    with pytest.raises(TypeError):
-        ClassifierConfig(smiles_column_name=1)
-    with pytest.raises(TypeError):
-        ClassifierConfig(label_column_name=1)
     with pytest.raises(TypeError):
         ClassifierConfig(eval_similarity_fct=1)
     with pytest.raises(TypeError):
