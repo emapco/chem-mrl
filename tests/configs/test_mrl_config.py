@@ -51,9 +51,7 @@ def test_chem_mrl_config_validation():
         ChemMRLConfig(embedding_pooling="invalid_pooling")
     with pytest.raises(ValueError, match="loss_func must be one of"):
         ChemMRLConfig(loss_func="invalid_loss")
-    with pytest.raises(
-        ValueError, match="tanimoto_similarity_loss_func must be one of"
-    ):
+    with pytest.raises(ValueError, match="tanimoto_similarity_loss_func must be one of"):
         ChemMRLConfig(tanimoto_similarity_loss_func="invalid_loss")
     with pytest.raises(ValueError, match="eval_similarity_fct must be one of"):
         ChemMRLConfig(eval_similarity_fct="invalid_fct")
@@ -66,9 +64,7 @@ def test_chem_mrl_config_validation():
     with pytest.raises(ValueError, match="All dimension weights must be positive"):
         ChemMRLConfig(mrl_dimension_weights=negative_weights)
     non_increasing_weights = (2.0, 1.0, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4)
-    with pytest.raises(
-        ValueError, match="Dimension weights must be in increasing order"
-    ):
+    with pytest.raises(ValueError, match="Dimension weights must be in increasing order"):
         ChemMRLConfig(mrl_dimension_weights=non_increasing_weights)
     with pytest.raises(ValueError, match="n_dims_per_step must be positive or -1"):
         ChemMRLConfig(n_dims_per_step=0)

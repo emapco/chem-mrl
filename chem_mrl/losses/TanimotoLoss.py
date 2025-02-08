@@ -1,4 +1,5 @@
-from typing import Dict, Iterable
+from collections.abc import Iterable
+from typing import Callable
 
 import sentence_transformers
 from sentence_transformers import SentenceTransformer, util
@@ -92,7 +93,7 @@ class TanimotoSimilarityLoss(nn.Module):
     def __init__(
         self,
         model: SentenceTransformer,
-        loss: nn.Module = nn.MSELoss(),
+        loss: Callable = nn.MSELoss(),
     ):
         """
         This class implements a loss function that measures the difference between predicted Tanimoto similarities
@@ -112,7 +113,7 @@ class TanimotoSimilarityLoss(nn.Module):
             +===========================+========================+
             | (smiles_A, smiles2) pairs | float similarity score |
             +---------------------------+------------------------+
-        """
+        """  # noqa: E501
         super().__init__()
         self.__model = model
         self.__loss_fct = loss
@@ -123,10 +124,9 @@ class TanimotoSimilarityLoss(nn.Module):
         else:
             self.__forward = self._compute_similarity_fct_forward
 
-    def forward(self, smiles_features: Iterable[Dict[str, Tensor]], labels: Tensor):
+    def forward(self, smiles_features: Iterable[dict[str, Tensor]], labels: Tensor):
         embeddings: list[Tensor] = [
-            self.__model(smiles_feature)["sentence_embedding"]
-            for smiles_feature in smiles_features
+            self.__model(smiles_feature)["sentence_embedding"] for smiles_feature in smiles_features
         ]
         return self.__forward(embeddings, labels)
 

@@ -26,9 +26,7 @@ class PandasDataFrameDataset(Dataset):
         self.__smiles_b_column = smiles_b_column
         self.__label_column = label_column
         # strategy pattern - determine which _get function to call at runtime
-        self._get = self._set_get_method(
-            self.__smiles_b_column, generate_dataset_examples_at_init
-        )
+        self._get = self._set_get_method(self.__smiles_b_column, generate_dataset_examples_at_init)
 
     def __len__(self):
         return len(self.__df)
@@ -47,9 +45,7 @@ class PandasDataFrameDataset(Dataset):
     def _get_single_smiles_example(self, row):
         from sentence_transformers import InputExample  # reimport for pandarallel
 
-        return InputExample(
-            texts=row[self.__smiles_a_column], label=row[self.__label_column]
-        )
+        return InputExample(texts=row[self.__smiles_a_column], label=row[self.__label_column])
 
     def _get_pregenerated(self, row) -> InputExample:
         return row["examples"]
@@ -67,9 +63,7 @@ class PandasDataFrameDataset(Dataset):
             from pandarallel import pandarallel
 
             pandarallel.initialize(progress_bar=True)
-            logger.info(
-                "Pregenerate examples to match the expected type by sentence_transformers"
-            )
+            logger.info("Pregenerate examples to match the expected type by sentence_transformers")
             self._pregenerate_examples(getter)
             getter = self._get_pregenerated
 

@@ -35,9 +35,7 @@ class WandbConfig:
         if not isinstance(self.watch_log_graph, bool):
             raise TypeError("watch_log_graph must be a boolean")
         # check values
-        if self.watch_log is not None and not isinstance(
-            self.watch_log, WatchLogOption
-        ):
+        if self.watch_log is not None and not isinstance(self.watch_log, WatchLogOption):
             raise ValueError(f"watch_log must be one of {WatchLogOption.to_list()}")
         if self.watch_log_freq < 1:
             raise ValueError("watch_log_freq must be positive")
@@ -45,7 +43,8 @@ class WandbConfig:
 
 @dataclass
 class BaseConfig:
-    # Hydra's structured config schema doesn't support generics nor unions of containers (e.g. ChemMRLConfig)
+    # Hydra's structured config schema doesn't support
+    # generics nor unions of containers (e.g. ChemMRLConfig)
     model: Any
     train_dataset_path: str
     val_dataset_path: str
@@ -54,10 +53,14 @@ class BaseConfig:
     n_val_samples: int | None = None
     n_test_samples: int | None = None
     n_dataloader_workers: int = 0
+    persistent_workers: bool = False
+    pin_memory: bool = False
     generate_dataset_examples_at_init: bool = True
     train_batch_size: int = 32
-    num_epochs: int = 3
-    lr_base: float | int = 1.1190785944700813e-05
+    num_epochs: int = 2
+    lr_base: float | int = 2e-05
+    weight_decay: float | None = 0.0
+    use_normalized_weight_decay: bool = False
     scheduler: SchedulerOption = SchedulerOption.warmuplinear
     warmup_steps_percent: float = 0.0
     use_fused_adamw: bool = False
@@ -73,21 +76,13 @@ class BaseConfig:
 
     def __post_init__(self):
         # check types
-        if self.train_dataset_path is not None and not isinstance(
-            self.train_dataset_path, str
-        ):
+        if self.train_dataset_path is not None and not isinstance(self.train_dataset_path, str):
             raise TypeError("train_dataset_path must be a string or None")
-        if self.val_dataset_path is not None and not isinstance(
-            self.val_dataset_path, str
-        ):
+        if self.val_dataset_path is not None and not isinstance(self.val_dataset_path, str):
             raise TypeError("val_dataset_path must be a string or None")
-        if self.test_dataset_path is not None and not isinstance(
-            self.test_dataset_path, str
-        ):
+        if self.test_dataset_path is not None and not isinstance(self.test_dataset_path, str):
             raise TypeError("test_dataset_path must be a string or None")
-        if self.n_train_samples is not None and not isinstance(
-            self.n_train_samples, int
-        ):
+        if self.n_train_samples is not None and not isinstance(self.n_train_samples, int):
             raise TypeError("n_train_samples must be an integer or None")
         if not isinstance(self.n_val_samples, int) and self.n_val_samples is not None:
             raise TypeError("n_val_samples must be an integer or None")
@@ -95,6 +90,10 @@ class BaseConfig:
             raise TypeError("n_test_samples must be an integer or None")
         if not isinstance(self.n_dataloader_workers, int):
             raise TypeError("n_dataloader_workers must be an integer")
+        if not isinstance(self.persistent_workers, bool):
+            raise TypeError("persistent_workers must be a boolean")
+        if not isinstance(self.pin_memory, bool):
+            raise TypeError("pin_memory must be a boolean")
         if not isinstance(self.generate_dataset_examples_at_init, bool):
             raise TypeError("generate_dataset_examples_at_init must be a boolean")
         if not isinstance(self.train_batch_size, int):
@@ -103,6 +102,10 @@ class BaseConfig:
             raise TypeError("num_epochs must be an integer")
         if not isinstance(self.lr_base, float | int):
             raise TypeError("lr_base must be a float or int")
+        if not isinstance(self.weight_decay, float | None):
+            raise TypeError("weight_decay must be a float or None")
+        if not isinstance(self.use_normalized_weight_decay, bool):
+            raise TypeError("use_normalized_weight_decay must be a boolean")
         if not isinstance(self.scheduler, str):
             raise TypeError("scheduler must be a string")
         if not isinstance(self.warmup_steps_percent, float):
@@ -146,6 +149,12 @@ class BaseConfig:
             raise ValueError("num_epochs must be greater than 0")
         if self.lr_base <= 0:
             raise ValueError("lr_base must be positive")
+        if self.weight_decay is not None and self.weight_decay < 0:
+            raise ValueError("weight_decay must be positive")
+        if self.weight_decay is not None and self.use_normalized_weight_decay:
+            raise ValueError("weight_decay and use_normalized_weight_decay cannot be used together")
+        if self.weight_decay is None and not self.use_normalized_weight_decay:
+            raise ValueError("either weight_decay or use_normalized_weight_decay must be set")
         if not isinstance(self.scheduler, SchedulerOption):
             raise ValueError(f"scheduler must be one of {SchedulerOption.to_list()}")
         if not (0 <= self.warmup_steps_percent <= 1.0):

@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
@@ -41,16 +41,12 @@ class ChemMRL:
         self._device = device
         self._batch_size = batch_size
         if normalize_embeddings is None:
-            normalize_embeddings = (
-                fp_size is not None and fp_size < EMBEDDING_MODEL_HIDDEN_DIM
-            )
+            normalize_embeddings = fp_size is not None and fp_size < EMBEDDING_MODEL_HIDDEN_DIM
         self._normalize_embeddings = normalize_embeddings
 
         if model_name == BASE_MODEL_NAME:
             if fp_size is not None and fp_size != EMBEDDING_MODEL_HIDDEN_DIM:
-                raise ValueError(
-                    f"{BASE_MODEL_NAME} only supports embeddings of size 768"
-                )
+                raise ValueError(f"{BASE_MODEL_NAME} only supports embeddings of size 768")
             word_embedding_model = models.Transformer(model_name)
             pooling_model = models.Pooling(
                 word_embedding_model.get_word_embedding_dimension(), pooling_mode="mean"
@@ -60,9 +56,7 @@ class ChemMRL:
                 device=device,
             )
         else:
-            enable_truncate_dim = (
-                fp_size is not None and fp_size < EMBEDDING_MODEL_HIDDEN_DIM
-            )
+            enable_truncate_dim = fp_size is not None and fp_size < EMBEDDING_MODEL_HIDDEN_DIM
             self._model = SentenceTransformer(
                 model_name,
                 device=device,

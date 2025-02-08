@@ -15,16 +15,12 @@ class _MolecularFingerprinter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_functional_fingerprint(
-        self, smiles: str
-    ) -> DataStructs.ExplicitBitVect | None:
+    def get_functional_fingerprint(self, smiles: str) -> DataStructs.ExplicitBitVect | None:
         """Generate functional fingerprint for a given SMILES string."""
         raise NotImplementedError
 
     @abstractmethod
-    def compute_similarity(
-        self, row: dict[str, str], fingerprint_type: str = "morgan"
-    ) -> float:
+    def compute_similarity(self, row: dict[str, str], fingerprint_type: str = "morgan") -> float:
         """Compute similarity between two molecules."""
         raise NotImplementedError
 
@@ -90,9 +86,7 @@ class MorganFingerprinter(_MolecularFingerprinter):
             return None
         return self.morgan_generator.GetFingerprint(mol)
 
-    def get_functional_fingerprint(
-        self, smiles: str
-    ) -> DataStructs.ExplicitBitVect | None:
+    def get_functional_fingerprint(self, smiles: str) -> DataStructs.ExplicitBitVect | None:
         """Generate functional Morgan fingerprint for a given SMILES string."""
         mol = self._create_mol_from_smiles(smiles)
         if mol is None:
@@ -115,9 +109,7 @@ class MorganFingerprinter(_MolecularFingerprinter):
             return np.nan
         return self.functional_generator.GetFingerprintAsNumPy(mol)
 
-    def compute_similarity(
-        self, smiles_a, smiles_b, fingerprint_type: str = "morgan"
-    ) -> float:
+    def compute_similarity(self, smiles_a, smiles_b, fingerprint_type: str = "morgan") -> float:
         """
         Compute Tanimoto similarity between two molecules.
 

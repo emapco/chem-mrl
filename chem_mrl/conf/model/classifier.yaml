@@ -1,7 +1,7 @@
 defaults:
   - classifier_schema
 
-model_name: seyonec/SMILES_tokenized_PubChem_shard00_160k # Name of the model to use. Must be either a file path or a HF transformer model name.
+model_name: Derify/ChemBERTa_augmented_pubchem_13m # Name of the model to use. Must be either a file path or a HF transformer model name.
 smiles_column_name: smiles
 label_column_name: label
 eval_metric: accuracy # Metric to use for evaluation

@@ -57,15 +57,15 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
 
         if epoch != -1:
             if steps == -1:
-                out_txt = " after epoch {}:".format(epoch)
+                out_txt = f" after epoch {epoch}:"
             else:
-                out_txt = " in epoch {} after {} steps:".format(epoch, steps)
+                out_txt = f" in epoch {epoch} after {steps} steps:"
         else:
             out_txt = ":"
 
         logger.info("Evaluation on the " + self.name + " dataset" + out_txt)
         self.dataloader.collate_fn = model.smart_batching_collate
-        for step, batch in enumerate(self.dataloader):
+        for _, batch in enumerate(self.dataloader):
             features, label_ids = batch
             for idx in range(len(features)):
                 features[idx] = batch_to_device(features[idx], model.device)
@@ -77,7 +77,7 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
             correct += torch.argmax(prediction, dim=1).eq(label_ids).sum().item()
         accuracy = correct / total
 
-        logger.info("Accuracy: {:.5f} ({}/{})\n".format(accuracy, correct, total))
+        logger.info(f"Accuracy: {accuracy:.5f} ({correct}/{total})\n")
 
         _write_results_to_csv(
             self.write_csv,

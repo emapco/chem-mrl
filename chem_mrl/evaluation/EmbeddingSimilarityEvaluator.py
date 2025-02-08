@@ -1,7 +1,8 @@
 import logging
+from collections.abc import Iterable
 from contextlib import nullcontext
 from enum import Enum
-from typing import Iterable, Literal
+from typing import Literal
 
 import numpy as np
 from scipy.stats import pearsonr, spearmanr
@@ -22,8 +23,8 @@ class SimilarityFunction(Enum):
 
 class EmbeddingSimilarityEvaluator(SentenceEvaluator):
     """
-    Evaluate a model based on the similarity of the embeddings by calculating the Spearman and Pearson rank correlation
-    in comparison to the gold standard labels.
+    Evaluate a model based on the similarity of the embeddings by calculating
+    the Spearman and Pearson rank correlation in comparison to the gold standard labels.
     The metrics are the cosine similarity as well as tanimoto similarity.
     The returned score is the Spearman correlation with a specified metric.
 
@@ -40,9 +41,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         name: str = "",
         show_progress_bar: bool = False,
         write_csv: bool = True,
-        precision: (
-            Literal["float32", "int8", "uint8", "binary", "ubinary"] | None
-        ) = None,
+        precision: Literal["float32", "int8", "uint8", "binary", "ubinary"] | None = None,
         truncate_dim: int | None = None,
     ):
         """
@@ -54,10 +53,10 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         :param smiles2: List with the second SMILES in a pair
         :param scores: Similarity score between smiles[i] and smiles[i]
         :param write_csv: Write results to a CSV file
-        :param precision: The precision to use for the embeddings. Can be "float32", "int8", "uint8", "binary", or
-            "ubinary". Defaults to None.
-        :param truncate_dim: The dimension to truncate SMILES embeddings to. `None` uses the model's current
-            truncation dimension. Defaults to None.
+        :param precision: The precision to use for the embeddings.
+            Can be "float32", "int8", "uint8", "binary", or "ubinary". Defaults to None.
+        :param truncate_dim: The dimension to truncate SMILES embeddings to.
+            `None` uses the model's current truncation dimension. Defaults to None.
         """
         if precision is None:
             precision = "float32"
@@ -66,9 +65,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         self.smiles2 = smiles2
         self.labels = scores
         self.write_csv = write_csv
-        self.precision: Literal["float32", "int8", "uint8", "binary", "ubinary"] = (
-            precision
-        )
+        self.precision: Literal["float32", "int8", "uint8", "binary", "ubinary"] = precision
         self.truncate_dim = truncate_dim
 
         assert len(self.smiles1) == len(self.smiles2)  # type: ignore
@@ -117,7 +114,8 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             out_txt += f"(truncated to {self.truncate_dim})"
 
         logger.info(
-            f"Custom EmbeddingSimilarityEvaluator: Evaluating the model on the {self.name} dataset {out_txt}:"
+            "Custom EmbeddingSimilarityEvaluator: "
+            f"Evaluating the model on the {self.name} dataset {out_txt}:"
         )
 
         with (
@@ -144,7 +142,8 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
                 normalize_embeddings=bool(self.precision),
             )
 
-        # Binary and ubinary embeddings are packed, so we need to unpack them for the distance metrics
+        # Binary and ubinary embeddings are packed,
+        # so we need to unpack them for the distance metrics
         if self.precision == "binary":
             embeddings1 = (embeddings1 + 128).astype(np.uint8)
             embeddings2 = (embeddings2 + 128).astype(np.uint8)
@@ -153,14 +152,10 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             embeddings2 = np.unpackbits(embeddings2, axis=1)
 
         if self.main_similarity == SimilarityFunction.TANIMOTO:
-            main_similarity_scores = paired_tanimoto_similarity(
-                embeddings1, embeddings2
-            )
+            main_similarity_scores = paired_tanimoto_similarity(embeddings1, embeddings2)
             main_similarity_name = "Tanimoto-Similarity"
         else:
-            main_similarity_scores = 1 - (
-                paired_cosine_distances(embeddings1, embeddings2)
-            )
+            main_similarity_scores = 1 - (paired_cosine_distances(embeddings1, embeddings2))
             main_similarity_name = "Cosine-Similarity"
 
         del embeddings1, embeddings2
@@ -170,9 +165,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         del main_similarity_scores
 
         logger.info(
-            "{} :\tPearson: {:.5f}\tSpearman: {:.5f}".format(
-                main_similarity_name, eval_pearson, eval_spearman
-            )
+            f"{main_similarity_name} :\tPearson: {eval_pearson:.5f}\tSpearman: {eval_spearman:.5f}"
         )
 
         _write_results_to_csv(

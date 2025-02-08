@@ -65,9 +65,7 @@ class PgVectorBenchmark:
 
         return results, query_duration
 
-    def calculate_accuracy(
-        self, ground_truth: list[str], predicted: list[str]
-    ) -> float:
+    def calculate_accuracy(self, ground_truth: list[str], predicted: list[str]) -> float:
         """Calculate accuracy (common entries in top-k)"""
         common = set(ground_truth) & set(predicted)
         accuracy = len(common) / len(ground_truth)
@@ -85,7 +83,9 @@ class PgVectorBenchmark:
             return None
 
         morgan_results, morgan_time = self.execute_knn_query(
-            f"test_{dim}", morgan_embedding.tolist(), dim  # type: ignore
+            f"test_{dim}",
+            morgan_embedding.tolist(),  # type: ignore
+            dim,
         )
         accuracy = self.calculate_accuracy(ground_truth, morgan_results)
 
@@ -107,7 +107,9 @@ class PgVectorBenchmark:
     ):
         transformer_embedding = smiles_embedder.get_embedding(smiles)
         transformer_results, transformer_time = self.execute_knn_query(
-            table_name, transformer_embedding.tolist(), dim  # type: ignore
+            table_name,
+            transformer_embedding.tolist(),  # type: ignore
+            dim,
         )
         accuracy = self.calculate_accuracy(ground_truth, transformer_results)
 
@@ -125,14 +127,14 @@ class PgVectorBenchmark:
     ) -> list[str] | float:
         """
         Generate ground truth data for testing."""
-        ground_truth_embedding = ground_truth_fp.get_functional_fingerprint_numpy(
-            smiles=smiles
-        )
+        ground_truth_embedding = ground_truth_fp.get_functional_fingerprint_numpy(smiles=smiles)
         if isinstance(ground_truth_embedding, float):
             return ground_truth_embedding
 
         ground_truth_results, _ = self.execute_knn_query(
-            f"test_{self.truth_dim}", ground_truth_embedding.tolist(), self.truth_dim  # type: ignore
+            f"test_{self.truth_dim}",
+            ground_truth_embedding.tolist(),  # type: ignore
+            self.truth_dim,
         )
         return ground_truth_results
 
@@ -151,9 +153,9 @@ class PgVectorBenchmark:
         # compute the ground_truth for all rows first
         ground_truth_fp = MorganFingerprinter(radius=2, fp_size=self.truth_dim)
         ground_truth_queries = test_queries.copy()
-        ground_truth_queries["ground_truth"] = ground_truth_queries[
-            smiles_column_name
-        ].apply(self.generate_ground_truth_result, ground_truth_fp=ground_truth_fp)
+        ground_truth_queries["ground_truth"] = ground_truth_queries[smiles_column_name].apply(
+            self.generate_ground_truth_result, ground_truth_fp=ground_truth_fp
+        )
         ground_truth_queries = ground_truth_queries.dropna(
             subset=["ground_truth"], ignore_index=True
         )
@@ -207,7 +209,5 @@ class PgVectorBenchmark:
             os.path.join(self.output_path, "benchmark_detailed_results.csv"),
             index=False,
         )
-        summary_stats.to_csv(
-            os.path.join(self.output_path, "benchmark_summary_stats.csv")
-        )
+        summary_stats.to_csv(os.path.join(self.output_path, "benchmark_summary_stats.csv"))
         return results_df, summary_stats

@@ -1,4 +1,5 @@
-from typing import Dict, Iterable
+from collections.abc import Iterable
+from typing import Callable
 
 import torch
 from sentence_transformers import SentenceTransformer
@@ -34,7 +35,7 @@ class _ClassifierLoss(nn.Module):
             Whether to freeze the sentence transformer model, defaults to False.
             If True, only the classifier parameters will be updated during training.
         """
-        super(_ClassifierLoss, self).__init__()
+        super().__init__()
         self.__model = model
         self.__freeze_model = freeze_model
 
@@ -75,11 +76,10 @@ class _ClassifierLoss(nn.Module):
         return self.__dropout_p
 
     def forward(
-        self, smiles_features: Iterable[Dict[str, Tensor]]
+        self, smiles_features: Iterable[dict[str, Tensor]]
     ) -> tuple[torch.Tensor, torch.Tensor]:
         sent_reps: list[Tensor] = [
-            self.__model(smiles_feature)["sentence_embedding"]
-            for smiles_feature in smiles_features
+            self.__model(smiles_feature)["sentence_embedding"] for smiles_feature in smiles_features
         ]
         # guaranteed to be a single smiles (sentence) embedding
         features = self._truncate_embeddings(sent_reps[0])
@@ -87,7 +87,9 @@ class _ClassifierLoss(nn.Module):
         return features, logits
 
     def _truncate_embeddings(self, embeddings: Tensor) -> Tensor:
-        """Truncate embeddings if it exceeds classifier's input features. Only applicable to MRL models.
+        """Truncate embeddings if it exceeds classifier's input features.
+        Only applicable to MRL models.
+
         Args:
             embeddings (Tensor): SMILES embeddings
 
@@ -140,15 +142,17 @@ class SelfAdjDiceLoss(_ClassifierLoss):
             Whether to freeze the sentence transformer model, defaults to False.
         alpha : float, optional
             Factor to down-weight easy examples, defaults to 1.0
-            `A close look at Eq.12 reveals that it actually mimics the idea of focal loss (FL for short) (Lin et al.,
-                2017) for object detection in vision. Focal loss
-                was proposed for one-stage object detector to handle foreground-background tradeoff encountered
-                during training. It down-weights the loss assigned
-                to well-classified examples by adding a (1 − p)**γ factor, leading the final loss to be −(1 − p)**γ * log p.
-                `
-                The alpha as implemented by fursovia (github user's implementation) seemly randomly (not from the equations) is actually listed as an aside where another paper/method includes a `(1-p)**alpha` factor instead of
-                the self adj dice's (SAD) `(1-p)` factor. SAD/DSC modifies the Sørensen–Dice coefficient by including a `(1-p)` factor in the numerator.
-                Keep alpha=1 unless keen on expanding hyperparameter search space.
+            `A close look at Eq.12 reveals that it actually mimics the idea of focal loss
+            (FL for short) (Lin et al., 2017) for object detection in vision. Focal loss
+            was proposed for one-stage object detector to handle foreground-background
+            tradeoff encountered during training. It down-weights the loss assigned
+            to well-classified examples by adding a (1 − p)**γ factor,
+            leading the final loss to be −(1 − p)**γ * log p.
+            `
+            The alpha as implemented by fursovia (github user's implementation) seemly randomly (not from the equations)
+            is actually listed as an aside where another paper/method includes a `(1-p)**alpha` factor instead of
+            the self adj dice's (SAD) `(1-p)` factor. SAD/DSC modifies the Sørensen–Dice coefficient by including a `(1-p)` factor in the numerator.
+            Keep alpha=1 unless keen on expanding hyperparameter search space.
         gamma : float, optional
             Smoothing factor for numerator and denominator, defaults to 1.0
             a factor added to both the nominator and the denominator for smoothing purposes
@@ -168,20 +172,17 @@ class SelfAdjDiceLoss(_ClassifierLoss):
             +================================+========+
             | SMILES string                  | class  |
             +--------------------------------+--------+
-        """  # noqa
-        super().__init__(
-            model, smiles_embedding_dimension, num_labels, dropout, freeze_model
-        )
+        """  # noqa: E501
+        super().__init__(model, smiles_embedding_dimension, num_labels, dropout, freeze_model)
         self.__alpha = alpha
         self.__gamma = gamma
         self.__reduction = reduction
 
     def forward(
         self,
-        smiles_features: Iterable[Dict[str, Tensor]],
+        smiles_features: Iterable[dict[str, Tensor]],
         labels: Tensor,
     ) -> torch.Tensor:
-
         features, logits = super().forward(smiles_features)
 
         if labels is None:
@@ -189,25 +190,22 @@ class SelfAdjDiceLoss(_ClassifierLoss):
 
         # dice loss
         probs = torch.softmax(logits, dim=1)
-        # dice paper pg 467. - `As can be seen, a negative example (yi1 = 0) does not contribute to the objective.`
+        # dice paper pg 467.
+        # `As can be seen, a negative example (yi1 = 0) does not contribute to the objective.`
         # yi1 - essentially a kronecker delta
         yi1 = 1
         # gather ensure only the positive examples contribute (yi1)
         probs = torch.gather(probs, dim=1, index=labels.unsqueeze(1))
 
         probs_with_factor = ((1 - probs) ** self.__alpha) * probs
-        loss = 1 - (2 * probs_with_factor + self.__gamma) / (
-            probs_with_factor + yi1 + self.__gamma
-        )
+        loss = 1 - (2 * probs_with_factor + self.__gamma) / (probs_with_factor + yi1 + self.__gamma)
 
         if self.__reduction == "mean":
             return loss.mean()
         elif self.__reduction == "sum":
             return loss.sum()
         else:
-            raise NotImplementedError(
-                f"Reduction `{self.__reduction}` is not supported."
-            )
+            raise NotImplementedError(f"Reduction `{self.__reduction}` is not supported.")
 
     def get_config_dict(self):
         return {
@@ -226,11 +224,10 @@ class SoftmaxLoss(_ClassifierLoss):
         num_labels: int,
         dropout: float = 0.15,
         freeze_model: bool = False,
-        loss_fct: nn.Module = nn.CrossEntropyLoss(),
+        loss_fct: Callable = nn.CrossEntropyLoss(),
     ):
         """
         This class implements the softmax loss function for SMILES classification.
-        By default, it uses the cross entropy loss function but can be changed to any other loss function.
         It is designed to be used with the SentenceTransformer model.
 
         Parameters
@@ -255,12 +252,10 @@ class SoftmaxLoss(_ClassifierLoss):
             | SMILES string                         | class  |
             +---------------------------------------+--------+
         """
-        super().__init__(
-            model, smiles_embedding_dimension, num_labels, dropout, freeze_model
-        )
+        super().__init__(model, smiles_embedding_dimension, num_labels, dropout, freeze_model)
         self.__loss_fct = loss_fct
 
-    def forward(self, smiles_features: Iterable[Dict[str, Tensor]], labels: Tensor):
+    def forward(self, smiles_features: Iterable[dict[str, Tensor]], labels: Tensor):
         features, logits = super().forward(smiles_features)
 
         if labels is None:

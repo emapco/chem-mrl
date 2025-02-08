@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import pandas as pd
 import torch
 from sentence_transformers import SentenceTransformer
+from sentence_transformers.util import get_device_name
 from torch.utils.data import DataLoader
 
 from chem_mrl.datasets import PandasDataFrameDataset
@@ -16,7 +17,7 @@ from .BaseTrainer import _BaseTrainer
 logger = logging.getLogger(__name__)
 
 
-# TODO: Add functionality to ensure the underlying data is of type sentence_transformers.InputExample
+# TODO: Add checks to ensure the underlying data is of type sentence_transformers.InputExample
 @dataclass
 class ClassifierDatasetCollection:
     train_dataloader: DataLoader
@@ -29,9 +30,7 @@ class ClassifierDatasetCollection:
             raise TypeError("train_dataloader must be a DataLoader")
         if not isinstance(self.val_dataloader, DataLoader):
             raise TypeError("val_dataloader must be a DataLoader")
-        if self.test_dataloader is not None and not isinstance(
-            self.test_dataloader, DataLoader
-        ):
+        if self.test_dataloader is not None and not isinstance(self.test_dataloader, DataLoader):
             raise TypeError("test_dataloader must be a DataLoader")
         if not isinstance(self.num_classes, int):
             raise TypeError("num_classes must be an integer")
@@ -76,7 +75,7 @@ class ClassifierTrainer(_BaseTrainer):
         self.__loss_fct = self._initialize_loss()
         self.__val_evaluator = self._initialize_val_evaluator()
         self.__test_evaluator = self._initialize_test_evaluator()
-        self.__model_save_dir_name = self._initialize_output_path()
+        self.__model_save_dir = self._initialize_output_path()
 
     ############################################################################
     # concrete properties
@@ -107,12 +106,12 @@ class ClassifierTrainer(_BaseTrainer):
         return self.__test_evaluator
 
     @property
-    def model_save_dir_name(self):
-        return self.__model_save_dir_name
+    def model_save_dir(self):
+        return self.__model_save_dir
 
-    @model_save_dir_name.setter
-    def model_save_dir_name(self, value: str):
-        self.__model_save_dir_name = value
+    @model_save_dir.setter
+    def model_save_dir(self, value: str):
+        self.__model_save_dir = value
 
     @property
     def steps_per_epoch(self):
@@ -124,17 +123,13 @@ class ClassifierTrainer(_BaseTrainer):
 
     @property
     def val_eval_file_path(self):
-        return os.path.join(
-            self.model_save_dir_name, "eval", self.val_evaluator.csv_file
-        )
+        return os.path.join(self.model_save_dir, "eval", self.val_evaluator.csv_file)
 
     @property
     def test_eval_file_path(self):
         if self.test_evaluator is None:
             return None
-        return os.path.join(
-            self.model_save_dir_name, "eval", self.test_evaluator.csv_file
-        )
+        return os.path.join(self.model_save_dir, "eval", self.test_evaluator.csv_file)
 
     ############################################################################
     # concrete methods
@@ -155,8 +150,7 @@ class ClassifierTrainer(_BaseTrainer):
     ):
         logging.info(f"Loading {train_file} dataset")
         assert isinstance(self._config.model, ClassifierConfig)
-        pin_device = self._device()
-        pin_memory = pin_device != "cpu"
+        pin_device = get_device_name()
 
         train_df = pd.read_parquet(
             train_file,
@@ -183,9 +177,10 @@ class ClassifierTrainer(_BaseTrainer):
             ),
             batch_size=self._config.train_batch_size,
             shuffle=True,
-            pin_memory=pin_memory,
+            pin_memory=self._config.pin_memory,
             pin_memory_device=pin_device,
             num_workers=self._config.n_dataloader_workers,
+            persistent_workers=self._config.persistent_workers,
         )
 
         logging.info(f"Loading {val_file} dataset")
@@ -214,9 +209,10 @@ class ClassifierTrainer(_BaseTrainer):
             ),
             batch_size=self._config.train_batch_size,
             shuffle=False,
-            pin_memory=pin_memory,
+            pin_memory=self._config.pin_memory,
             pin_memory_device=pin_device,
             num_workers=self._config.n_dataloader_workers,
+            persistent_workers=self._config.persistent_workers,
         )
 
         test_dl = None
@@ -247,9 +243,10 @@ class ClassifierTrainer(_BaseTrainer):
                 ),
                 batch_size=self._config.train_batch_size,
                 shuffle=False,
-                pin_memory=pin_memory,
+                pin_memory=self._config.pin_memory,
                 pin_memory_device=pin_device,
                 num_workers=self._config.n_dataloader_workers,
+                persistent_workers=self._config.persistent_workers,
             )
 
         num_labels = train_df[self._config.model.label_column_name].nunique()
@@ -299,33 +296,11 @@ class ClassifierTrainer(_BaseTrainer):
 
     def _initialize_output_path(self):
         assert isinstance(self._config.model, ClassifierConfig)
-        if self._config.model.loss_func == "selfadjdice":
-            dice_loss_suffix = (
-                f"-{self._config.model.dice_reduction}-{self._config.model.dice_gamma}"
-            )
-        else:
-            dice_loss_suffix = ""
-
-        truncated_model_name = self._config.model.model_name
         try:
-            truncated_model_name = self._config.model.model_name.rsplit("/", 1)[1]
+            model_name = self._config.model.model_name.split("/", 1)[1]
         except IndexError:
-            pass
+            model_name = self._config.model.model_name
 
-        dir_name = (
-            f"{truncated_model_name}"
-            f"-{self._config.train_batch_size}"
-            f"-{self._config.num_epochs}"
-            f"-{self._config.lr_base:6f}"
-            f"-{self._config.scheduler}-{self._config.warmup_steps_percent}"
-            f"-{self._config.model.loss_func}-{self._config.model.dropout_p:3f}"
-            f"-{self._config.model.classifier_hidden_dimension}{dice_loss_suffix}"
-        )
-
-        output_path = os.path.join(
-            self._config.model_output_path,
-            "classifier",
-            dir_name,
-        )
+        output_path = os.path.join(self._config.model_output_path, f"classifier-{model_name}")
         logger.info(f"Output path: {output_path}")
         return output_path

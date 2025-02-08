@@ -10,15 +10,11 @@ from chem_mrl.schemas import BaseConfig
 
 from .BaseTrainer import BoundTrainerType
 
-BoundTrainerExecutorType = TypeVar(
-    "BoundTrainerExecutorType", bound="_BaseTrainerExecutor"
-)
+BoundTrainerExecutorType = TypeVar("BoundTrainerExecutorType", bound="_BaseTrainerExecutor")
 
 
 class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType]):
     """Base abstract executor class.
-    Concrete executor classes should inherit from this class and implement the abstract methods and properties.
-
     Executors are used to execute a trainer with additional functionality.
     For example, an executor can be used to execute a trainer within a context manager.
     """
@@ -48,7 +44,7 @@ class TempDirTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
     def __init__(self, trainer: BoundTrainerType):
         super().__init__(trainer)
         self._temp_dir = tempfile.TemporaryDirectory()
-        self.trainer.model_save_dir_name = self._temp_dir.name
+        self.trainer.model_save_dir = self._temp_dir.name
 
     def execute(self) -> float:
         """
@@ -95,6 +91,8 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
         parsed_config = self.config.asdict()
         parsed_config.pop("wandb", None)
         parsed_config.pop("n_dataloader_workers", None)
+        parsed_config.pop("persistent_workers", None)
+        parsed_config.pop("pin_memory", None)
         parsed_config.pop("generate_dataset_examples_at_init", None)
         parsed_config.pop("checkpoint_save_steps", None)
         parsed_config.pop("checkpoint_save_total_limit", None)

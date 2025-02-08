@@ -12,9 +12,7 @@ _parent_dir = Path(curr_file_path).parent
 _test_data_dir = Path(_parent_dir, "data")
 
 
-TEST_FIXED_SMILES_TOKENIZER_DATA_PATH = Path(
-    _test_data_dir, "test_fixed_smiles_tokenizer_data.parquet"
-)
+TEST_FIXED_SMILES_TOKENIZER_DATA_PATH = Path(_test_data_dir, "test_smiles_tokenizer_data.parquet")
 
 
 @pytest.mark.parametrize("max_len", range(128, 1024, 128))
@@ -69,8 +67,7 @@ def test_fixed_smiles_tokenizer():
             # SmilesTokenizer_PubChem_1M uses BERT special token syntax
             # while FixedSmileTokenizer uses roBERTa special tokens
             mapped_decoded_truth_tokens = [
-                map_truth_to_fixed_tokens.get(token, token)
-                for token in decoded_truth_tokens
+                map_truth_to_fixed_tokens.get(token, token) for token in decoded_truth_tokens
             ]
 
             # SmilesTokenizerFast encodings
