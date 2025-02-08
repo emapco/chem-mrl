@@ -49,6 +49,9 @@ class BaseConfig:
     train_dataset_path: str
     val_dataset_path: str
     test_dataset_path: str | None = None
+    smiles_a_column_name: str = "smiles_a"
+    smiles_b_column_name: str | None = "smiles_b"
+    label_column_name: str = "similarity"
     n_train_samples: int | None = None
     n_val_samples: int | None = None
     n_test_samples: int | None = None
@@ -57,6 +60,7 @@ class BaseConfig:
     pin_memory: bool = False
     generate_dataset_examples_at_init: bool = True
     train_batch_size: int = 32
+    eval_batch_size: int = 32
     num_epochs: int = 2
     lr_base: float | int = 2e-05
     weight_decay: float | None = 0.0
@@ -71,17 +75,24 @@ class BaseConfig:
     evaluation_steps: int = 0
     checkpoint_save_steps: int = 0
     checkpoint_save_total_limit: int = 20
+    show_progress_bar: bool = True
     wandb: WandbConfig | None = None
     asdict = asdict
 
     def __post_init__(self):
         # check types
-        if self.train_dataset_path is not None and not isinstance(self.train_dataset_path, str):
-            raise TypeError("train_dataset_path must be a string or None")
-        if self.val_dataset_path is not None and not isinstance(self.val_dataset_path, str):
-            raise TypeError("val_dataset_path must be a string or None")
-        if self.test_dataset_path is not None and not isinstance(self.test_dataset_path, str):
+        if not isinstance(self.train_dataset_path, str):
+            raise TypeError("train_dataset_path must be a string")
+        if not isinstance(self.val_dataset_path, str):
+            raise TypeError("val_dataset_path must be a string")
+        if not isinstance(self.test_dataset_path, str | None):
             raise TypeError("test_dataset_path must be a string or None")
+        if not isinstance(self.smiles_a_column_name, str):
+            raise TypeError("smiles_a_column_name must be a string")
+        if not isinstance(self.smiles_b_column_name, str | None):
+            raise TypeError("smiles_b_column_name must be a string or None")
+        if not isinstance(self.label_column_name, str):
+            raise TypeError("label_column_name must be a string")
         if self.n_train_samples is not None and not isinstance(self.n_train_samples, int):
             raise TypeError("n_train_samples must be an integer or None")
         if not isinstance(self.n_val_samples, int) and self.n_val_samples is not None:
@@ -98,6 +109,8 @@ class BaseConfig:
             raise TypeError("generate_dataset_examples_at_init must be a boolean")
         if not isinstance(self.train_batch_size, int):
             raise TypeError("train_batch_size must be an integer")
+        if not isinstance(self.eval_batch_size, int):
+            raise TypeError("eval_batch_size must be an integer")
         if not isinstance(self.num_epochs, int):
             raise TypeError("num_epochs must be an integer")
         if not isinstance(self.lr_base, float | int):
@@ -126,15 +139,23 @@ class BaseConfig:
             raise TypeError("checkpoint_save_steps must be an integer")
         if not isinstance(self.checkpoint_save_total_limit, int):
             raise TypeError("checkpoint_save_total_limit must be an integer")
+        if not isinstance(self.show_progress_bar, bool):
+            raise TypeError("show_progress_bar must be a boolean")
         if not isinstance(self.wandb, WandbConfig | None):
             raise TypeError("wandb must be a WandbConfig or None")
         # check values
-        if self.train_dataset_path is not None and self.train_dataset_path == "":
+        if self.train_dataset_path == "":
             raise ValueError("train_dataset_path must be set")
-        if self.val_dataset_path is not None and self.val_dataset_path == "":
+        if self.val_dataset_path == "":
             raise ValueError("val_dataset_path must be set")
         if self.test_dataset_path is not None and self.test_dataset_path == "":
             raise ValueError("test_dataset_path must be set")
+        if self.smiles_a_column_name == "":
+            raise ValueError("smiles_a_column_name must be set")
+        if self.smiles_b_column_name is not None and self.smiles_b_column_name == "":
+            raise ValueError("smiles_b_column_name must be set")
+        if self.label_column_name == "":
+            raise ValueError("label_column_name must be set")
         if self.n_train_samples is not None and self.n_train_samples < 1:
             raise ValueError("n_train_samples must be greater than 0")
         if self.n_val_samples is not None and self.n_val_samples < 1:
@@ -145,6 +166,8 @@ class BaseConfig:
             raise ValueError("n_dataloader_workers must be positive")
         if self.train_batch_size < 1:
             raise ValueError("train_batch_size must be greater than 0")
+        if self.eval_batch_size < 1:
+            raise ValueError("eval_batch_size must be greater than 0")
         if self.num_epochs < 1:
             raise ValueError("num_epochs must be greater than 0")
         if self.lr_base <= 0:

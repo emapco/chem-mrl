@@ -20,11 +20,13 @@ class PandasDataFrameDataset(Dataset):
         smiles_a_column: str,
         smiles_b_column: str | None = None,
         generate_dataset_examples_at_init: bool = True,
+        show_progress_bar: bool = False,
     ):
         self.__df = df
         self.__smiles_a_column = smiles_a_column
         self.__smiles_b_column = smiles_b_column
         self.__label_column = label_column
+        self.__show_progress_bar = show_progress_bar
         # strategy pattern - determine which _get function to call at runtime
         self._get = self._set_get_method(self.__smiles_b_column, generate_dataset_examples_at_init)
 
@@ -62,7 +64,7 @@ class PandasDataFrameDataset(Dataset):
         if generate_dataset_examples_at_init:
             from pandarallel import pandarallel
 
-            pandarallel.initialize(progress_bar=True)
+            pandarallel.initialize(progress_bar=self.__show_progress_bar)
             logger.info("Pregenerate examples to match the expected type by sentence_transformers")
             self._pregenerate_examples(getter)
             getter = self._get_pregenerated

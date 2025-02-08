@@ -41,12 +41,6 @@ def test_chem_mrl_config_custom_values():
 def test_chem_mrl_config_validation():
     with pytest.raises(ValueError, match="model_name must be set"):
         ChemMRLConfig(model_name="")
-    with pytest.raises(ValueError, match="smiles_a_column_name must be set"):
-        ChemMRLConfig(smiles_a_column_name="")
-    with pytest.raises(ValueError, match="smiles_b_column_name must be set"):
-        ChemMRLConfig(smiles_b_column_name="")
-    with pytest.raises(ValueError, match="label_column_name must be set"):
-        ChemMRLConfig(label_column_name="")
     with pytest.raises(ValueError, match="embedding_pooling must be one of"):
         ChemMRLConfig(embedding_pooling="invalid_pooling")
     with pytest.raises(ValueError, match="loss_func must be one of"):
@@ -159,12 +153,6 @@ def test_chem_mrl_config_type_validation():
     """Test type validation for chem mrl config parameters"""
     with pytest.raises(TypeError):
         ChemMRLConfig(model_name=1)
-    with pytest.raises(TypeError):
-        ChemMRLConfig(smiles_a_column_name=1)
-    with pytest.raises(TypeError):
-        ChemMRLConfig(smiles_b_column_name=1)
-    with pytest.raises(TypeError):
-        ChemMRLConfig(label_column_name=1)
     with pytest.raises(TypeError):
         ChemMRLConfig(embedding_pooling=1)
     with pytest.raises(TypeError):
