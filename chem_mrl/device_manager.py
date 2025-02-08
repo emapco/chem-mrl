@@ -20,7 +20,8 @@ class CudaDeviceManager:
             self._num_processes = max_cpu_processes_fallback
             if self.use_logging:
                 logging.info(
-                    f"No CUDA devices detected. Falling back to using {self._num_processes} CPU process(es)"
+                    "No CUDA devices detected. "
+                    f"Falling back to using {self._num_processes} CPU process(es)"
                 )
 
         self._device_id_queue = queue.Queue(maxsize=self._num_processes)

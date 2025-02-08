@@ -39,6 +39,20 @@ def test_chem_mrl_test_evaluator():
     assert isinstance(result, float)
 
 
+@pytest.mark.parametrize("weight_decay", [0.0, 1e-8, 1e-4, 1e-2, 0.1])
+def test_chem_mrl_test_weight_decay(weight_decay):
+    config = BaseConfig(
+        model=ChemMRLConfig(),
+        train_dataset_path=TEST_CHEM_MRL_PATH,
+        val_dataset_path=TEST_CHEM_MRL_PATH,
+        weight_decay=weight_decay,
+    )
+    trainer = ChemMRLTrainer(config)
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
+    assert isinstance(result, float)
+
+
 @pytest.mark.parametrize("scheduler", SchedulerOption)
 def test_chem_mrl_scheduler_options(
     scheduler,
@@ -152,13 +166,9 @@ def test_chem_2d_mrl_trainer_instantiation():
 
 
 def test_mrl_dimension_weights_validation():
-    with pytest.raises(
-        ValueError, match="Dimension weights must be in increasing order"
-    ):
+    with pytest.raises(ValueError, match="Dimension weights must be in increasing order"):
         config = BaseConfig(
-            model=ChemMRLConfig(
-                mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
-            ),
+            model=ChemMRLConfig(mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)),
             train_dataset_path=TEST_CHEM_MRL_PATH,
             val_dataset_path=TEST_CHEM_MRL_PATH,
         )
@@ -213,9 +223,7 @@ def test_chem_mrl_learning_rates(lr):
 @pytest.mark.parametrize(
     "wandb_config",
     [
-        WandbConfig(
-            project_name="test", use_watch=True, watch_log=WatchLogOption.gradients
-        ),
+        WandbConfig(project_name="test", use_watch=True, watch_log=WatchLogOption.gradients),
         WandbConfig(project_name="test", use_watch=False),
         WandbConfig(project_name="test", watch_log_freq=500, watch_log_graph=False),
     ],
@@ -232,9 +240,7 @@ def test_chem_mrl_wandb_configurations(wandb_config):
     assert trainer.config.wandb.enabled is True
 
 
-@pytest.mark.parametrize(
-    "path", ["test_output", "custom/nested/path", "model_outputs/test"]
-)
+@pytest.mark.parametrize("path", ["test_output", "custom/nested/path", "model_outputs/test"])
 def test_classifier_output_paths(path):
     config = BaseConfig(
         model=ChemMRLConfig(),
@@ -243,4 +249,4 @@ def test_classifier_output_paths(path):
         model_output_path=path,
     )
     trainer = ChemMRLTrainer(config)
-    assert path in trainer.model_save_dir_name
+    assert path in trainer.model_save_dir

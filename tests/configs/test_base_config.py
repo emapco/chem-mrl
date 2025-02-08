@@ -29,13 +29,6 @@ def test_wandb_config_custom_values():
     assert config.watch_log_graph is False
 
 
-@pytest.mark.parametrize("scheduler", SchedulerOption)
-def test_scheduler_option(scheduler):
-    """Test SchedulerOption enum"""
-    assert isinstance(scheduler, SchedulerOption)
-    assert scheduler in SchedulerOption
-
-
 def test_wandb_config_none_values():
     """Test WandbConfig handles None values appropriately"""
     config = WandbConfig(project_name=None, run_name=None)
@@ -83,6 +76,13 @@ def test_wandb_config_type_validation():
         WandbConfig(watch_log_graph=123)
 
 
+@pytest.mark.parametrize("scheduler", SchedulerOption)
+def test_scheduler_option(scheduler):
+    """Test SchedulerOption enum"""
+    assert isinstance(scheduler, SchedulerOption)
+    assert scheduler in SchedulerOption
+
+
 def test_base_config_custom_values():
     wandb_config = WandbConfig(api_key="test_key")
     config = BaseConfig(
@@ -94,10 +94,14 @@ def test_base_config_custom_values():
         n_val_samples=500,
         n_test_samples=200,
         n_dataloader_workers=4,
+        persistent_workers=True,
+        pin_memory=True,
         generate_dataset_examples_at_init=False,
         train_batch_size=64,
         num_epochs=5,
         lr_base=0.001,
+        weight_decay=0.1,
+        use_normalized_weight_decay=False,
         scheduler=SchedulerOption.warmupcosine,
         warmup_steps_percent=0.1,
         use_amp=True,
@@ -115,10 +119,14 @@ def test_base_config_custom_values():
     assert config.n_val_samples == 500
     assert config.n_test_samples == 200
     assert config.n_dataloader_workers == 4
+    assert config.persistent_workers is True
+    assert config.pin_memory is True
     assert config.generate_dataset_examples_at_init is False
     assert config.train_batch_size == 64
     assert config.num_epochs == 5
     assert config.lr_base == 0.001
+    assert config.weight_decay == 0.1
+    assert config.use_normalized_weight_decay is False
     assert config.scheduler == "warmupcosine"
     assert config.warmup_steps_percent == 0.1
     assert config.use_amp is True
@@ -192,6 +200,13 @@ def test_base_config_validation():
             val_dataset_path="test",
             lr_base=0,
         )
+    with pytest.raises(ValueError, match="weight_decay must be positive"):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            weight_decay=-0.1,
+        )
     with pytest.raises(ValueError, match="scheduler must be one of"):
         BaseConfig(
             model=ChemMRLConfig(),
@@ -199,18 +214,14 @@ def test_base_config_validation():
             val_dataset_path="test",
             scheduler="invalid",
         )
-    with pytest.raises(
-        ValueError, match="warmup_steps_percent must be between 0 and 1"
-    ):
+    with pytest.raises(ValueError, match="warmup_steps_percent must be between 0 and 1"):
         BaseConfig(
             model=ChemMRLConfig(),
             train_dataset_path="test",
             val_dataset_path="test",
             warmup_steps_percent=1.5,
         )
-    with pytest.raises(
-        ValueError, match="warmup_steps_percent must be between 0 and 1"
-    ):
+    with pytest.raises(ValueError, match="warmup_steps_percent must be between 0 and 1"):
         BaseConfig(
             model=ChemMRLConfig(),
             train_dataset_path="test",
@@ -238,14 +249,35 @@ def test_base_config_validation():
             val_dataset_path="test",
             checkpoint_save_steps=-1,
         )
-    with pytest.raises(
-        ValueError, match="checkpoint_save_total_limit must be positive"
-    ):
+    with pytest.raises(ValueError, match="checkpoint_save_total_limit must be positive"):
         BaseConfig(
             model=ChemMRLConfig(),
             train_dataset_path="test",
             val_dataset_path="test",
             checkpoint_save_total_limit=-1,
+        )
+
+
+def test_base_config_weight_decay():
+    with pytest.raises(
+        ValueError, match="weight_decay and use_normalized_weight_decay cannot be used together"
+    ):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            weight_decay=0.0,
+            use_normalized_weight_decay=True,
+        )
+    with pytest.raises(
+        ValueError, match="either weight_decay or use_normalized_weight_decay must be set"
+    ):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            weight_decay=None,
+            use_normalized_weight_decay=False,
         )
 
 
@@ -279,6 +311,10 @@ def test_base_config_type_validation():
     with pytest.raises(TypeError):
         BaseConfig(n_dataloader_workers=1.5)
     with pytest.raises(TypeError):
+        BaseConfig(persistent_workers=1.5)
+    with pytest.raises(TypeError):
+        BaseConfig(pin_memory=1.5)
+    with pytest.raises(TypeError):
         BaseConfig(generate_dataset_examples_at_init=1.5)
     with pytest.raises(TypeError):
         BaseConfig(n_train_samples="123")
@@ -294,6 +330,10 @@ def test_base_config_type_validation():
         BaseConfig(wandb_config="123")
     with pytest.raises(TypeError):
         BaseConfig(lr_base="123")
+    with pytest.raises(TypeError):
+        BaseConfig(weight_decay="123")
+    with pytest.raises(TypeError):
+        BaseConfig(use_normalized_weight_decay=123)
     with pytest.raises(TypeError):
         BaseConfig(scheduler=123)
     with pytest.raises(TypeError):

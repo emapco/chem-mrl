@@ -53,13 +53,9 @@ class ClassifierConfig:
         if self.label_column_name == "":
             raise ValueError("label_column_name must be set")
         if not isinstance(self.eval_metric, ClassifierEvalMetricOption):
-            raise ValueError(
-                f"eval_metric must be one of {ClassifierEvalMetricOption.to_list()}"
-            )
+            raise ValueError(f"eval_metric must be one of {ClassifierEvalMetricOption.to_list()}")
         if not isinstance(self.loss_func, ClassifierLossFctOption):
-            raise ValueError(
-                f"loss_func must be one of {ClassifierLossFctOption.to_list()}"
-            )
+            raise ValueError(f"loss_func must be one of {ClassifierLossFctOption.to_list()}")
         if self.classifier_hidden_dimension < 1:
             raise ValueError("classifier_hidden_dimension must be greater than 0")
         if not (0 <= self.dropout_p <= 1):

@@ -9,7 +9,7 @@ EMBEDDING_MODEL_HIDDEN_DIM = 768
 TEST_FP_SIZES = [8, 16, 32, 64, 128, 256, 512, 768, 2048]
 CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32, 16, 8]
 BASE_MODEL_DIMENSIONS = [EMBEDDING_MODEL_HIDDEN_DIM]
-BASE_MODEL_NAME = "seyonec/SMILES_tokenized_PubChem_shard00_160k"
+BASE_MODEL_NAME = "Derify/ChemBERTa_augmented_pubchem_13m"
 OPTUNA_DB_URI = "postgresql://postgres:password@127.0.0.1:5432/postgres"
 
 
@@ -47,21 +47,15 @@ TRAIN_DS_DICT = {
         _data_dir,
         "train_QED-pfizer_func_fp_sim_8192.parquet",
     ),
-    "functional-qed-fp-sim": os.path.join(
-        _data_dir, "train_QED_func_fp_sim_8192.parquet"
-    ),
+    "functional-qed-fp-sim": os.path.join(_data_dir, "train_QED_func_fp_sim_8192.parquet"),
     "functional-fp-sim": os.path.join(_data_dir, "train_func_fp_sim_8192.parquet"),
     "functional-pubchem-10m-fp-sim": os.path.join(
         _data_dir, "train_pubchem_10m_fp_sim_8192.parquet"
     ),
-    "qed-pfizer-fp-sim": os.path.join(
-        _data_dir, "train_QED-pfizer_fp_sim_8192.parquet"
-    ),
+    "qed-pfizer-fp-sim": os.path.join(_data_dir, "train_QED-pfizer_fp_sim_8192.parquet"),
     "qed-fp-sim": os.path.join(_data_dir, "train_QED_fp_sim_8192.parquet"),
     "fp-sim": os.path.join(_data_dir, "train_fp_sim_8192.parquet"),
-    "pubchem-10m-fp-sim": os.path.join(
-        _data_dir, "train_pubchem_10m_fp_sim_8192.parquet"
-    ),
+    "pubchem-10m-fp-sim": os.path.join(_data_dir, "train_pubchem_10m_fp_sim_8192.parquet"),
 }
 CHEM_MRL_DATASET_KEYS = sorted(list(TRAIN_DS_DICT.keys()))
 
@@ -70,28 +64,20 @@ VAL_DS_DICT = {
         _data_dir,
         "val_QED-pfizer_func_fp_sim_8192.parquet",
     ),
-    "functional-qed-fp-sim": os.path.join(
-        _data_dir, "val_QED_func_fp_sim_8192.parquet"
-    ),
+    "functional-qed-fp-sim": os.path.join(_data_dir, "val_QED_func_fp_sim_8192.parquet"),
     "functional-fp-sim": os.path.join(_data_dir, "val_func_fp_sim_8192.parquet"),
-    "functional-pubchem-10m-fp-sim": os.path.join(
-        _data_dir, "val_pubchem_10m_fp_sim_8192.parquet"
-    ),
+    "functional-pubchem-10m-fp-sim": os.path.join(_data_dir, "val_pubchem_10m_fp_sim_8192.parquet"),
     "qed-pfizer-fp-sim": os.path.join(_data_dir, "val_QED-pfizer_fp_sim_8192.parquet"),
     "qed-fp-sim": os.path.join(_data_dir, "val_QED_fp_sim_8192.parquet"),
     "fp-sim": os.path.join(_data_dir, "val_fp_sim_8192.parquet"),
-    "pubchem-10m-fp-sim": os.path.join(
-        _data_dir, "val_pubchem_10m_fp_sim_8192.parquet"
-    ),
+    "pubchem-10m-fp-sim": os.path.join(_data_dir, "val_pubchem_10m_fp_sim_8192.parquet"),
 }
 TEST_DS_DICT = {
     "functional-qed-pfizer-fp-sim": os.path.join(
         _data_dir,
         "test_QED-pfizer_func_fp_sim_8192.parquet",
     ),
-    "functional-qed-fp-sim": os.path.join(
-        _data_dir, "test_QED_func_fp_sim_8192.parquet"
-    ),
+    "functional-qed-fp-sim": os.path.join(_data_dir, "test_QED_func_fp_sim_8192.parquet"),
     "functional-fp-sim": os.path.join(_data_dir, "test_func_fp_sim_8192.parquet"),
     "functional-pubchem-10m-fp-sim": os.path.join(
         _data_dir, "test_pubchem_10m_fp_sim_8192.parquet"
@@ -99,9 +85,7 @@ TEST_DS_DICT = {
     "qed-pfizer-fp-sim": os.path.join(_data_dir, "test_QED-pfizer_fp_sim_8192.parquet"),
     "qed-fp-sim": os.path.join(_data_dir, "test_QED_fp_sim_8192.parquet"),
     "fp-sim": os.path.join(_data_dir, "test_fp_sim_8192.parquet"),
-    "pubchem-10m-fp-sim": os.path.join(
-        _data_dir, "test_pubchem_10m_fp_sim_8192.parquet"
-    ),
+    "pubchem-10m-fp-sim": os.path.join(_data_dir, "test_pubchem_10m_fp_sim_8192.parquet"),
 }
 
 

@@ -81,33 +81,24 @@ class ChemMRLConfig:
         if self.label_column_name == "":
             raise ValueError("label_column_name must be set")
         if not isinstance(self.embedding_pooling, EmbeddingPoolingOption):
-            raise ValueError(
-                f"embedding_pooling must be one of {EmbeddingPoolingOption.to_list()}"
-            )
+            raise ValueError(f"embedding_pooling must be one of {EmbeddingPoolingOption.to_list()}")
         if not isinstance(self.loss_func, ChemMrlLossFctOption):
-            raise ValueError(
-                f"loss_func must be one of {ChemMrlLossFctOption.to_list()}"
-            )
+            raise ValueError(f"loss_func must be one of {ChemMrlLossFctOption.to_list()}")
         if (self.tanimoto_similarity_loss_func is not None) and (
-            not isinstance(
-                self.tanimoto_similarity_loss_func, TanimotoSimilarityBaseLossFctOption
-            )
+            not isinstance(self.tanimoto_similarity_loss_func, TanimotoSimilarityBaseLossFctOption)
         ):
             raise ValueError(
-                f"tanimoto_similarity_loss_func must be one of {TanimotoSimilarityBaseLossFctOption.to_list()}"
+                "tanimoto_similarity_loss_func must be one of ",
+                TanimotoSimilarityBaseLossFctOption.to_list(),
             )
         if not isinstance(self.eval_similarity_fct, EvalSimilarityFctOption):
             raise ValueError(
                 f"eval_similarity_fct must be one of {EvalSimilarityFctOption.to_list()}"
             )
         if not isinstance(self.eval_metric, ChemMrlEvalMetricOption):
-            raise ValueError(
-                f"eval_metric must be one of {ChemMrlEvalMetricOption.to_list()}"
-            )
+            raise ValueError(f"eval_metric must be one of {ChemMrlEvalMetricOption.to_list()}")
         if len(self.mrl_dimension_weights) != len(self.mrl_dimensions):
-            raise ValueError(
-                "Number of dimension weights must match number of MRL dimensions"
-            )
+            raise ValueError("Number of dimension weights must match number of MRL dimensions")
         if any(w <= 0 for w in self.mrl_dimension_weights):
             raise ValueError("All dimension weights must be positive")
         if not all(

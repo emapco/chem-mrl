@@ -9,7 +9,7 @@ class ExplicitEnum(str, Enum):
     @classmethod
     def _missing_(cls, value):
         raise ValueError(
-            f"{value} is not a valid {cls.__name__}, please select one of {list(cls._value2member_map_.keys())}"
+            f"{value} is not a valid {cls.__name__}, please select one of {cls.to_list()}"
         )
 
     def __str__(self):

@@ -30,7 +30,7 @@ dependencies = [
 Repository = "https://github.com/emapco/chem-mrl"
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "pytest-xdist", "ipykernel", "ipywidgets", "build"]
+dev = ["pytest", "pytest-cov", "pytest-xdist", "ipykernel", "ipywidgets", "build", "ruff"]
 benchmark = ["sqlalchemy==2.0.37", "psycopg2-binary==2.9.9", "pgvector==0.3.6"]
 data = ["fastparquet==2024.11.0", "rdkit==2024.9.4", "opencv-python==4.11.0.86", "beautifulsoup4==4.12.3", "fickling==0.1.3"]
 

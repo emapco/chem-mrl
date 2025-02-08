@@ -46,6 +46,20 @@ def test_classifier_test_evaluator():
     assert isinstance(result, float)
 
 
+@pytest.mark.parametrize("weight_decay", [0.0, 1e-8, 1e-4, 1e-2, 0.1])
+def test_chem_mrl_test_weight_decay(weight_decay):
+    config = BaseConfig(
+        model=ClassifierConfig(),
+        train_dataset_path=TEST_CLASSIFICATION_PATH,
+        val_dataset_path=TEST_CLASSIFICATION_PATH,
+        weight_decay=weight_decay,
+    )
+    trainer = ClassifierTrainer(config)
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
+    assert isinstance(result, float)
+
+
 @pytest.mark.parametrize("scheduler", SchedulerOption)
 def test_classifier_scheduler_options(
     scheduler,
@@ -112,7 +126,7 @@ def test_classifier_num_labels():
         val_dataset_path=TEST_CLASSIFICATION_PATH,
     )
     trainer = ClassifierTrainer(config)
-    assert trainer.loss_fct.num_labels == 2  # testing dataset only has two classes
+    assert trainer.loss_fct.num_labels == 4  # testing dataset only has 4 classes
 
 
 @pytest.mark.parametrize("dropout_p", [0.0, 0.1, 0.5, 1.0])
@@ -229,9 +243,7 @@ def test_classifier_wandb_configurations(wandb_config):
     assert trainer.config.wandb.enabled is True
 
 
-@pytest.mark.parametrize(
-    "path", ["test_output", "custom/nested/path", "model_outputs/test"]
-)
+@pytest.mark.parametrize("path", ["test_output", "custom/nested/path", "model_outputs/test"])
 def test_classifier_output_paths(path):
     config = BaseConfig(
         model=ClassifierConfig(),
@@ -240,4 +252,4 @@ def test_classifier_output_paths(path):
         model_output_path=path,
     )
     trainer = ClassifierTrainer(config)
-    assert path in trainer.model_save_dir_name
+    assert path in trainer.model_save_dir
