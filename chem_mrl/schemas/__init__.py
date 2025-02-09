@@ -6,6 +6,7 @@ from . import Enums
 from .BaseConfig import BaseConfig, WandbConfig
 from .ChemMRLConfig import ChemMRLConfig
 from .ClassifierConfig import ClassifierConfig
+from .LatentAttentionConfig import LatentAttentionConfig
 
 
 def register_chem_mrl_configs():
@@ -27,6 +28,7 @@ __all__ = [
     "BaseConfig",
     "WandbConfig",
     "ChemMRLConfig",
+    "LatentAttentionConfig",
     "register_chem_mrl_configs",
     "ClassifierConfig",
     "register_classifier_configs",

@@ -148,21 +148,14 @@ class _BaseTrainer(ABC):
         return learning_rate, weight_decay, warmup_steps
 
     def _write_config(self):
-        config_file_name = os.path.join(self.model_save_dir, "config_chem_mrl.json")
-        parsed_config = self.config.asdict()
-        parsed_config.pop("wandb", None)
-        parsed_config.pop("n_dataloader_workers", None)
-        parsed_config.pop("persistent_workers", None)
-        parsed_config.pop("pin_memory", None)
-        parsed_config.pop("generate_dataset_examples_at_init", None)
-        parsed_config.pop("checkpoint_save_steps", None)
-        parsed_config.pop("checkpoint_save_total_limit", None)
-        parsed_config.pop("model_output_path", None)
+        config_file_name = os.path.join(self.model_save_dir, "chem_mrl_config.json")
+        parsed_config = self.config.model.asdict()
+        parsed_config.pop("model_name", None)
+
+        import json
 
         with open(config_file_name, "w") as f:
-            import json
-
-            json.dump(parsed_config, f, indent=4)
+            json.dump(parsed_config, f, indent=2)
 
     @staticmethod
     def _read_eval_metric(eval_file_path, eval_metric: str) -> float:
@@ -193,7 +186,7 @@ class _BaseTrainer(ABC):
             save_best_model=True,
             use_amp=self._config.use_amp,
             callback=eval_callback,  # type: ignore - Library defaults to None. We can safely ignore error
-            show_progress_bar=True,
+            show_progress_bar=self.config.show_progress_bar,
             checkpoint_path=os.path.join(self.model_save_dir, "checkpoints"),
             checkpoint_save_steps=self._config.checkpoint_save_steps,
             checkpoint_save_total_limit=self._config.checkpoint_save_total_limit,

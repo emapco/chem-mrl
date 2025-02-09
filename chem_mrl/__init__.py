@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 from . import (
     benchmark,
@@ -9,7 +9,6 @@ from . import (
     device_manager,
     evaluation,
     losses,
-    molecular_embedder,
     molecular_fingerprinter,
     schemas,
     trainers,
@@ -23,7 +22,6 @@ __all__ = [
     "device_manager",
     "evaluation",
     "losses",
-    "molecular_embedder",
     "molecular_fingerprinter",
     "schemas",
     "trainers",

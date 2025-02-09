@@ -1,17 +1,25 @@
 defaults:
   - chem_mrl_schema
+  - _self_
 
 model_name: Derify/ChemBERTa_augmented_pubchem_13m # Name of the model to use. Must be either a file path or a HF transformer model name.
-smiles_a_column_name: smiles_a
-smiles_b_column_name: smiles_b
-label_column_name: similarity
+# trainable "dictionary" - latent attention block used prior to pooling and used as the final layer output
+# Contributes to both 1d matryoshka loss (final layer) and 2d matryoshka loss (included in all_layers output)
+# https://arxiv.org/pdf/2405.17428
+latent_attention_config:
+  hidden_dim: 768 # must match `model_name` hidden dimension
+  num_latents: 512
+  num_cross_heads: 8
+  cross_head_dim: 64
+  output_normalize: true
+  enable: true
+
 embedding_pooling: mean # Pooling layer method applied to the embeddings.
 # For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling
 # Valid options
 # - mean
 # - mean_sqrt_len_tokens
 # - weightedmean
-# - lasttoken
 loss_func: tanimotosentloss # ChemMRL loss function
 # Valid options
 # - tanimotosentloss
@@ -45,4 +53,4 @@ mrl_dimension_weights:
 n_dims_per_step:
   -1 # The number of dimensions to use per step. If -1, then all dimensions are used.
   # If > 0, then a random sample of n_dims_per_step dimensions are used per step.
-use_2d_matryoshka: false # Use 2D Matryoshka to train over transformer layers in addition to embedding dimensions.
+use_2d_matryoshka: false # Disable 2D Matryoshka
