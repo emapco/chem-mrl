@@ -9,7 +9,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from chem_mrl.datasets import PandasDataFrameDataset
-from chem_mrl.evaluation import EmbeddingSimilarityEvaluator, SimilarityFunction
+from chem_mrl.evaluation import EmbeddingSimilarityEvaluator
+from chem_mrl.models import LatentAttentionLayer
 from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 
 from .BaseTrainer import _BaseTrainer
@@ -128,12 +129,26 @@ class ChemMRLTrainer(_BaseTrainer):
 
     def _initialize_model(self) -> SentenceTransformer:
         assert isinstance(self._config.model, ChemMRLConfig)
-        word_embedding_model = models.Transformer(self._config.model.model_name)
+
+        model = models.Transformer(self._config.model.model_name)
         pooling_model = models.Pooling(
-            word_embedding_model.get_word_embedding_dimension(),
+            model.get_word_embedding_dimension(),
             pooling_mode=self._config.model.embedding_pooling,
         )
-        return SentenceTransformer(modules=[word_embedding_model, pooling_model])
+        normalization_model = models.Normalize()
+
+        if (
+            self._config.model.latent_attention_config is not None
+            and self._config.model.latent_attention_config.enable
+        ):
+            latent_attention_model = LatentAttentionLayer(
+                self._config.model.latent_attention_config
+            )
+            modules = [model, latent_attention_model, pooling_model, normalization_model]
+        else:
+            modules = [model, pooling_model, normalization_model]
+
+        return SentenceTransformer(modules=modules)
 
     def _initialize_data(
         self,
@@ -142,18 +157,22 @@ class ChemMRLTrainer(_BaseTrainer):
         test_file: str | None = None,
     ):
         assert isinstance(self._config.model, ChemMRLConfig)
+        assert (
+            self._config.smiles_b_column_name is not None
+            and self._config.smiles_b_column_name != ""
+        ), "smiles_b_column_name must be specified when training a ChemMRL model"
         logging.info(f"Loading {train_file} dataset")
         pin_device = get_device_name()
 
         train_df = pd.read_parquet(
             train_file,
             columns=[
-                self._config.model.smiles_a_column_name,
-                self._config.model.smiles_b_column_name,
-                self._config.model.label_column_name,
+                self._config.smiles_a_column_name,
+                self._config.smiles_b_column_name,
+                self._config.label_column_name,
             ],
         )
-        train_df = train_df.astype({self._config.model.label_column_name: "float32"})
+        train_df = train_df.astype({self._config.label_column_name: "float32"})
         if self._config.n_train_samples is not None:
             train_df = train_df.sample(
                 n=self._config.n_train_samples,
@@ -165,9 +184,9 @@ class ChemMRLTrainer(_BaseTrainer):
         train_dl = DataLoader(
             PandasDataFrameDataset(
                 train_df,
-                smiles_a_column=self._config.model.smiles_a_column_name,
-                smiles_b_column=self._config.model.smiles_b_column_name,
-                label_column=self._config.model.label_column_name,
+                smiles_a_column=self._config.smiles_a_column_name,
+                smiles_b_column=self._config.smiles_b_column_name,
+                label_column=self._config.label_column_name,
                 generate_dataset_examples_at_init=self._config.generate_dataset_examples_at_init,
             ),
             batch_size=self._config.train_batch_size,
@@ -182,13 +201,13 @@ class ChemMRLTrainer(_BaseTrainer):
         val_df = pd.read_parquet(
             val_file,
             columns=[
-                self._config.model.smiles_a_column_name,
-                self._config.model.smiles_b_column_name,
-                self._config.model.label_column_name,
+                self._config.smiles_a_column_name,
+                self._config.smiles_b_column_name,
+                self._config.label_column_name,
             ],
         )
         # validation uses int8 tensors but keep it as a float for now
-        val_df = val_df.astype({self._config.model.label_column_name: "float16"})
+        val_df = val_df.astype({self._config.label_column_name: "float16"})
         if self._config.n_val_samples is not None:
             val_df = val_df.sample(
                 n=self._config.n_val_samples,
@@ -203,12 +222,12 @@ class ChemMRLTrainer(_BaseTrainer):
             test_df = pd.read_parquet(
                 test_file,
                 columns=[
-                    self._config.model.smiles_a_column_name,
-                    self._config.model.smiles_b_column_name,
-                    self._config.model.label_column_name,
+                    self._config.smiles_a_column_name,
+                    self._config.smiles_b_column_name,
+                    self._config.label_column_name,
                 ],
             )
-            test_df = test_df.astype({self._config.model.label_column_name: "float32"})
+            test_df = test_df.astype({self._config.label_column_name: "float32"})
             if self._config.n_test_samples is not None:
                 test_df = test_df.sample(
                     n=self._config.n_test_samples,
@@ -222,17 +241,14 @@ class ChemMRLTrainer(_BaseTrainer):
     def _initialize_val_evaluator(self):
         assert isinstance(self._config.model, ChemMRLConfig)
         return EmbeddingSimilarityEvaluator(
-            self.__val_df[self._config.model.smiles_a_column_name],
-            self.__val_df[self._config.model.smiles_b_column_name],
-            self.__val_df[self._config.model.label_column_name],
-            batch_size=self._config.train_batch_size * 4,
-            main_similarity=(
-                SimilarityFunction.TANIMOTO
-                if self._config.model.eval_similarity_fct == "tanimoto"
-                else SimilarityFunction.COSINE
-            ),
+            self.__val_df[self._config.smiles_a_column_name],
+            self.__val_df[self._config.smiles_b_column_name],
+            self.__val_df[self._config.label_column_name],
+            batch_size=self._config.eval_batch_size,
+            main_similarity=self._config.model.eval_similarity_fct,
+            metric=self._config.model.eval_metric,
             name="val",
-            show_progress_bar=True,
+            show_progress_bar=self._config.show_progress_bar,
             write_csv=True,
             precision="int8",
         )
@@ -242,17 +258,14 @@ class ChemMRLTrainer(_BaseTrainer):
             return None
         assert isinstance(self._config.model, ChemMRLConfig)
         return EmbeddingSimilarityEvaluator(
-            self.__test_df[self._config.model.smiles_a_column_name],
-            self.__test_df[self._config.model.smiles_b_column_name],
-            self.__test_df[self._config.model.label_column_name],
-            batch_size=self._config.train_batch_size * 4,
-            main_similarity=(
-                SimilarityFunction.TANIMOTO
-                if self._config.model.eval_similarity_fct == "tanimoto"
-                else SimilarityFunction.COSINE
-            ),
+            self.__test_df[self._config.smiles_a_column_name],
+            self.__test_df[self._config.smiles_b_column_name],
+            self.__test_df[self._config.label_column_name],
+            batch_size=self._config.eval_batch_size,
+            main_similarity=self._config.model.eval_similarity_fct,
+            metric=self._config.model.eval_metric,
             name="test",
-            show_progress_bar=True,
+            show_progress_bar=self._config.show_progress_bar,
             write_csv=True,
             precision="int8",
         )

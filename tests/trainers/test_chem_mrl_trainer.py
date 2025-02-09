@@ -1,7 +1,13 @@
 import pytest
 from constants import TEST_CHEM_MRL_PATH
 
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig, WandbConfig
+from chem_mrl.constants import BASE_MODEL_HIDDEN_DIM
+from chem_mrl.schemas import (
+    BaseConfig,
+    ChemMRLConfig,
+    LatentAttentionConfig,
+    WandbConfig,
+)
 from chem_mrl.schemas.Enums import (
     ChemMrlEvalMetricOption,
     ChemMrlLossFctOption,
@@ -175,6 +181,25 @@ def test_mrl_dimension_weights_validation():
         ChemMRLTrainer(config)
 
 
+def test_mrl_latent_attention_layer():
+    config = BaseConfig(
+        model=ChemMRLConfig(
+            latent_attention_config=LatentAttentionConfig(
+                BASE_MODEL_HIDDEN_DIM,
+            ),
+            use_2d_matryoshka=True,
+            last_layer_weight=2.0,
+            prior_layers_weight=1.0,
+        ),
+        train_dataset_path=TEST_CHEM_MRL_PATH,
+        val_dataset_path=TEST_CHEM_MRL_PATH,
+    )
+    trainer = ChemMRLTrainer(config)
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
+    assert isinstance(result, float)
+
+
 def test_2d_mrl_layer_weights():
     config = BaseConfig(
         model=ChemMRLConfig(
@@ -198,6 +223,7 @@ def test_chem_mrl_batch_sizes(batch_size):
         train_dataset_path=TEST_CHEM_MRL_PATH,
         val_dataset_path=TEST_CHEM_MRL_PATH,
         train_batch_size=batch_size,
+        eval_batch_size=batch_size,
     )
     trainer = ChemMRLTrainer(config)
     executor = TempDirTrainerExecutor(trainer)

@@ -9,14 +9,13 @@ from .Enums import (
     EvalSimilarityFctOption,
     TanimotoSimilarityBaseLossFctOption,
 )
+from .LatentAttentionConfig import LatentAttentionConfig
 
 
 @dataclass
 class ChemMRLConfig:
+    latent_attention_config: LatentAttentionConfig | None = None
     model_name: str = BASE_MODEL_NAME
-    smiles_a_column_name: str = "smiles_a"
-    smiles_b_column_name: str = "smiles_b"
-    label_column_name: str = "similarity"
     embedding_pooling: EmbeddingPoolingOption = EmbeddingPoolingOption.mean
     loss_func: ChemMrlLossFctOption = ChemMrlLossFctOption.tanimotosentloss
     tanimoto_similarity_loss_func: TanimotoSimilarityBaseLossFctOption | None = None
@@ -37,12 +36,6 @@ class ChemMRLConfig:
         # check types
         if not isinstance(self.model_name, str):
             raise TypeError("model_name must be a string")
-        if not isinstance(self.smiles_a_column_name, str):
-            raise TypeError("smiles_a_column_name must be a string")
-        if not isinstance(self.smiles_b_column_name, str):
-            raise TypeError("smiles_b_column_name must be a string")
-        if not isinstance(self.label_column_name, str):
-            raise TypeError("label_column_name must be a string")
         if not isinstance(self.embedding_pooling, str):
             raise TypeError("embedding_pooling must be a string")
         if not isinstance(self.loss_func, str):
@@ -74,12 +67,6 @@ class ChemMRLConfig:
         # check values
         if self.model_name == "":
             raise ValueError("model_name must be set")
-        if self.smiles_a_column_name == "":
-            raise ValueError("smiles_a_column_name must be set")
-        if self.smiles_b_column_name == "":
-            raise ValueError("smiles_b_column_name must be set")
-        if self.label_column_name == "":
-            raise ValueError("label_column_name must be set")
         if not isinstance(self.embedding_pooling, EmbeddingPoolingOption):
             raise ValueError(f"embedding_pooling must be one of {EmbeddingPoolingOption.to_list()}")
         if not isinstance(self.loss_func, ChemMrlLossFctOption):
