@@ -5,9 +5,9 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 
 from chem_mrl.constants import (
+    BASE_MODEL_HIDDEN_DIM,
     BASE_MODEL_NAME,
     CHEM_MRL_DIMENSIONS,
-    EMBEDDING_MODEL_HIDDEN_DIM,
 )
 from chem_mrl.molecular_embedder import ChemMRL
 from chem_mrl.molecular_fingerprinter import MorganFingerprinter
@@ -144,7 +144,7 @@ class PgVectorBenchmark:
         model_name: str,
         model_mrl_dimensions: list[int] = CHEM_MRL_DIMENSIONS,
         base_model_name: str = BASE_MODEL_NAME,
-        base_model_hidden_dim: int = EMBEDDING_MODEL_HIDDEN_DIM,
+        base_model_hidden_dim: int = BASE_MODEL_HIDDEN_DIM,
         smiles_column_name: str = "smiles",
     ):
         print("Starting benchmark...")

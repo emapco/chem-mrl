@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer, models
 
-from chem_mrl.constants import BASE_MODEL_NAME, EMBEDDING_MODEL_HIDDEN_DIM
+from chem_mrl.constants import BASE_MODEL_HIDDEN_DIM, BASE_MODEL_NAME
 
 
 class ChemMRL:
@@ -33,19 +33,19 @@ class ChemMRL:
         """
         if fp_size is not None and fp_size < 32:
             raise ValueError("fp_size must be greater than 32")
-        if fp_size is not None and fp_size > EMBEDDING_MODEL_HIDDEN_DIM:
-            raise ValueError(f"fp_size must be less than {EMBEDDING_MODEL_HIDDEN_DIM}")
+        if fp_size is not None and fp_size > BASE_MODEL_HIDDEN_DIM:
+            raise ValueError(f"fp_size must be less than {BASE_MODEL_HIDDEN_DIM}")
         self._model_name = model_name
         self._fp_size = fp_size
         self._use_half_precision = use_half_precision
         self._device = device
         self._batch_size = batch_size
         if normalize_embeddings is None:
-            normalize_embeddings = fp_size is not None and fp_size < EMBEDDING_MODEL_HIDDEN_DIM
+            normalize_embeddings = fp_size is not None and fp_size < BASE_MODEL_HIDDEN_DIM
         self._normalize_embeddings = normalize_embeddings
 
         if model_name == BASE_MODEL_NAME:
-            if fp_size is not None and fp_size != EMBEDDING_MODEL_HIDDEN_DIM:
+            if fp_size is not None and fp_size != BASE_MODEL_HIDDEN_DIM:
                 raise ValueError(f"{BASE_MODEL_NAME} only supports embeddings of size 768")
             word_embedding_model = models.Transformer(model_name)
             pooling_model = models.Pooling(
@@ -56,7 +56,7 @@ class ChemMRL:
                 device=device,
             )
         else:
-            enable_truncate_dim = fp_size is not None and fp_size < EMBEDDING_MODEL_HIDDEN_DIM
+            enable_truncate_dim = fp_size is not None and fp_size < BASE_MODEL_HIDDEN_DIM
             self._model = SentenceTransformer(
                 model_name,
                 device=device,
