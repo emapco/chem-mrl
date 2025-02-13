@@ -85,13 +85,11 @@ The query tokenizer supports the following query types:
 
 - similar: Computes SMILES similarity between two molecular structures. For retrieving similar SMILES.
 - substructure: Determines the presence of a substructure within the second SMILES string.
-- families: Identifies the presence of RDKit’s base chemical feature families in the second SMILES string.
 
 Supported query formats for `smiles_a` column:
 
 - `similar {smiles}`
 - `substructure {smiles}`
-- `families {space delimited list of feature families}`
 
 ```python
 from chem_mrl.schemas import BaseConfig, ChemMRLConfig
