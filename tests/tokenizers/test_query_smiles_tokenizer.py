@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from transformers import RobertaTokenizerFast
 
-from chem_mrl.tokenizers import SmilesTokenizerFast
+from chem_mrl.tokenizers import QuerySmilesTokenizerFast
 
 curr_file_path = Path(__file__).parent
 _parent_dir = Path(curr_file_path).parent
@@ -16,17 +16,17 @@ TEST_SMILES_TOKENIZER_DATA_PATH = Path(_test_data_dir, "test_smiles_tokenizer_da
 
 
 @pytest.mark.parametrize("max_len", range(128, 1024, 128))
-def test_smiles_tokenizer_arbitrary_length(max_len):
-    tokenizer = SmilesTokenizerFast(max_len=max_len)
+def test_query_smiles_tokenizer_arbitrary_length(max_len):
+    tokenizer = QuerySmilesTokenizerFast(max_len=max_len)
     assert tokenizer.model_max_length == max_len
 
 
-def test_smiles_tokenizer():
+def test_query_smiles_tokenizer():
     """Test that custom tokenizer tokenizes smiles string (RDKit canonical or not)
     identically to `DeepChem/SmilesTokenizer_PubChem_1M` tokenizer.
     Note these tokenizer's have different vocab arrangements so this checks the decoded smiles.
     """
-    tokenizer = SmilesTokenizerFast(max_len=128)
+    tokenizer = QuerySmilesTokenizerFast(max_len=128)
     assert tokenizer.unk_token == "<unk>"
     assert tokenizer.cls_token == "<s>"
     assert tokenizer.sep_token == "</s>"
@@ -37,7 +37,7 @@ def test_smiles_tokenizer():
     assert tokenizer.sep_token_id == 2
     assert tokenizer.pad_token_id == 3
     assert tokenizer.mask_token_id == 4
-    assert tokenizer.vocab_size == 581
+    assert tokenizer.vocab_size == 592
 
     df = pd.read_parquet(TEST_SMILES_TOKENIZER_DATA_PATH)
     ground_truth_tokenizer: RobertaTokenizerFast = RobertaTokenizerFast.from_pretrained(

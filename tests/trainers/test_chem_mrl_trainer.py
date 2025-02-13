@@ -17,6 +17,7 @@ from chem_mrl.schemas.Enums import (
     TanimotoSimilarityBaseLossFctOption,
     WatchLogOption,
 )
+from chem_mrl.tokenizers import QuerySmilesTokenizerFast
 from chem_mrl.trainers import ChemMRLTrainer, TempDirTrainerExecutor
 
 
@@ -169,6 +170,26 @@ def test_chem_2d_mrl_trainer_instantiation():
     assert isinstance(trainer, ChemMRLTrainer)
     assert isinstance(trainer.config.model, ChemMRLConfig)
     assert trainer.config.model.use_2d_matryoshka is True
+
+
+def test_query_chem_mrl_trainer():
+    config = BaseConfig(
+        model=ChemMRLConfig(
+            use_query_tokenizer=True,
+        ),
+        train_dataset_path=TEST_CHEM_MRL_PATH,
+        val_dataset_path=TEST_CHEM_MRL_PATH,
+    )
+    trainer = ChemMRLTrainer(config)
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
+    assert isinstance(result, float)
+    assert isinstance(trainer, ChemMRLTrainer)
+    assert isinstance(trainer.config.model, ChemMRLConfig)
+    assert trainer.config.model.use_query_tokenizer is True
+    assert isinstance(trainer.model.tokenizer, QuerySmilesTokenizerFast)
+    assert trainer.model.get_max_seq_length() == trainer.model.tokenizer.model_max_length
+    assert trainer.model.max_seq_length == trainer.model.tokenizer.model_max_length
 
 
 def test_mrl_dimension_weights_validation():

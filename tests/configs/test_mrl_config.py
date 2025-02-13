@@ -12,6 +12,7 @@ from chem_mrl.schemas.ChemMRLConfig import (
 def test_chem_mrl_config_custom_values():
     custom_weights = (1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4)
     config = ChemMRLConfig(
+        use_query_tokenizer=True,
         embedding_pooling=EmbeddingPoolingOption.weightedmean,
         loss_func=ChemMrlLossFctOption.angleloss,
         tanimoto_similarity_loss_func=TanimotoSimilarityBaseLossFctOption.mse,
@@ -25,6 +26,7 @@ def test_chem_mrl_config_custom_values():
         kl_temperature=0.7,
     )
 
+    assert config.use_query_tokenizer is True
     assert config.embedding_pooling == "weightedmean"
     assert config.loss_func == "angleloss"
     assert config.tanimoto_similarity_loss_func == "mse"
@@ -154,6 +156,8 @@ def test_chem_mrl_config_type_validation():
     with pytest.raises(TypeError):
         ChemMRLConfig(model_name=1)
     with pytest.raises(TypeError):
+        ChemMRLConfig(use_query_tokenizer=1)
+    with pytest.raises(TypeError):
         ChemMRLConfig(embedding_pooling=1)
     with pytest.raises(TypeError):
         ChemMRLConfig(loss_func=1)
@@ -169,6 +173,8 @@ def test_chem_mrl_config_type_validation():
         ChemMRLConfig(mrl_dimension_weights=1)
     with pytest.raises(TypeError):
         ChemMRLConfig(n_dims_per_step="1")
+    with pytest.raises(TypeError):
+        ChemMRLConfig(use_2d_matryoshka="1")
     with pytest.raises(TypeError):
         ChemMRLConfig(n_layers_per_step="1")
     with pytest.raises(TypeError):

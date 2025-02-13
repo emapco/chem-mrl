@@ -75,9 +75,46 @@ test_eval_metric = (
 # Otherwise returns the final validation eval metric
 ```
 
-### Experimental Latent Attention Layer
+### Experimental
 
-The Latent Attention Layer model is an experimental component designed to enhance the representation learning of transformer-based models by introducing a trainable latent dictionary. This mechanism applies cross-attention between token embeddings and a set of learnable latent vectors before pooling, effectively enriching contextual representations. The output of this layer contributes to both **1D Matryoshka loss** (as the final layer output) and **2D Matryoshka loss** (by integrating into all-layer outputs). Note: initial tests shows that it leads to overfitting.
+#### Train a Query Model
+
+To train a querying model, configure the model to utilize the specialized query tokenizer.
+
+The query tokenizer supports the following query types:
+
+- similar: Computes SMILES similarity between two molecular structures. For retrieving similar SMILES.
+- substructure: Determines the presence of a substructure within the second SMILES string.
+- families: Identifies the presence of RDKit’s base chemical feature families in the second SMILES string.
+
+Supported query formats for `smiles_a` column:
+
+- `similar {smiles}`
+- `substructure {smiles}`
+- `families {space delimited list of feature families}`
+
+```python
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig
+from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.trainers import ChemMRLTrainer
+
+config = BaseConfig(
+    model=ChemMRLConfig(
+        model_name=BASE_MODEL_NAME,
+        use_query_tokenizer=True,  # Train a query model
+    ),
+    train_dataset_path="train.parquet",
+    val_dataset_path="val.parquet",
+    smiles_a_column_name="query",
+    smiles_b_column_name="target_smiles",
+    label_column_name="similarity",
+)
+trainer = ChemMRLTrainer(config)
+```
+
+#### Latent Attention Layer
+
+The Latent Attention Layer model is an experimental component designed to enhance the representation learning of transformer-based models by introducing a trainable latent dictionary. This mechanism applies cross-attention between token embeddings and a set of learnable latent vectors before pooling. The output of this layer contributes to both **1D Matryoshka loss** (as the final layer output) and **2D Matryoshka loss** (by integrating into all-layer outputs). Note: initial tests suggests that when using default configuration, the latent attention layer leads to overfitting.
 
 ```python
 from chem_mrl.models import LatentAttentionLayer
@@ -103,7 +140,6 @@ config = BaseConfig(
 
 # Train a model with latent attention
 trainer = ChemMRLTrainer(config)
-test_eval_metric = trainer.train()
 ```
 
 ### Custom Evaluation Callbacks

@@ -14,6 +14,7 @@ latent_attention_config:
   output_normalize: false
   enable: false
 
+use_query_tokenizer: false # Use QuerySmilesTokenizer to train a querying model. Currently supports `similarity`, `families`, `substructure` queries
 embedding_pooling: mean # Pooling layer method applied to the embeddings.
 # For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling
 # Valid options
