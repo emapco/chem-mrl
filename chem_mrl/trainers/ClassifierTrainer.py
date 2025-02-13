@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from datetime import datetime
 
 import pandas as pd
 import torch
@@ -137,10 +138,12 @@ class ClassifierTrainer(_BaseTrainer):
 
     def _initialize_model(self):
         assert isinstance(self._config.model, ClassifierConfig)
-        return SentenceTransformer(
+        model = SentenceTransformer(
             self._config.model.model_name,
             truncate_dim=self._config.model.classifier_hidden_dimension,
         )
+        logger.info(model)
+        return model
 
     def _initialize_data(
         self,
@@ -178,9 +181,10 @@ class ClassifierTrainer(_BaseTrainer):
             batch_size=self._config.train_batch_size,
             shuffle=True,
             pin_memory=self._config.pin_memory,
-            pin_memory_device=pin_device,
+            pin_memory_device=pin_device if self._config.pin_memory else "",
             num_workers=self._config.n_dataloader_workers,
-            persistent_workers=self._config.persistent_workers,
+            persistent_workers=bool(self._config.n_dataloader_workers),
+            multiprocessing_context=self._config.multiprocess_context,
         )
 
         logging.info(f"Loading {val_file} dataset")
@@ -210,9 +214,10 @@ class ClassifierTrainer(_BaseTrainer):
             batch_size=self._config.eval_batch_size,
             shuffle=False,
             pin_memory=self._config.pin_memory,
-            pin_memory_device=pin_device,
+            pin_memory_device=pin_device if self._config.pin_memory else "",
             num_workers=self._config.n_dataloader_workers,
-            persistent_workers=self._config.persistent_workers,
+            persistent_workers=bool(self._config.n_dataloader_workers),
+            multiprocessing_context=self._config.multiprocess_context,
         )
 
         test_dl = None
@@ -244,9 +249,10 @@ class ClassifierTrainer(_BaseTrainer):
                 batch_size=self._config.eval_batch_size,
                 shuffle=False,
                 pin_memory=self._config.pin_memory,
-                pin_memory_device=pin_device,
+                pin_memory_device=pin_device if self._config.pin_memory else "",
                 num_workers=self._config.n_dataloader_workers,
-                persistent_workers=self._config.persistent_workers,
+                persistent_workers=bool(self._config.n_dataloader_workers),
+                multiprocessing_context=self._config.multiprocess_context,
             )
 
         num_labels = train_df[self._config.label_column_name].nunique()
@@ -296,11 +302,11 @@ class ClassifierTrainer(_BaseTrainer):
 
     def _initialize_output_path(self):
         assert isinstance(self._config.model, ClassifierConfig)
-        try:
-            model_name = self._config.model.model_name.split("/", 1)[1]
-        except IndexError:
-            model_name = self._config.model.model_name
 
-        output_path = os.path.join(self._config.model_output_path, f"classifier-{model_name}")
+        output_path = os.path.join(
+            self._config.model_output_path,
+            f"classifier-{self._config.model.model_name.replace('/', '-')}"
+            f"-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}",
+        )
         logger.info(f"Output path: {output_path}")
         return output_path

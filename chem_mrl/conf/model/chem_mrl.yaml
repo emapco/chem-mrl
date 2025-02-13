@@ -11,8 +11,8 @@ latent_attention_config:
   num_latents: 512
   num_cross_heads: 8
   cross_head_dim: 64
-  output_normalize: true
-  enable: true
+  output_normalize: false
+  enable: false
 
 embedding_pooling: mean # Pooling layer method applied to the embeddings.
 # For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling

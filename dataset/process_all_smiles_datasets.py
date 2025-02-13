@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from typing import List
 
 # import pandas as cudf  # cpu
 import cudf  # gpu
@@ -54,7 +53,7 @@ def load_parquet_file(file_path: str) -> cudf.DataFrame:
     return df
 
 
-def get_valid_files(output_dir: str) -> List[str]:
+def get_valid_files(output_dir: str) -> list[str]:
     excluded_keywords = [
         "zinc20",  # too large
         "fp_sim",  # fingerprint datasets
@@ -71,9 +70,7 @@ def clean_dataframe(df: cudf.DataFrame) -> DataFrame:
     df.drop_duplicates(subset=["smiles"], keep="first", inplace=True, ignore_index=True)
 
     # Clean invalid values
-    df.loc[
-        df["inchi"].notnull() & (df["inchi"].str.startswith("InChI=") is False), "inchi"
-    ] = None
+    df.loc[df["inchi"].notnull() & (df["inchi"].str.startswith("InChI=") is False), "inchi"] = None
 
     for col in ["name", "formula", "smiles"]:
         df.loc[df[col] == "N/A", col] = None

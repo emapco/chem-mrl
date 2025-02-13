@@ -26,6 +26,11 @@ class WatchLogOption(ExplicitEnum):
     all = "all"
 
 
+class MultiProcessContextOption(ExplicitEnum):
+    fork = "fork"
+    spawn = "spawn"
+
+
 class SchedulerOption(ExplicitEnum):
     constantlr = "constantlr"
     warmupconstant = "warmupconstant"
