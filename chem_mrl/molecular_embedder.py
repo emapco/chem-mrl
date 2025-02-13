@@ -3,6 +3,7 @@ from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer, models
+from sentence_transformers.util import get_device_name
 
 from chem_mrl.constants import BASE_MODEL_HIDDEN_DIM, BASE_MODEL_NAME
 
@@ -13,11 +14,11 @@ class ChemMRL:
     def __init__(
         self,
         model_name: str,
-        fp_size: int | None = None,
-        use_half_precision: bool = True,
-        device: str = "cuda",
+        embedding_size: int | None = None,
+        use_half_precision: bool = False,
         batch_size: int = 4096,
         normalize_embeddings: bool | None = True,
+        device: str | None = None,
     ) -> None:
         """
         Initialize the SMILES embedder with specified parameters.
@@ -25,43 +26,34 @@ class ChemMRL:
         Args:
             model_name: Name or file path of the transformer model to use.
                 Can either a path to a trained chem-mrl model or a pretrained model on HuggingFace.
-            fp_size: Size of the embedding vector (for truncation)
+            embedding_size: Size of the embedding vector
             use_half_precision: Whether to use FP16 precision
-            device: Device to run the model on ('cuda' or 'cpu')
+            device: Device to run the model on
             batch_size: Batch size for inference
             normalize_embeddings: Whether to normalize the embeddings
         """
-        if fp_size is not None and fp_size < 32:
-            raise ValueError("fp_size must be greater than 32")
-        if fp_size is not None and fp_size > BASE_MODEL_HIDDEN_DIM:
-            raise ValueError(f"fp_size must be less than {BASE_MODEL_HIDDEN_DIM}")
         self._model_name = model_name
-        self._fp_size = fp_size
+        self._embedding_size = embedding_size
         self._use_half_precision = use_half_precision
-        self._device = device
         self._batch_size = batch_size
-        if normalize_embeddings is None:
-            normalize_embeddings = fp_size is not None and fp_size < BASE_MODEL_HIDDEN_DIM
-        self._normalize_embeddings = normalize_embeddings
+        self._device = device
 
-        if model_name == BASE_MODEL_NAME:
-            if fp_size is not None and fp_size != BASE_MODEL_HIDDEN_DIM:
-                raise ValueError(f"{BASE_MODEL_NAME} only supports embeddings of size 768")
-            word_embedding_model = models.Transformer(model_name)
-            pooling_model = models.Pooling(
-                word_embedding_model.get_word_embedding_dimension(), pooling_mode="mean"
+        self._model = self._init_model()
+        model_embedding_dimension = (
+            self._model.get_sentence_embedding_dimension() or BASE_MODEL_HIDDEN_DIM
+        )
+        if self._use_half_precision:
+            self._model = self._model.half()
+        # Check if the requested embedding size is greater than model hidden dimension
+        if self._embedding_size is not None and self._embedding_size > model_embedding_dimension:
+            raise ValueError(f"embedding_size must be less than equal to {BASE_MODEL_HIDDEN_DIM}")
+
+        # normalize if embeddings are truncated and not specified otherwise
+        if normalize_embeddings is None:
+            normalize_embeddings = (
+                embedding_size is not None and embedding_size < model_embedding_dimension
             )
-            self._model = SentenceTransformer(
-                modules=[word_embedding_model, pooling_model],
-                device=device,
-            )
-        else:
-            enable_truncate_dim = fp_size is not None and fp_size < BASE_MODEL_HIDDEN_DIM
-            self._model = SentenceTransformer(
-                model_name,
-                device=device,
-                truncate_dim=fp_size if enable_truncate_dim else None,
-            )
+        self._normalize_embeddings = normalize_embeddings
 
     @property
     def model_name(self) -> str:
@@ -69,14 +61,14 @@ class ChemMRL:
 
     @property
     def fp_size(self) -> int | None:
-        return self._fp_size
+        return self._embedding_size
 
     @property
     def use_half_precision(self) -> bool:
         return self._use_half_precision
 
     @property
-    def device(self) -> str:
+    def device(self) -> str | None:
         return self._device
 
     @property
@@ -87,9 +79,35 @@ class ChemMRL:
     def normalize_embeddings(self) -> bool:
         return self._normalize_embeddings
 
-    def _set_model_half_precision(self) -> None:
-        if self._use_half_precision:
-            self._model = self._model.half()
+    def _init_model(self) -> SentenceTransformer:
+        if self._model_name == BASE_MODEL_NAME:
+            embedding_model = models.Transformer(self._model_name)
+            embedding_dimension = embedding_model.get_word_embedding_dimension()
+            if self._embedding_size is not None and self._embedding_size != embedding_dimension:
+                raise ValueError(
+                    f"{BASE_MODEL_NAME} only supports embeddings of size {embedding_dimension}"
+                )
+
+            return SentenceTransformer(
+                modules=[
+                    embedding_model,
+                    models.Pooling(
+                        embedding_model.get_word_embedding_dimension(),
+                        pooling_mode="mean",
+                    ),
+                    models.Normalize(),
+                ],
+                device=self._device,
+            )
+
+        enable_truncate_dim = (
+            self._embedding_size is not None and self._embedding_size < BASE_MODEL_HIDDEN_DIM
+        )
+        return SentenceTransformer(
+            self._model_name,
+            device=self._device,
+            truncate_dim=self._embedding_size if enable_truncate_dim else None,
+        )
 
     def get_embeddings(
         self,
@@ -111,7 +129,7 @@ class ChemMRL:
             batch_size=self._batch_size,
             show_progress_bar=show_progress_bar,
             convert_to_numpy=convert_to_numpy,
-            device=self._device,
+            device=self._device or get_device_name(),
             normalize_embeddings=self._normalize_embeddings,
         )
 
@@ -120,7 +138,12 @@ class ChemMRL:
 
         return embeddings
 
-    def get_embedding(self, smiles: str, convert_to_numpy=True) -> np.ndarray:
+    def get_embedding(
+        self,
+        smiles: str,
+        convert_to_numpy=True,
+        show_progress_bar=False,
+    ) -> np.ndarray:
         """
         Generate embedding for a single SMILES string.
 
@@ -130,4 +153,6 @@ class ChemMRL:
         Returns:
             numpy array of embedding
         """
-        return self.get_embeddings([smiles], convert_to_numpy=convert_to_numpy)[0]
+        return self.get_embeddings(
+            [smiles], convert_to_numpy=convert_to_numpy, show_progress_bar=show_progress_bar
+        )[0]

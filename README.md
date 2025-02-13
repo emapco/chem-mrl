@@ -51,7 +51,7 @@ from chem_mrl.trainers import ChemMRLTrainer
 # Define training configuration
 config = BaseConfig(
     model=ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,  # Predefined model name - Can be a any transformer model name or path that is compatible with sentence-transformers
+        model_name=BASE_MODEL_NAME,  # Predefined model name - Can be any transformer model name or path that is compatible with sentence-transformers
         n_dims_per_step=3,  # Model-specific hyperparameter
         use_2d_matryoshka=True,  # Enable 2d MRL
         # Additional parameters specific to 2D MRL models
@@ -77,7 +77,7 @@ test_eval_metric = (
 
 ### Experimental Latent Attention Layer
 
-The **Latent Attention Layer** is an experimental component designed to enhance the representation learning of transformer-based models by introducing a **trainable latent dictionary**. This mechanism applies **cross-attention** between token embeddings and a set of learnable latent vectors before pooling, effectively enriching contextual representations. The output of this layer contributes to both **1D Matryoshka loss** (as the final layer output) and **2D Matryoshka loss** (by integrating into all-layer outputs).
+The Latent Attention Layer model is an experimental component designed to enhance the representation learning of transformer-based models by introducing a trainable latent dictionary. This mechanism applies cross-attention between token embeddings and a set of learnable latent vectors before pooling, effectively enriching contextual representations. The output of this layer contributes to both **1D Matryoshka loss** (as the final layer output) and **2D Matryoshka loss** (by integrating into all-layer outputs). Note: initial tests shows that it leads to overfitting.
 
 ```python
 from chem_mrl.models import LatentAttentionLayer
@@ -87,12 +87,12 @@ from chem_mrl.trainers import ChemMRLTrainer
 
 config = BaseConfig(
     model=ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,  # Predefined model name - Can be a any transformer
+        model_name=BASE_MODEL_NAME,
         latent_attention_config=LatentAttentionConfig(
             hidden_dim=768,  # Transformer hidden size
             num_latents=512,  # Number of learnable latents
             num_cross_heads=8,  # Number of attention heads
-            cross_head_dim=64,  # Dimensionality of each head
+            cross_head_dim=32,  # Dimensionality of each head
             output_normalize=True,  # Apply L2 normalization to outputs
         ),
         use_2d_matryoshka=True,

@@ -5,9 +5,9 @@ import pandas as pd
 
 from chem_mrl.benchmark import PgVectorBenchmark
 from chem_mrl.constants import (
+    BASE_MODEL_HIDDEN_DIM,
     BASE_MODEL_NAME,
     CHEM_MRL_DIMENSIONS,
-    EMBEDDING_MODEL_HIDDEN_DIM,
     OUTPUT_DATA_DIR,
 )
 
@@ -26,17 +26,18 @@ def parse_args():
         default="./",
         help="Path to the output directory where benchmark results will be stored.",
     )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="Random seed for sampling."
-    )
-    parser.add_argument(
-        "--num_rows", type=int, default=500, help="Number of rows to sample."
-    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling.")
+    parser.add_argument("--num_rows", type=int, default=500, help="Number of rows to sample.")
     parser.add_argument(
         "--psql_connection_uri",
         type=str,
         default="postgresql://postgres:password@127.0.0.1:5431/postgres",
         help="PostgreSQL connection URI string.",
+    )
+    parser.add_argument(
+        "--use_functional_fp",
+        action="store_true",
+        help="Use functional fingerprints instead of morgan fingerprint.",
     )
     parser.add_argument(
         "--knn_k", type=int, default=50, help="Number of neighbors for k-NN search."
@@ -47,7 +48,7 @@ def parse_args():
         help="Name of the model to use. Either file path or a hugging-face model name",
     )
     parser.add_argument(
-        "--model_mrl_dimensions",
+        "--chem_mrl_dimensions",
         nargs="+",
         type=int,
         default=CHEM_MRL_DIMENSIONS,
@@ -62,39 +63,34 @@ def parse_args():
     parser.add_argument(
         "--base_model_hidden_dim",
         type=int,
-        default=EMBEDDING_MODEL_HIDDEN_DIM,
+        default=BASE_MODEL_HIDDEN_DIM,
         help="Base model hidden dimension",
     )
-    parser.add_argument(
-        "--smiles_column_name",
-        type=str,
-        default="smiles",
-        help="Name of the SMILES column in the dataset",
-    )
-
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     ARGS = parse_args()
 
+    smiles_column_name = "smiles"
     test_queries = pd.read_csv(ARGS.dataset_path, sep=" ", header=None)
     test_queries = test_queries.sample(ARGS.num_rows, random_state=ARGS.seed)
-    test_queries.columns = ["smiles", "zinc_id"]
+    test_queries.columns = [smiles_column_name, "zinc_id"]
     test_queries = test_queries.drop(columns=["zinc_id"])
 
     benchmarker = PgVectorBenchmark(
         psql_connect_uri=ARGS.psql_connection_uri,
         output_path=ARGS.output_path,
         knn_k=ARGS.knn_k,
+        use_functional_fp=ARGS.use_functional_fp,
     )
     detailed_results, summary_stats = benchmarker.run_benchmark(
         test_queries=test_queries,
         model_name=ARGS.model_name,
-        model_mrl_dimensions=ARGS.model_mrl_dimensions,
+        chem_mrl_dimensions=ARGS.chem_mrl_dimensions,
         base_model_name=ARGS.base_model_name,
         base_model_hidden_dim=ARGS.base_model_hidden_dim,
-        smiles_column_name=ARGS.smiles_column_name,
+        smiles_column_name=smiles_column_name,
     )
 
     header = "Benchmark Results Summary:"

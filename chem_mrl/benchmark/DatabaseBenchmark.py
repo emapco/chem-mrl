@@ -1,3 +1,4 @@
+import logging
 import os
 from time import perf_counter
 
@@ -8,17 +9,29 @@ from chem_mrl.constants import (
     BASE_MODEL_HIDDEN_DIM,
     BASE_MODEL_NAME,
     CHEM_MRL_DIMENSIONS,
+    TEST_FP_SIZES,
 )
 from chem_mrl.molecular_embedder import ChemMRL
 from chem_mrl.molecular_fingerprinter import MorganFingerprinter
+from chem_mrl.util import setup_logging
+
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class PgVectorBenchmark:
-    def __init__(self, psql_connect_uri: str, output_path: str, knn_k: int = 50):
+    def __init__(
+        self,
+        psql_connect_uri: str,
+        output_path: str,
+        knn_k: int = 50,
+        use_functional_fp: bool = False,
+    ):
         self.knn_k = knn_k
         self.engine = create_engine(psql_connect_uri)
         self.output_path = output_path
-        self.truth_dim = 2048
+        self.truth_dim = max(TEST_FP_SIZES)
+        self.use_functional_fp = use_functional_fp
 
     def execute_knn_query(
         self,
@@ -78,7 +91,10 @@ class PgVectorBenchmark:
         ground_truth: list[str],
         dim: int,
     ):
-        morgan_embedding = morgan_fp.get_functional_fingerprint_numpy(smiles)
+        if self.use_functional_fp:
+            morgan_embedding = morgan_fp.get_functional_fingerprint_numpy(smiles)
+        else:
+            morgan_embedding = morgan_fp.get_fingerprint_numpy(smiles)
         if isinstance(morgan_embedding, float):
             return None
 
@@ -127,7 +143,11 @@ class PgVectorBenchmark:
     ) -> list[str] | float:
         """
         Generate ground truth data for testing."""
-        ground_truth_embedding = ground_truth_fp.get_functional_fingerprint_numpy(smiles=smiles)
+        if self.use_functional_fp:
+            ground_truth_embedding = ground_truth_fp.get_functional_fingerprint_numpy(smiles)
+        else:
+            ground_truth_embedding = ground_truth_fp.get_fingerprint_numpy(smiles)
+
         if isinstance(ground_truth_embedding, float):
             return ground_truth_embedding
 
@@ -142,35 +162,37 @@ class PgVectorBenchmark:
         self,
         test_queries: pd.DataFrame,
         model_name: str,
-        model_mrl_dimensions: list[int] = CHEM_MRL_DIMENSIONS,
+        chem_mrl_dimensions: list[int] = CHEM_MRL_DIMENSIONS,
         base_model_name: str = BASE_MODEL_NAME,
         base_model_hidden_dim: int = BASE_MODEL_HIDDEN_DIM,
         smiles_column_name: str = "smiles",
     ):
-        print("Starting benchmark...")
+        logger.info("Starting benchmark...")
         results_data = []
 
         # compute the ground_truth for all rows first
         ground_truth_fp = MorganFingerprinter(radius=2, fp_size=self.truth_dim)
         ground_truth_queries = test_queries.copy()
+        logger.info("Generating ground truth results")
         ground_truth_queries["ground_truth"] = ground_truth_queries[smiles_column_name].apply(
             self.generate_ground_truth_result, ground_truth_fp=ground_truth_fp
         )
         ground_truth_queries = ground_truth_queries.dropna(
             subset=["ground_truth"], ignore_index=True
         )
+        logger.info(f"Total rows: {len(ground_truth_queries)}")
 
-        for dim in model_mrl_dimensions:
-            print(f"\nProcessing dimension {dim}")
+        for dim in chem_mrl_dimensions:
+            logger.info(f"Processing dimension {dim}")
 
             morgan_fp = MorganFingerprinter(radius=2, fp_size=dim)
-            mrl_embedder = ChemMRL(model_name=model_name, fp_size=dim)
+            mrl_embedder = ChemMRL(model_name=model_name, embedding_size=dim)
             if dim == base_model_hidden_dim:
-                base_embedder = ChemMRL(model_name=base_model_name, fp_size=dim)
+                base_embedder = ChemMRL(model_name=base_model_name, embedding_size=dim)
 
             for idx, row in ground_truth_queries.iterrows():
                 if idx % 100 == 0:  # type: ignore
-                    print(f"Processing query {idx + 1}/{len(ground_truth_queries)}")  # type: ignore
+                    logger.info(f"Processing query {idx + 1}/{len(ground_truth_queries)}")  # type: ignore
 
                 results_data.append(
                     self.test_morgan_fingerprints(
@@ -190,7 +212,7 @@ class PgVectorBenchmark:
                         dim=dim,
                     )
                 )
-                if dim == 768:
+                if dim == BASE_MODEL_HIDDEN_DIM:
                     results_data.append(
                         self.test_transformer_embeddings(
                             smiles_embedder=base_embedder,
