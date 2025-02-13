@@ -163,7 +163,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
 
         logger.info(
             f"{self.main_similarity.capitalize()} Similarity :"
-            f"\t{self.metric.capitalize()}: {eval_metric:.5f}"
+            + f"\t{self.metric.capitalize()}: {eval_metric:.5f}\n"
         )
 
         _write_results_to_csv(

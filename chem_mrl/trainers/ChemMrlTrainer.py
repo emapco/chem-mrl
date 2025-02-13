@@ -1,6 +1,7 @@
 import logging
 import os
 from dataclasses import dataclass
+from datetime import datetime
 
 import pandas as pd
 from sentence_transformers import SentenceTransformer, models
@@ -130,9 +131,9 @@ class ChemMRLTrainer(_BaseTrainer):
     def _initialize_model(self) -> SentenceTransformer:
         assert isinstance(self._config.model, ChemMRLConfig)
 
-        model = models.Transformer(self._config.model.model_name)
+        base_model = models.Transformer(self._config.model.model_name)
         pooling_model = models.Pooling(
-            model.get_word_embedding_dimension(),
+            base_model.get_word_embedding_dimension(),
             pooling_mode=self._config.model.embedding_pooling,
         )
         normalization_model = models.Normalize()
@@ -144,11 +145,13 @@ class ChemMRLTrainer(_BaseTrainer):
             latent_attention_model = LatentAttentionLayer(
                 self._config.model.latent_attention_config
             )
-            modules = [model, latent_attention_model, pooling_model, normalization_model]
+            modules = [base_model, latent_attention_model, pooling_model, normalization_model]
         else:
-            modules = [model, pooling_model, normalization_model]
+            modules = [base_model, pooling_model, normalization_model]
 
-        return SentenceTransformer(modules=modules)
+        model = SentenceTransformer(modules=modules)
+        logger.info(model)
+        return model
 
     def _initialize_data(
         self,
@@ -192,9 +195,10 @@ class ChemMRLTrainer(_BaseTrainer):
             batch_size=self._config.train_batch_size,
             shuffle=True,
             pin_memory=self._config.pin_memory,
-            pin_memory_device=pin_device,
+            pin_memory_device=pin_device if self._config.pin_memory else "",
             num_workers=self._config.n_dataloader_workers,
-            persistent_workers=self._config.persistent_workers,
+            persistent_workers=bool(self._config.n_dataloader_workers),
+            multiprocessing_context=self._config.multiprocess_context,
         )
 
         logging.info(f"Loading {val_file} dataset")
@@ -302,7 +306,12 @@ class ChemMRLTrainer(_BaseTrainer):
         if self._config.model.use_2d_matryoshka:
             mrl_infix = "2d"
 
-        output_path = os.path.join(self._config.model_output_path, f"chem-{mrl_infix}mrl")
+        output_path = os.path.join(
+            self._config.model_output_path,
+            f"chem-{mrl_infix}mrl-{self._config.model.model_name.replace('/', '-')}"
+            f"-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}",
+        )
+
         logger.info(f"Output path: {output_path}")
         return output_path
 

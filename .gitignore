@@ -33,3 +33,4 @@ TODO
 
 !tests/data
 !tests/data/*.parquet
+!vocab.json

@@ -4,6 +4,7 @@ import pytest
 from chem_mrl.schemas import ChemMRLConfig
 from chem_mrl.schemas.BaseConfig import (
     BaseConfig,
+    MultiProcessContextOption,
     SchedulerOption,
     WandbConfig,
     WatchLogOption,
@@ -97,8 +98,8 @@ def test_base_config_custom_values():
         n_val_samples=500,
         n_test_samples=200,
         n_dataloader_workers=4,
-        persistent_workers=True,
         pin_memory=True,
+        multiprocess_context=MultiProcessContextOption.fork,
         generate_dataset_examples_at_init=False,
         train_batch_size=64,
         eval_batch_size=128,
@@ -127,8 +128,8 @@ def test_base_config_custom_values():
     assert config.n_val_samples == 500
     assert config.n_test_samples == 200
     assert config.n_dataloader_workers == 4
-    assert config.persistent_workers is True
     assert config.pin_memory is True
+    assert config.multiprocess_context == MultiProcessContextOption.fork
     assert config.generate_dataset_examples_at_init is False
     assert config.train_batch_size == 64
     assert config.eval_batch_size == 128
@@ -216,6 +217,13 @@ def test_base_config_validation():
             train_dataset_path="test",
             val_dataset_path="test",
             n_dataloader_workers=-1,
+        )
+    with pytest.raises(ValueError, match="multiprocess_context must be one of"):
+        BaseConfig(
+            model=ChemMRLConfig(),
+            train_dataset_path="test",
+            val_dataset_path="test",
+            multiprocess_context="invalid",
         )
     with pytest.raises(ValueError, match="train_batch_size must be greater than 0"):
         BaseConfig(
@@ -362,9 +370,9 @@ def test_base_config_type_validation():
     with pytest.raises(TypeError):
         BaseConfig(n_dataloader_workers=1.5)
     with pytest.raises(TypeError):
-        BaseConfig(persistent_workers=1.5)
-    with pytest.raises(TypeError):
         BaseConfig(pin_memory=1.5)
+    with pytest.raises(TypeError):
+        BaseConfig(multiprocess_context=1.5)
     with pytest.raises(TypeError):
         BaseConfig(generate_dataset_examples_at_init=1.5)
     with pytest.raises(TypeError):

@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass
 from typing import Any, TypeVar
 
-from .Enums import SchedulerOption, WatchLogOption
+from .Enums import MultiProcessContextOption, SchedulerOption, WatchLogOption
 
 BoundConfigType = TypeVar("BoundConfigType", bound="BaseConfig")
 
@@ -56,8 +56,8 @@ class BaseConfig:
     n_val_samples: int | None = None
     n_test_samples: int | None = None
     n_dataloader_workers: int = 0
-    persistent_workers: bool = False
     pin_memory: bool = False
+    multiprocess_context: MultiProcessContextOption | None = None
     generate_dataset_examples_at_init: bool = True
     train_batch_size: int = 32
     eval_batch_size: int = 32
@@ -101,10 +101,10 @@ class BaseConfig:
             raise TypeError("n_test_samples must be an integer or None")
         if not isinstance(self.n_dataloader_workers, int):
             raise TypeError("n_dataloader_workers must be an integer")
-        if not isinstance(self.persistent_workers, bool):
-            raise TypeError("persistent_workers must be a boolean")
         if not isinstance(self.pin_memory, bool):
             raise TypeError("pin_memory must be a boolean")
+        if not isinstance(self.multiprocess_context, str | None):
+            raise TypeError("multiprocess_context must be a string pr None")
         if not isinstance(self.generate_dataset_examples_at_init, bool):
             raise TypeError("generate_dataset_examples_at_init must be a boolean")
         if not isinstance(self.train_batch_size, int):
@@ -164,6 +164,12 @@ class BaseConfig:
             raise ValueError("n_test_samples must be greater than 0")
         if self.n_dataloader_workers < 0:
             raise ValueError("n_dataloader_workers must be positive")
+        if self.multiprocess_context is not None and not isinstance(
+            self.multiprocess_context, MultiProcessContextOption
+        ):
+            raise ValueError(
+                f"multiprocess_context must be one of {MultiProcessContextOption.to_list()}"
+            )
         if self.train_batch_size < 1:
             raise ValueError("train_batch_size must be greater than 0")
         if self.eval_batch_size < 1:

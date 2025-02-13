@@ -93,7 +93,6 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
         parsed_config.pop("smiles_b_column_name", None)
         parsed_config.pop("label_column_name", None)
         parsed_config.pop("n_dataloader_workers", None)
-        parsed_config.pop("persistent_workers", None)
         parsed_config.pop("pin_memory", None)
         parsed_config.pop("generate_dataset_examples_at_init", None)
         parsed_config.pop("model_output_path", None)

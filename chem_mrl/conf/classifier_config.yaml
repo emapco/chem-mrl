@@ -1,6 +1,7 @@
 defaults:
   - base
   - /model: classifier #  classifier or dice_loss_classifier
+  - _self_
 
 smiles_a_column_name: smiles
 smiles_b_column_name: null
