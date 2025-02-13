@@ -40,7 +40,8 @@ requires = ["setuptools>=64", "setuptools-scm>=8.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
-SmilesTokenizerFast = ["*.txt", "*.json"]
+"chem_mrl.tokenizers.SmilesTokenizerFast" = ["*.txt", "*.json"]
+"chem_mrl.tokenizers.QuerySmilesTokenizerFast" = ["*.txt", "*.json"]
 "chem_mrl.conf" = ["*.yaml", "*.yml"]
 "chem_mrl.conf.model" = ["*.yaml", "*.yml"]
 

@@ -16,6 +16,7 @@ from .LatentAttentionConfig import LatentAttentionConfig
 class ChemMRLConfig:
     latent_attention_config: LatentAttentionConfig | None = None
     model_name: str = BASE_MODEL_NAME
+    use_query_tokenizer: bool = False
     embedding_pooling: EmbeddingPoolingOption = EmbeddingPoolingOption.mean
     loss_func: ChemMrlLossFctOption = ChemMrlLossFctOption.tanimotosentloss
     tanimoto_similarity_loss_func: TanimotoSimilarityBaseLossFctOption | None = None
@@ -36,6 +37,8 @@ class ChemMRLConfig:
         # check types
         if not isinstance(self.model_name, str):
             raise TypeError("model_name must be a string")
+        if not isinstance(self.use_query_tokenizer, bool):
+            raise TypeError("use_query_tokenizer must be a bool")
         if not isinstance(self.embedding_pooling, str):
             raise TypeError("embedding_pooling must be a string")
         if not isinstance(self.loss_func, str):

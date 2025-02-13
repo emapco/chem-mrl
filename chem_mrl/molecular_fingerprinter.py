@@ -1,32 +1,19 @@
-from abc import ABC, abstractmethod
+import contextlib
+import os
 
 import numpy as np
-from rdkit import Chem, DataStructs
-from rdkit.Chem import rdFingerprintGenerator
+from rdkit import Chem, DataStructs, RDConfig
+from rdkit.Chem import rdFingerprintGenerator, rdFMCS, rdMolChemicalFeatures
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
 
-class _MolecularFingerprinter(ABC):
-    """Abstract base class for molecular fingerprint generation and comparison."""
-
-    @abstractmethod
-    def get_fingerprint(self, smiles: str) -> DataStructs.ExplicitBitVect | None:
-        """Generate fingerprint for a given SMILES string."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_functional_fingerprint(self, smiles: str) -> DataStructs.ExplicitBitVect | None:
-        """Generate functional fingerprint for a given SMILES string."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def compute_similarity(self, row: dict[str, str], fingerprint_type: str = "morgan") -> float:
-        """Compute similarity between two molecules."""
-        raise NotImplementedError
-
-
-class MorganFingerprinter(_MolecularFingerprinter):
+class MorganFingerprinter:
     """A class to generate and compare Morgan molecular fingerprints using RDKit."""
+
+    feature_defs = rdMolChemicalFeatures.BuildFeatureFactory(
+        os.path.join(RDConfig.RDDataDir, "BaseFeatures.fdef")
+    )
+    feature_families = feature_defs.GetFeatureFamilies()
 
     def __init__(self, radius: int = 2, fp_size: int = 4096) -> None:
         """
@@ -123,9 +110,9 @@ class MorganFingerprinter(_MolecularFingerprinter):
                 Returns NaN if either fingerprint is None.
         """
         get_fp = (
-            self.get_fingerprint
-            if fingerprint_type == "morgan"
-            else self.get_functional_fingerprint
+            self.get_functional_fingerprint
+            if fingerprint_type == "functional"
+            else self.get_fingerprint
         )
 
         fp1 = get_fp(smiles_a)
@@ -148,3 +135,64 @@ class MorganFingerprinter(_MolecularFingerprinter):
             return None
         smiles = Chem.MolToSmiles(mol, canonical=True)
         return smiles
+
+    @classmethod
+    def get_smiles_feature_family_set(cls, smiles: str):
+        fam_feat_set = set()
+        mol = cls._create_mol_from_smiles(smiles)
+        if mol is None:
+            return fam_feat_set
+
+        with contextlib.suppress(IndexError):
+            for atom in mol.GetAtoms():
+                idx = atom.GetIdx()
+                rawFeats = cls.feature_defs.GetMolFeature(mol, idx)
+                fam_feat_set.update(rawFeats.GetFamily().split(", "))
+                if len(fam_feat_set) == len(cls.feature_families):
+                    return fam_feat_set
+        return fam_feat_set
+
+    @classmethod
+    def get_strict_common_smiles(
+        cls,
+        smiles_a: str,
+        smiles_b: str,
+    ) -> str | None:
+        return cls.find_MCS_from_smiles(
+            smiles_a=smiles_a,
+            smiles_b=smiles_b,
+            maximizeBonds=True,
+            timeout=7,
+            completeRingsOnly=True,
+        )
+
+    @classmethod
+    def get_common_smiles(cls, smiles_a: str, smiles_b: str) -> str | None:
+        return cls.find_MCS_from_smiles(
+            smiles_a=smiles_a,
+            smiles_b=smiles_b,
+            maximizeBonds=False,
+            timeout=15,
+            completeRingsOnly=False,
+        )
+
+    @classmethod
+    def find_MCS_from_smiles(cls, smiles_a, smiles_b, **mcs_kwargs) -> str | None:
+        try:
+            res = rdFMCS.FindMCS(
+                [
+                    cls._create_mol_from_smiles(smiles_a),
+                    cls._create_mol_from_smiles(smiles_b),
+                ],
+                **mcs_kwargs,
+            )
+            if res.smartsString == "" or res.canceled:
+                return None
+            smiles = Chem.MolToSmiles(Chem.MolFromSmarts(res.smartsString), canonical=True)
+        except Exception:
+            return None
+
+        try:
+            return rdMolStandardize.StandardizeSmiles(smiles)
+        except Exception:
+            return smiles

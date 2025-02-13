@@ -45,7 +45,7 @@ class ChemMRLTrainer(_BaseTrainer):
         if not isinstance(config.model, ChemMRLConfig):
             raise TypeError("config.model must be a ChemMRLConfig instance")
         self.__model = self._initialize_model()
-
+        self.__model.tokenizer = self._initialize_tokenizer()
         if chem_mrl_dataset_collection is not None:
             self.__train_dataloader = chem_mrl_dataset_collection.train_dataloader
             self.__val_df = chem_mrl_dataset_collection.val_dataframe
@@ -152,6 +152,17 @@ class ChemMRLTrainer(_BaseTrainer):
         model = SentenceTransformer(modules=modules)
         logger.info(model)
         return model
+
+    def _initialize_tokenizer(
+        self,
+    ):
+        assert isinstance(self._config.model, ChemMRLConfig)
+        if not self._config.model.use_query_tokenizer:
+            return self.__model.tokenizer
+
+        from chem_mrl.tokenizers import QuerySmilesTokenizerFast
+
+        return QuerySmilesTokenizerFast(max_len=self.__model.tokenizer.model_max_length)
 
     def _initialize_data(
         self,
