@@ -32,10 +32,10 @@ def test_smiles_tokenizer():
     assert tokenizer.sep_token == "</s>"
     assert tokenizer.pad_token == "<pad>"
     assert tokenizer.mask_token == "<mask>"
-    assert tokenizer.unk_token_id == 0
-    assert tokenizer.cls_token_id == 1
+    assert tokenizer.cls_token_id == 0
+    assert tokenizer.pad_token_id == 1
     assert tokenizer.sep_token_id == 2
-    assert tokenizer.pad_token_id == 3
+    assert tokenizer.unk_token_id == 3
     assert tokenizer.mask_token_id == 4
     assert tokenizer.vocab_size == 581
 

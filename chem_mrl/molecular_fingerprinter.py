@@ -172,7 +172,7 @@ class MorganFingerprinter:
             smiles_a=smiles_a,
             smiles_b=smiles_b,
             maximizeBonds=False,
-            timeout=15,
+            timeout=10,
             completeRingsOnly=False,
         )
 

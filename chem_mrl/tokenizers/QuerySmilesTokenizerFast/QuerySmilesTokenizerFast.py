@@ -20,8 +20,8 @@ class QuerySmilesTokenizerFast(RobertaTokenizerFast):
             max_len=max_len,
             **kwargs,
         )
-        self.unk_token_id = 0
-        self.bos_token_id = 1
+        self.bos_token_id = 0
+        self.pad_token_id = 1
         self.eos_token_id = 2
-        self.pad_token_id = 3
+        self.unk_token_id = 3
         self.pad_token = "<pad>"
