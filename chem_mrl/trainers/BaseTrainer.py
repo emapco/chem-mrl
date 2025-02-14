@@ -57,7 +57,7 @@ class _BaseTrainer(ABC):
 
     @property
     @abstractmethod
-    def loss_fct(self) -> torch.nn.Module:
+    def loss_functions(self) -> list[torch.nn.Module]:
         raise NotImplementedError
 
     @property
@@ -173,7 +173,9 @@ class _BaseTrainer(ABC):
         }
 
         self.model.old_fit(
-            train_objectives=[(self.train_dataloader, self.loss_fct)],
+            train_objectives=[
+                (self.train_dataloader, loss_fct) for loss_fct in self.loss_functions
+            ],
             evaluator=self.val_evaluator,
             epochs=self._config.num_epochs,
             scheduler=self._config.scheduler,

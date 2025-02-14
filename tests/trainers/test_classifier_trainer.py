@@ -89,7 +89,7 @@ def test_classifier_classifier_hidden_dimensions(
     executor = TempDirTrainerExecutor(trainer)
     result = executor.execute()
     assert trainer.model.truncate_dim == dimension
-    assert trainer.loss_fct.smiles_embedding_dimension == dimension
+    assert trainer.loss_functions[0].smiles_embedding_dimension == dimension
     assert isinstance(result, float)
 
 
@@ -115,7 +115,7 @@ def test_classifier_freeze_internal_model():
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
     result = executor.execute()
-    assert trainer.loss_fct.freeze_model is True
+    assert trainer.loss_functions[0].freeze_model is True
     assert isinstance(result, float)
 
 
@@ -126,7 +126,7 @@ def test_classifier_num_labels():
         val_dataset_path=TEST_CLASSIFICATION_PATH,
     )
     trainer = ClassifierTrainer(config)
-    assert trainer.loss_fct.num_labels == 4  # testing dataset only has 4 classes
+    assert trainer.loss_functions[0].num_labels == 4  # testing dataset only has 4 classes
 
 
 @pytest.mark.parametrize("dropout_p", [0.0, 0.1, 0.5, 1.0])
@@ -139,7 +139,7 @@ def test_classifier_dropout(dropout_p):
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
     result = executor.execute()
-    assert trainer.loss_fct.dropout_p == dropout_p
+    assert trainer.loss_functions[0].dropout_p == dropout_p
     assert isinstance(result, float)
 
 
@@ -158,7 +158,7 @@ def test_dice_loss_classifier_trainer_instantiation():
     )
     trainer = ClassifierTrainer(config)
     assert isinstance(trainer, ClassifierTrainer)
-    assert isinstance(trainer.loss_fct, SelfAdjDiceLoss)
+    assert isinstance(trainer.loss_functions[0], SelfAdjDiceLoss)
     assert trainer.config.model.loss_func == "selfadjdice"
 
 
@@ -174,7 +174,7 @@ def test_dice_loss_classifier_dice_reduction_options(dice_reduction):
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
     result = executor.execute()
-    assert isinstance(trainer.loss_fct, SelfAdjDiceLoss)
+    assert isinstance(trainer.loss_functions[0], SelfAdjDiceLoss)
     assert isinstance(result, float)
 
 
@@ -190,7 +190,7 @@ def test_dice_loss_classifier_dice_gamma_values(dice_gamma):
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
     result = executor.execute()
-    assert isinstance(trainer.loss_fct, SelfAdjDiceLoss)
+    assert isinstance(trainer.loss_functions[0], SelfAdjDiceLoss)
     assert isinstance(result, float)
 
 

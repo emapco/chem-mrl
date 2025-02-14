@@ -65,7 +65,7 @@ class ChemMRLTrainer(_BaseTrainer):
                 "or train_dataset_path and val_dataset_path must be provided"
             )
 
-        self.__loss_fct = self._initialize_loss()
+        self.__loss_functions = self._initialize_loss()
         self.__val_evaluator = self._initialize_val_evaluator()
         self.__test_evaluator = self._initialize_test_evaluator()
         self.__model_save_dir = self._initialize_output_path()
@@ -87,8 +87,8 @@ class ChemMRLTrainer(_BaseTrainer):
         return self.__train_dataloader
 
     @property
-    def loss_fct(self):
-        return self.__loss_fct
+    def loss_functions(self):
+        return self.__loss_functions
 
     @property
     def val_evaluator(self):
@@ -289,26 +289,36 @@ class ChemMRLTrainer(_BaseTrainer):
         from chem_mrl.losses import Matryoshka2dLoss, MatryoshkaLoss
 
         assert isinstance(self._config.model, ChemMRLConfig)
+        loss_functions = []
+
+        assert isinstance(self._config.model, ChemMRLConfig)
         if self._config.model.use_2d_matryoshka:
-            return Matryoshka2dLoss(
-                self.__model,
-                self._get_base_loss(self.__model, self._config.model),
-                list(self._config.model.mrl_dimensions),
-                matryoshka_weights=list(self._config.model.mrl_dimension_weights),
-                n_layers_per_step=self._config.model.n_layers_per_step,
-                n_dims_per_step=self._config.model.n_dims_per_step,
-                last_layer_weight=self._config.model.last_layer_weight,
-                prior_layers_weight=self._config.model.prior_layers_weight,
-                kl_div_weight=self._config.model.kl_div_weight,
-                kl_temperature=self._config.model.kl_temperature,
+            loss_functions.append(
+                Matryoshka2dLoss(
+                    self.__model,
+                    self._get_base_loss(self.__model, self._config.model),
+                    list(self._config.model.mrl_dimensions),
+                    matryoshka_weights=list(self._config.model.mrl_dimension_weights),
+                    n_layers_per_step=self._config.model.n_layers_per_step,
+                    n_dims_per_step=self._config.model.n_dims_per_step,
+                    last_layer_weight=self._config.model.last_layer_weight,
+                    prior_layers_weight=self._config.model.prior_layers_weight,
+                    kl_div_weight=self._config.model.kl_div_weight,
+                    kl_temperature=self._config.model.kl_temperature,
+                )
             )
-        return MatryoshkaLoss(
-            self.__model,
-            self._get_base_loss(self.__model, self._config.model),
-            list(self._config.model.mrl_dimensions),
-            matryoshka_weights=list(self._config.model.mrl_dimension_weights),
-            n_dims_per_step=self._config.model.n_dims_per_step,
-        )
+        else:
+            loss_functions.append(
+                MatryoshkaLoss(
+                    self.__model,
+                    self._get_base_loss(self.__model, self._config.model),
+                    list(self._config.model.mrl_dimensions),
+                    matryoshka_weights=list(self._config.model.mrl_dimension_weights),
+                    n_dims_per_step=self._config.model.n_dims_per_step,
+                )
+            )
+
+        return loss_functions
 
     def _initialize_output_path(self):
         assert isinstance(self._config.model, ChemMRLConfig)

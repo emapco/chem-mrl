@@ -73,7 +73,7 @@ class ClassifierTrainer(_BaseTrainer):
                 "or train_dataset_path and val_dataset_path (in the config) must be provided"
             )
 
-        self.__loss_fct = self._initialize_loss()
+        self.__loss_functions = [self._initialize_loss()]
         self.__val_evaluator = self._initialize_val_evaluator()
         self.__test_evaluator = self._initialize_test_evaluator()
         self.__model_save_dir = self._initialize_output_path()
@@ -95,8 +95,8 @@ class ClassifierTrainer(_BaseTrainer):
         return self.__train_dataloader
 
     @property
-    def loss_fct(self):
-        return self.__loss_fct
+    def loss_functions(self):
+        return self.__loss_functions
 
     @property
     def val_evaluator(self):
@@ -262,7 +262,7 @@ class ClassifierTrainer(_BaseTrainer):
     def _initialize_val_evaluator(self):
         return LabelAccuracyEvaluator(
             dataloader=self.__val_dataloader,
-            softmax_model=self.__loss_fct,
+            softmax_model=self.__loss_functions[0],
             write_csv=True,
             name="val",
         )
@@ -272,7 +272,7 @@ class ClassifierTrainer(_BaseTrainer):
             return None
         return LabelAccuracyEvaluator(
             dataloader=self.__test_dataloader,
-            softmax_model=self.__loss_fct,
+            softmax_model=self.__loss_functions[0],
             write_csv=True,
             name="test",
         )
