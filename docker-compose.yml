@@ -28,7 +28,7 @@ services:
       - chem-network
     shm_size: 45g # must be greater than the size of the database
     restart: always
-  rapids-notebooks:
+  rapids:
     image: nvcr.io/nvidia/rapidsai/notebooks:24.12-cuda12.5-py3.12
     volumes:
       - ./:/home/rapids/notebooks/chem-mrl
@@ -51,26 +51,6 @@ services:
       stack: 67108864
     networks:
       - chem-network
-  bionemo:
-    image: nvcr.io/nvidia/clara/bionemo-framework:1.10.1
-    platform: AMD64
-    volumes:
-      - ./:/workspace/bionemo/chem_mrl
-    environment:
-      CUDA_VISIBLE_DEVICES: "0,1"
-    entrypoint: sleep
-    command: infinity
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 2
-              capabilities: [gpu]
-    shm_size: 8g
-    ulimits:
-      memlock: -1
-      stack: 67108864
   genmol:
     image: nvcr.io/nim/nvidia/genmol:1.0.0
     platform: AMD64
