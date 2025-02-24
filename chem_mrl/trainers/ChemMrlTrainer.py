@@ -289,7 +289,7 @@ class ChemMRLTrainer(_BaseTrainer):
         from chem_mrl.losses import Matryoshka2dLoss, MatryoshkaLoss
 
         assert isinstance(self._config.model, ChemMRLConfig)
-        loss_functions = []
+        loss_functions: list[nn.Module] = []
 
         assert isinstance(self._config.model, ChemMRLConfig)
         if self._config.model.use_2d_matryoshka:

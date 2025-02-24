@@ -187,6 +187,7 @@ class PgVectorBenchmark:
 
             morgan_fp = MorganFingerprinter(radius=2, fp_size=dim)
             mrl_embedder = ChemMRL(model_name=model_name, embedding_size=dim)
+            base_embedder = None
             if dim == base_model_hidden_dim:
                 base_embedder = ChemMRL(model_name=base_model_name, embedding_size=dim)
 
@@ -213,6 +214,7 @@ class PgVectorBenchmark:
                     )
                 )
                 if dim == BASE_MODEL_HIDDEN_DIM:
+                    assert base_embedder is not None
                     results_data.append(
                         self.test_transformer_embeddings(
                             smiles_embedder=base_embedder,
