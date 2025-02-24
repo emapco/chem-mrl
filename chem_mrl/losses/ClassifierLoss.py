@@ -75,7 +75,7 @@ class _ClassifierLoss(nn.Module):
     def dropout_p(self):
         return self.__dropout_p
 
-    def forward(
+    def preprocess(
         self, smiles_features: Iterable[dict[str, Tensor]]
     ) -> tuple[torch.Tensor, torch.Tensor]:
         sent_reps: list[Tensor] = [
@@ -178,12 +178,8 @@ class SelfAdjDiceLoss(_ClassifierLoss):
         self.__gamma = gamma
         self.__reduction = reduction
 
-    def forward(
-        self,
-        smiles_features: Iterable[dict[str, Tensor]],
-        labels: Tensor,
-    ) -> torch.Tensor:
-        features, logits = super().forward(smiles_features)
+    def forward(self, smiles_features: Iterable[dict[str, Tensor]], labels: Tensor | None):
+        features, logits = self.preprocess(smiles_features)
 
         if labels is None:
             return features, logits
@@ -255,8 +251,8 @@ class SoftmaxLoss(_ClassifierLoss):
         super().__init__(model, smiles_embedding_dimension, num_labels, dropout, freeze_model)
         self.__loss_fct = loss_fct
 
-    def forward(self, smiles_features: Iterable[dict[str, Tensor]], labels: Tensor):
-        features, logits = super().forward(smiles_features)
+    def forward(self, smiles_features: Iterable[dict[str, Tensor]], labels: Tensor | None):
+        features, logits = self.preprocess(smiles_features)
 
         if labels is None:
             return features, logits

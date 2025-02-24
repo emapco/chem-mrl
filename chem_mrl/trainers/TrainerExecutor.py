@@ -115,7 +115,7 @@ class WandBTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
             if wandb_enabled and wandb_config and wandb_config.use_watch:
                 wandb.watch(
                     self.trainer.model,
-                    criterion=self.trainer.loss_fct,
+                    criterion=self.trainer.loss_functions,
                     log=wandb_config.watch_log.value,
                     log_freq=wandb_config.watch_log_freq,
                     log_graph=wandb_config.watch_log_graph,

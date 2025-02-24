@@ -27,8 +27,9 @@ class _BaseTrainer(ABC):
         if self._config.seed is not None:
             transformers.set_seed(self._config.seed)
         if self._config.use_tf32:
-            torch.backends.cuda.matmul.allow_tf32 = False
-            torch.backends.cudnn.allow_tf32 = False
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            torch.set_float32_matmul_precision("high")
         if self._config.use_fused_adamw:
             from apex.optimizers import FusedAdam
 
@@ -97,7 +98,7 @@ class _BaseTrainer(ABC):
 
     @property
     @abstractmethod
-    def test_eval_file_path(self) -> str:
+    def test_eval_file_path(self) -> str | None:
         raise NotImplementedError
 
     ############################################################################
@@ -106,19 +107,19 @@ class _BaseTrainer(ABC):
 
     @abstractmethod
     def _initialize_model(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _initialize_data(self, train_file: str, val_file: str, test_file: str):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _initialize_val_evaluator(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _initialize_test_evaluator(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _initialize_loss(self):

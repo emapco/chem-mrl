@@ -73,7 +73,7 @@ class ClassifierTrainer(_BaseTrainer):
                 "or train_dataset_path and val_dataset_path (in the config) must be provided"
             )
 
-        self.__loss_functions = [self._initialize_loss()]
+        self.__loss_functions: list[torch.nn.Module] = [self._initialize_loss()]
         self.__val_evaluator = self._initialize_val_evaluator()
         self.__test_evaluator = self._initialize_test_evaluator()
         self.__model_save_dir = self._initialize_output_path()

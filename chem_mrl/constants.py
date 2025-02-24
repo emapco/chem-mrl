@@ -2,9 +2,10 @@ import os
 
 _curr_file_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root_dir = os.path.dirname(_curr_file_dir)
-_data_dir = os.path.join(_project_root_dir, "data", "chem")
+_root_data_dir = os.path.join(_project_root_dir, "data")
+_data_dir = os.path.join(_root_data_dir, "processed")
 OUTPUT_MODEL_DIR = os.path.join(_project_root_dir, "output", "old")
-OUTPUT_DATA_DIR = os.path.join(_project_root_dir, "data", "chem")
+OUTPUT_DATA_DIR = _root_data_dir
 BASE_MODEL_HIDDEN_DIM = 768
 TEST_FP_SIZES = [8, 16, 32, 64, 128, 256, 512, 768, 2048]
 CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32, 16, 8]
