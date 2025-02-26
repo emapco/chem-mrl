@@ -25,3 +25,4 @@ class QuerySmilesTokenizerFast(RobertaTokenizerFast):
         self.eos_token_id = 2
         self.unk_token_id = 3
         self.pad_token = "<pad>"
+        self.__class__.__name__ = "RobertaTokenizerFast"

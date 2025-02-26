@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from multiprocessing import get_context
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -86,8 +87,9 @@ class BenchmarkDataSeeder(ABC):
         df.columns = ["smiles", "zinc_id"]
         return df
 
+    @staticmethod
     @abstractmethod
-    def generate(self, fp_size: int, **kwargs):
+    def generate(config: Any, fp_size: int, **kwargs):
         raise NotImplementedError
 
     @abstractmethod
@@ -102,7 +104,7 @@ class MorganFingerprintSeeder(BenchmarkDataSeeder):
     for efficient batch processing of chemical SMILES data."""
 
     @staticmethod
-    def generate(config: DBSeederConfig, fp_size: int):
+    def generate(config: DBSeederConfig, fp_size: int, **kwargs):
         logging.info(f"Generating morgan fingerprints of dimension {fp_size}")
         engine = BenchmarkDataSeeder._get_pooled_engine(config.db_uri, pool_size=2)
         try:
@@ -180,7 +182,11 @@ class TransformerEmbeddingSeeder(BenchmarkDataSeeder):
         self._device_manager = CudaDeviceManager(max_cpu_processes_fallback=config.num_processes)
 
     @staticmethod
-    def generate(config: DBSeederConfig, model_name: str, fp_size: int, device: str):
+    def generate(config: DBSeederConfig, fp_size: int, **kwargs):
+        model_name = kwargs.get("model_name")
+        device = kwargs.get("device")
+        assert model_name is not None, "model_name must be provided"
+        assert device is not None, "device must be provided"
         logging.info(f"Generating performance embeddings of dimension {fp_size}")
         engine = BenchmarkDataSeeder._get_pooled_engine(config.db_uri, pool_size=2)
         try:
@@ -245,7 +251,7 @@ class TransformerEmbeddingSeeder(BenchmarkDataSeeder):
             for fp_size in initial_tasks:
                 device = self._device_manager.get_device()
                 future = executor.submit(
-                    self.generate, self._config, self._model_name, fp_size, device
+                    self.generate, self._config, fp_size, model_name=self._model_name, device=device
                 )
                 running_futures[future] = fp_size
 
@@ -262,9 +268,9 @@ class TransformerEmbeddingSeeder(BenchmarkDataSeeder):
                             next_future = executor.submit(
                                 self.generate,
                                 self._config,
-                                self._model_name,
                                 next_fp_size,
-                                next_device,
+                                model_name=self._model_name,
+                                device=next_device,
                             )
                             running_futures[next_future] = next_fp_size
 

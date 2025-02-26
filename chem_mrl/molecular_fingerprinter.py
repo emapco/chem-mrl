@@ -1,5 +1,6 @@
 import contextlib
 import os
+from typing import Literal
 
 import numpy as np
 from rdkit import Chem, DataStructs, RDConfig
@@ -56,7 +57,7 @@ class MorganFingerprinter:
         return self._fp_size
 
     @staticmethod
-    def _create_mol_from_smiles(smiles: str) -> Chem.Mol | None:
+    def mol_from_smiles(smiles: str) -> Chem.Mol | None:
         """Create a molecule object from SMILES string with standardization fallback."""
         try:
             mol = Chem.MolFromSmiles(smiles)
@@ -68,21 +69,21 @@ class MorganFingerprinter:
 
     def get_fingerprint(self, smiles: str) -> DataStructs.ExplicitBitVect | None:
         """Generate Morgan fingerprint for a given SMILES string."""
-        mol = self._create_mol_from_smiles(smiles)
+        mol = self.mol_from_smiles(smiles)
         if mol is None:
             return None
         return self.morgan_generator.GetFingerprint(mol)
 
     def get_functional_fingerprint(self, smiles: str) -> DataStructs.ExplicitBitVect | None:
         """Generate functional Morgan fingerprint for a given SMILES string."""
-        mol = self._create_mol_from_smiles(smiles)
+        mol = self.mol_from_smiles(smiles)
         if mol is None:
             return None
         return self.functional_generator.GetFingerprint(mol)
 
     def get_fingerprint_numpy(self, smiles: str) -> np.ndarray | float:
         """Convert fingerprint to numpy array format."""
-        mol = self._create_mol_from_smiles(smiles)
+        mol = self.mol_from_smiles(smiles)
         if mol is None:
             return np.nan
         # GetFingerprintAsNumPy       - dtype: uint8  - shape: (fp_size,)
@@ -91,12 +92,14 @@ class MorganFingerprinter:
 
     def get_functional_fingerprint_numpy(self, smiles: str) -> np.ndarray | float:
         """Convert fingerprint to numpy array format."""
-        mol = self._create_mol_from_smiles(smiles)
+        mol = self.mol_from_smiles(smiles)
         if mol is None:
             return np.nan
         return self.functional_generator.GetFingerprintAsNumPy(mol)
 
-    def compute_similarity(self, smiles_a, smiles_b, fingerprint_type: str = "morgan") -> float:
+    def tanimoto_similarity(
+        self, smiles_a, smiles_b, fingerprint_type: Literal["morgan", "functional"] = "morgan"
+    ) -> float:
         """
         Compute Tanimoto similarity between two molecules.
 
@@ -126,11 +129,11 @@ class MorganFingerprinter:
         return DataStructs.TanimotoSimilarity(fp1, fp2)
 
     @classmethod
-    def get_canonical_smiles(cls, smiles: str) -> str | None:
+    def canonicalize_smiles(cls, smiles: str) -> str | None:
         """
         Get canonical SMILES string from a given SMILES string.
         """
-        mol = cls._create_mol_from_smiles(smiles)
+        mol = cls.mol_from_smiles(smiles)
         if mol is None:
             return None
         smiles = Chem.MolToSmiles(mol, canonical=True)
@@ -139,7 +142,7 @@ class MorganFingerprinter:
     @classmethod
     def get_smiles_feature_family_set(cls, smiles: str):
         fam_feat_set = set()
-        mol = cls._create_mol_from_smiles(smiles)
+        mol = cls.mol_from_smiles(smiles)
         if mol is None:
             return fam_feat_set
 
@@ -181,8 +184,8 @@ class MorganFingerprinter:
         try:
             res = rdFMCS.FindMCS(
                 [
-                    cls._create_mol_from_smiles(smiles_a),
-                    cls._create_mol_from_smiles(smiles_b),
+                    cls.mol_from_smiles(smiles_a),
+                    cls.mol_from_smiles(smiles_b),
                 ],
                 **mcs_kwargs,
             )

@@ -57,6 +57,6 @@ def parallel_safe_encode(smiles):
     if smiles is None:
         return None
     try:
-        return safe.encode(smiles)  # type: ignore
+        return safe.encode(smiles, ignore_stereo=True)  # type: ignore
     except (safe.SAFEEncodeError, safe.SAFEFragmentationError):  # type: ignore
         return None

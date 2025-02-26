@@ -1,0 +1,49 @@
+defaults:
+  - _self_
+
+seed: 42
+
+dataset:
+  _target_: genmol.types.DatasetConfig
+  path: ??? # Required argument, must be provided
+  batch_size: 1000 # Default maximum number of fragments
+  num_workers: 18 # Number of parallel workers - null defaults number of physical cores
+  smiles_column: canonical_smiles
+  safe_column: null # Optional column name for safe smiles
+  score_column: null # Optional score column name - will be generated if generate_scores is True
+  generate_scores: False #  Do not generate scores for reference smiles
+  # not currently used
+  number_of_samples_to_fragment: 10000 # Default number of fragments
+
+oracle:
+  _target_: genmol.types.ScoreConfig
+  use_composite_score: True # Use a composite score based on the RDKit score and Tanimoto similarity
+  score: QED # QED | LogP | SA
+  score_cutoff: 0.9 # (a score value of 0.9 will contribute 1 to the composite score)
+  similarity_cutoff: 0.8 #  (a score value of 0.8 will contribute 1 to the composite score)
+  fingerprint_type: morgan # morgan | functional
+
+generator:
+  _target_: genmol.types.GenMolProduceConfig
+  min_tokens_to_generate: 2
+  max_tokens_to_generate: 6
+  num_unique_generations: 2
+  num_top_scored_molecules_to_keep: 4
+  num_workers: 8 # Identical number as number of running genmol containers - defaults to 1
+  invoke_urls: # multiple genmol nim container api endpoint on single/multi-gpu setup
+    - http://127.0.0.1:8000/generate
+    - http://127.0.0.1:8001/generate
+    - http://127.0.0.1:8002/generate
+    - http://127.0.0.1:8003/generate
+    - http://127.0.0.1:8004/generate
+    - http://127.0.0.1:8005/generate
+    - http://127.0.0.1:8006/generate
+    - http://127.0.0.1:8007/generate
+  inference:
+    _target_: genmol.types.GenMolInferenceConfig
+    num_molecules: 4 # Number of Molecules to Generate
+    temperature: 1.5 # Temperature Scaling Factor for Softmax Sampling
+    noise: 2.0 # Noise Factor for Top-K Sampling
+    step_size: 1 # Diffusion Step Size
+    unique: True # Show only unique molecules
+    scoring: QED # QED | LogP

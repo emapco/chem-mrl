@@ -71,7 +71,7 @@ class BaseConfig:
     use_tf32: bool = False
     use_amp: bool = False
     seed: int | None = 42
-    model_output_path: str = "output"
+    model_output_path: str = "training_output"
     evaluation_steps: int = 0
     checkpoint_save_steps: int = 0
     checkpoint_save_total_limit: int = 20

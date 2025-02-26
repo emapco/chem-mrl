@@ -2,7 +2,7 @@
 .vscode/
 chroma_db/
 data/
-output/
+outputs/
 visualizations/
 wandb/
 __pycache__/

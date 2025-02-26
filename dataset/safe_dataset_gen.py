@@ -18,10 +18,12 @@ def get_files_to_process():
         "pubchem_dataset_less_than_128_tokens",
         "druglike_QED_36M_less_than_128_tokens",
         "full_ds_less_than_128_tokens",
+        "druglike_QED-Pfizer_13M_less_than_128_tokens",
     ]
 
     input_files = os.listdir(processed_smiles_dir)
-    completed_files = os.listdir(processed_safe_dir)
+    safe_ds_files = [file for file in input_files if "safe" in file]
+    completed_files = os.listdir(processed_safe_dir) + safe_ds_files
     files_to_gen = [
         file
         for file in input_files
