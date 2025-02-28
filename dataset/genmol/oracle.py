@@ -100,6 +100,8 @@ class Oracle:
         molecules: Iterable[str],
         reference: str,
         reference_score: float | None = None,
-    ) -> list[float | EvalDatasetDict] | None:
-        scores = [self.score(smiles, reference, reference_score) for smiles in molecules]
+    ):
+        scores: list[EvalDatasetDict | None] = [
+            self.score(smiles, reference, reference_score) for smiles in molecules
+        ]
         return [score for score in scores if score is not None]

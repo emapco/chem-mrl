@@ -167,10 +167,12 @@ class FingerprintDatasetGenerator:
                 similar_smiles,
                 reference=reference,
                 reference_score=None,
-            )  # type: ignore
+            )
             df = pd.DataFrame(eval, columns=self.__fingerprint_dataset_columns)
-            df.sort_values(by=["score"], ascending=False, inplace=True)
-            dfs.append(df.iloc[: self.gen_config.num_top_scored_molecules_to_keep])
+            df.sort_values(by="score", ascending=False, inplace=True)
+            df.dropna(subset="score", inplace=True, ignore_index=True)
+            num_keep = min(self.gen_config.num_top_scored_molecules_to_keep, len(df) - 1)
+            dfs.append(df.iloc[:num_keep])
         batch_df = pd.concat(dfs)
         batch_df["batch_start"] = batch_start
         return batch_df

@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-START_PORT=${1:-8000}
 N=${1:-2}
 CONTAINER_PREFIX="genmol"
 
@@ -14,7 +13,7 @@ is_port_in_use() {
 
 # Find N contiguous open ports
 find_contiguous_ports() {
-    local base_port=$START_PORT
+    local base_port=8000
     while :; do
         local ports=()
         for ((i = 0; i < N; i++)); do

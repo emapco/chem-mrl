@@ -54,7 +54,7 @@ class _ClassifierLoss(nn.Module):
         self.__net = nn.Sequential(
             self.__dropout,
             nn.Linear(smiles_embedding_dimension, smiles_embedding_dimension),
-            nn.ReLU(),
+            nn.Tanh(),
             self.__dropout,
             nn.Linear(smiles_embedding_dimension, num_labels),
         )
