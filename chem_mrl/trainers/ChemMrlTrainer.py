@@ -1,6 +1,5 @@
 import logging
 import os
-from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -150,8 +149,7 @@ class ChemMRLTrainer(_BaseTrainer):
         else:
             modules = [base_model, pooling_model, normalization_model]
 
-        args: OrderedDict = OrderedDict({"modules": modules})
-        model = SentenceTransformer(args)
+        model = SentenceTransformer(modules=modules)  # type: ignore
         logger.info(model)
         return model
 
