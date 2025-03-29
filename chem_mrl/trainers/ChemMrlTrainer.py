@@ -1,5 +1,6 @@
 import logging
 import os
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -44,8 +45,8 @@ class ChemMRLTrainer(_BaseTrainer):
         super().__init__(config=config)
         if not isinstance(config.model, ChemMRLConfig):
             raise TypeError("config.model must be a ChemMRLConfig instance")
-        self.__model = self._initialize_model()
-        self.__model.tokenizer = self._initialize_tokenizer()
+        self.__model: SentenceTransformer = self._initialize_model()
+        self.__model.tokenizer = self._initialize_tokenizer()  # type: ignore
         if chem_mrl_dataset_collection is not None:
             self.__train_dataloader = chem_mrl_dataset_collection.train_dataloader
             self.__val_df = chem_mrl_dataset_collection.val_dataframe
@@ -149,7 +150,8 @@ class ChemMRLTrainer(_BaseTrainer):
         else:
             modules = [base_model, pooling_model, normalization_model]
 
-        model = SentenceTransformer(modules=modules)
+        args: OrderedDict = OrderedDict({"modules": modules})
+        model = SentenceTransformer(args)
         logger.info(model)
         return model
 
@@ -162,7 +164,7 @@ class ChemMRLTrainer(_BaseTrainer):
 
         from chem_mrl.tokenizers import QuerySmilesTokenizerFast
 
-        return QuerySmilesTokenizerFast(max_len=self.__model.tokenizer.model_max_length)
+        return QuerySmilesTokenizerFast(max_len=self.__model.tokenizer.model_max_length)  # type: ignore
 
     def _initialize_data(
         self,
@@ -286,7 +288,7 @@ class ChemMRLTrainer(_BaseTrainer):
         )
 
     def _initialize_loss(self):
-        from chem_mrl.losses import Matryoshka2dLoss, MatryoshkaLoss
+        from sentence_transformers.losses import Matryoshka2dLoss, MatryoshkaLoss
 
         assert isinstance(self._config.model, ChemMRLConfig)
         loss_functions: list[nn.Module] = []

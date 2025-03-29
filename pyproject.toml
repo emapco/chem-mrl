@@ -1,6 +1,6 @@
 [project]
 name = "chem-mrl"
-version = "0.5.6"
+version = "0.5.7"
 description = "SMILES-based Matryoshka Representation Learning Embedding Model"
 license = { text = "Apache 2.0" }
 readme = "README.md"
@@ -13,7 +13,7 @@ maintainers = [
 requires-python = ">=3.10"
 
 dependencies = [
-    "sentence-transformers==3.4.1",
+    "sentence-transformers==4.0.1",
     "transformers[torch]>=4.34.0", 
     "optuna==4.2.0",
     "wandb==0.19.4",
