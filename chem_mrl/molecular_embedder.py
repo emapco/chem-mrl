@@ -5,7 +5,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer, models
 from sentence_transformers.util import get_device_name
 
-from chem_mrl.constants import BASE_MODEL_HIDDEN_DIM, BASE_MODEL_NAME
+from chem_mrl.constants import BASE_MODEL_HIDDEN_DIM, BASE_MODEL_NAME, CHEM_MRL_MODEL_NAME
 
 
 class ChemMRL:
@@ -13,10 +13,10 @@ class ChemMRL:
 
     def __init__(
         self,
-        model_name: str,
+        model_name: str = CHEM_MRL_MODEL_NAME,
         embedding_size: int | None = None,
         use_half_precision: bool = False,
-        batch_size: int = 4096,
+        batch_size: int = 64,
         normalize_embeddings: bool | None = True,
         device: str | None = None,
     ) -> None:
@@ -130,7 +130,7 @@ class ChemMRL:
             show_progress_bar=show_progress_bar,
             convert_to_numpy=convert_to_numpy,
             device=self._device or get_device_name(),
-            normalize_embeddings=self._normalize_embeddings,
+            normalize_embeddings=self._normalize_embeddings or False,
         )
 
         if self._use_half_precision:

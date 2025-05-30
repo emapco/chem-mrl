@@ -52,7 +52,7 @@ warmup_steps_percent: 0.0 # Percentage of warmup steps that the scheduler will u
 use_fused_adamw: false # Use cuda-optimized FusedAdamW optimizer. ~10% faster than torch.optim.AdamW
 use_tf32: false # Use TensorFloat-32 for matrix multiplication and convolutions
 use_amp: false # Use automatic mixed precision
-model_output_path: output # Path to save model, checkpoints and evaluation results
+model_output_path: training_output # Path to save model, checkpoints and evaluation results
 evaluation_steps: 0 # Run evaluator and call provided callback every evaluation_steps
 checkpoint_save_steps: 0 # Save checkpoint every checkpoint_save_steps
 checkpoint_save_total_limit: 5
