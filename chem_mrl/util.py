@@ -1,4 +1,5 @@
 import logging
+import os
 import queue
 
 import torch
@@ -12,6 +13,13 @@ def setup_logging():
         level=logging.INFO,
         handlers=[LoggingHandler()],
     )
+
+
+def get_file_extension(filename: str) -> str:
+    """Extract file extension and map to dataset format."""
+    ext_mapping = {".parquet": "parquet", ".csv": "csv", ".json": "json", ".jsonl": "json"}
+    ext = os.path.splitext(filename)[1].lower()
+    return ext_mapping.get(ext, "parquet")  # default fallback
 
 
 class CudaDeviceManager:

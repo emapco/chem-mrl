@@ -55,12 +55,6 @@ cleanup() {
     exit 0
 }
 
-# Trap termination signals to trigger cleanup
-trap cleanup SIGINT SIGTERM EXIT
-
 # Run parallel processes with unique container names and assigned GPUs (round-robin)
 parallel -j "$N" --link \
     'CUDA_VISIBLE_DEVICES=$(({#} % NUM_GPUS)) HOST_PORT={1} CONTAINER_NAME="genmol-{1}" make run_genmol' ::: "${PORTS[@]}"
-
-# Wait for all background jobs
-wait

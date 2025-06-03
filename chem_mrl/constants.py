@@ -12,6 +12,7 @@ CHEM_MRL_DIMENSIONS = [768, 512, 256, 128, 64, 32, 16, 8]
 BASE_MODEL_DIMENSIONS = [BASE_MODEL_HIDDEN_DIM]
 BASE_MODEL_NAME = "Derify/ChemBERTa_augmented_pubchem_13m"
 CHEM_MRL_MODEL_NAME = "Derify/ChemMRL-alpha"
+TRAINED_CHEM_MRL_DIMENSIONS = [1024, 768, 512, 256, 128, 64, 32, 16, 8, 4]
 OPTUNA_DB_URI = "postgresql://postgres:password@127.0.0.1:5432/postgres"
 
 

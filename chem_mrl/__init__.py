@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-__version__ = "0.5.9"
+__version__ = "0.6.0"
+__MODEL_HUB_ORGANIZATION__ = "Derify"
 
 from . import (
     benchmark,
     constants,
-    datasets,
     evaluation,
     losses,
     molecular_fingerprinter,
@@ -17,7 +17,6 @@ from . import (
 __all__ = [
     "benchmark",
     "constants",
-    "datasets",
     "evaluation",
     "losses",
     "molecular_fingerprinter",

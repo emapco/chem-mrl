@@ -1,47 +1,11 @@
-from collections.abc import Iterable
-from typing import Callable
+from collections.abc import Callable, Iterable
 
 import sentence_transformers
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer
 from sentence_transformers.losses import CoSENTLoss
-from torch import Tensor, nn, tensor
+from torch import Tensor, nn
 
-
-def pairwise_tanimoto_similarity(x: Tensor, y: Tensor) -> Tensor:
-    """
-    Computes the Tanimoto similarity between two numpy arrays x and y.
-
-    Tanimoto coefficient as defined in 10.1186/s13321-015-0069-3 for continuous variables:
-    T(X,Y) = <X,Y> / (Σx^2 + Σy^2 - <X,Y>)
-
-    References
-    ----------
-    https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2
-    https://arxiv.org/pdf/2302.05666.pdf - Other intersection over union (IoU) metrics
-
-    Parameters
-    ----------
-    x : Tensor
-        A tensor of shape (n_samples, n_features)
-    y : Tensor
-        A tensor of shape (n_samples, n_features)
-
-    Returns
-    -------
-    similarity : Tensor
-        A tensor of shape (n_samples, n_samples)
-        The Tanimoto similarity between x and y.
-    """
-    if not isinstance(x, Tensor):
-        x = tensor(x)
-
-    if not isinstance(y, Tensor):
-        y = tensor(y)
-
-    dot_product = util.pairwise_dot_score(x, y)
-    denominator = x.pow(2).sum(dim=-1) + y.pow(2).sum(dim=-1) - dot_product
-
-    return dot_product / denominator.clamp(min=1e-9)
+from chem_mrl.similarity_functions import pairwise_tanimoto_similarity
 
 
 class TanimotoSentLoss(CoSENTLoss):
@@ -93,7 +57,7 @@ class TanimotoSimilarityLoss(nn.Module):
     def __init__(
         self,
         model: SentenceTransformer,
-        loss: Callable = nn.MSELoss(),
+        loss: Callable = nn.MSELoss(),  # noqa: B008
     ):
         """
         This class implements a loss function that measures the difference between predicted Tanimoto similarities

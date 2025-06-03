@@ -1,5 +1,4 @@
-from collections.abc import Iterable
-from typing import Callable
+from collections.abc import Callable, Iterable
 
 import torch
 from sentence_transformers import SentenceTransformer
@@ -220,7 +219,7 @@ class SoftmaxLoss(_ClassifierLoss):
         num_labels: int,
         dropout: float = 0.15,
         freeze_model: bool = False,
-        loss_fct: Callable = nn.CrossEntropyLoss(),
+        loss_fct: Callable = nn.CrossEntropyLoss(),  # noqa: B008
     ):
         """
         This class implements the softmax loss function for SMILES classification.

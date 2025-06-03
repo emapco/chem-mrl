@@ -1,3 +1,5 @@
+name: PyPI Release
+
 on:
   push:
     branches:

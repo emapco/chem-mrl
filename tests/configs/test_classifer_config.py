@@ -15,6 +15,7 @@ def test_classifier_config_custom_values():
         classifier_hidden_dimension=CHEM_MRL_DIMENSIONS[1],
         dropout_p=0.3,
         freeze_model=True,
+        num_labels=3,
         dice_reduction=DiceReductionOption.sum,
         dice_gamma=2.0,
     )
@@ -22,6 +23,7 @@ def test_classifier_config_custom_values():
     assert config.classifier_hidden_dimension == CHEM_MRL_DIMENSIONS[1]
     assert config.dropout_p == 0.3
     assert config.freeze_model is True
+    assert config.num_labels == 3
     assert config.dice_reduction == "sum"
     assert config.dice_gamma == 2.0
 
@@ -49,6 +51,8 @@ def test_classifier_config_validation():
         ClassifierConfig(classifier_hidden_dimension=0)
     with pytest.raises(ValueError, match="dropout_p must be between 0 and 1"):
         ClassifierConfig(dropout_p=1.5)
+    with pytest.raises(ValueError, match="num_labels must be greater than 0"):
+        ClassifierConfig(num_labels=0)
     with pytest.raises(ValueError, match="dice_gamma must be positive"):
         ClassifierConfig(dice_gamma=-1.0)
     with pytest.raises(ValueError, match="dice_reduction must be either 'mean' or 'sum'"):
@@ -81,6 +85,8 @@ def test_classifier_config_type_validation():
         ClassifierConfig(classifier_hidden_dimension="1")
     with pytest.raises(TypeError):
         ClassifierConfig(dropout_p="1")
+    with pytest.raises(TypeError):
+        ClassifierConfig(num_labels="1")
     with pytest.raises(TypeError):
         ClassifierConfig(dice_reduction=1)
     with pytest.raises(TypeError):

@@ -4,10 +4,9 @@ from omegaconf import DictConfig, OmegaConf
 from chem_mrl.schemas import (
     BaseConfig,
     ChemMRLConfig,
-    WandbConfig,
     register_chem_mrl_configs,
 )
-from chem_mrl.trainers import ChemMRLTrainer, WandBTrainerExecutor
+from chem_mrl.trainers import ChemMRLTrainer
 
 register_chem_mrl_configs()
 
@@ -20,11 +19,9 @@ register_chem_mrl_configs()
 def main(_cfg: DictConfig):
     cfg = OmegaConf.to_object(_cfg)
     assert isinstance(cfg, BaseConfig)
-    assert isinstance(cfg.wandb, WandbConfig)
     assert isinstance(cfg.model, ChemMRLConfig)
     trainer = ChemMRLTrainer(cfg)
-    executor = WandBTrainerExecutor(trainer)
-    executor.execute()
+    trainer.train()
 
 
 if __name__ == "__main__":

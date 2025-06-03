@@ -2,71 +2,57 @@ defaults:
   - base_config_schema
   - _self_
 
-seed: 42 # Omit to not set a seed during training. Used to seed the dataloader sampling and the transformer.
-
 # dataset params
 # train_dataset_path and val_dataset_path must be parquet files
 # You can specify column names in /model/chem_mrl and /model/classifier configs
-train_dataset_path: ???
-val_dataset_path: ???
-test_dataset_path: null
-smiles_a_column_name: ??? # overridden in model specific root config
-smiles_b_column_name: ??? # overridden in model specific root config
-label_column_name: ??? # overridden in model specific root config
-n_train_samples: null # Number of training samples to load. Uses seeded sampling if a seed is set.
-n_val_samples: null # Number of evaluation samples to load. Uses seeded sampling if a seed is set.
-n_test_samples: null # Number of testing samples to load. Uses seeded sampling if a seed is set.
-n_dataloader_workers:
-  0 # How many subprocesses to use for data loading.
-  # 0 means that the data will be loaded in the main process.
-multiprocess_context: null # multiprocess context use by the dataloaders
-# Valid options - will raise an error otherwise
-# - null  # OS default
-# - spawn # Win, Linux, MacOS
-# - fork  # only available on Linux and MacOS
-pin_memory: false # Whether to pin memory for the dataloader
-generate_dataset_examples_at_init:
-  false
-  # If not set, the `sentence_transformers.InputExample` examples are generated on the fly by the dataloader.
+train_dataset_path: Derify/pubchem_10m_genmol_similarity
+val_dataset_path: Derify/pubchem_10m_genmol_similarity
+test_dataset_path: Derify/pubchem_10m_genmol_similarity
+train_datasets_split: train
+val_datasets_split: validation # if loading from different local files, this should be set to train
+test_datasets_split: test # if loading from different local files, this should be set to train
+smiles_a_column_name: smiles_a
+smiles_b_column_name: smiles_b # can be set to `null` if training a classifier model
+label_column_name: similarity
+n_train_samples: 100000 # Number of training samples to load. Uses seeded sampling if a seed is set.
+n_val_samples: 100000 # Number of evaluation samples to load. Uses seeded sampling if a seed is set.
+n_test_samples: 100000 # Number of testing samples to load. Uses seeded sampling if a seed is set.
 
-# trainer params
-train_batch_size: 32
-eval_batch_size: 32
-num_epochs: 3
-lr_base: 2.0e-05 # Base learning rate. Will be scaled by the square root of the batch size
-weight_decay: null # Weight decay for AdamW optimizer
-use_normalized_weight_decay: # Either weight_decay or enable use_normalized_weight_decay must be set
-  true
+resume_from_checkpoint: null # Path to checkpoint to resume from
+scale_learning_rate: false # Scale learning rate by sqrt(batch_size)
+use_normalized_weight_decay:
+  false # overrides the weight decay specified in training_args
   # Normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf
   # optimized hyperparameter lambda_norm = 0.05 for AdamW optimizer
   # Hyperparameter search indicates a normalized weight decay outperforms
   # the default adamw weight decay
-scheduler: warmuplinear # Learning rate scheduler
-# Valid options
-# - constantlr
-# - warmupconstant
-# - warmuplinear
-# - warmupcosine
-# - warmupcosinewithhardrestarts
-warmup_steps_percent: 0.0 # Percentage of warmup steps that the scheduler will use
-use_fused_adamw: false # Use cuda-optimized FusedAdamW optimizer. ~10% faster than torch.optim.AdamW
-use_tf32: false # Use TensorFloat-32 for matrix multiplication and convolutions
-use_amp: false # Use automatic mixed precision
-model_output_path: training_output # Path to save model, checkpoints and evaluation results
-evaluation_steps: 0 # Run evaluator and call provided callback every evaluation_steps
-checkpoint_save_steps: 0 # Save checkpoint every checkpoint_save_steps
-checkpoint_save_total_limit: 5
 
-wandb:
-  enabled: true # Use W&B for logging. Must be enabled for other W&B features to work.
-  api_key: null # W&B API key. Can be omitted if W&B cli is installed and logged in
-  project_name: null
-  run_name: null
-  use_watch: true # Enable W&B watch
-  watch_log: all # Specify which logs to W&B should watch
-  # Valid options:
-  # - all
-  # - gradients
-  # - parameters
-  watch_log_freq: 1000 # How often to log
-  watch_log_graph: true # Specify if graphs should be logged by W&B
+# Note: SentenceTransformerTrainingArguments extends transformers.TrainingArguments
+# https://sbert.net/docs/package_reference/sentence_transformer/training_args.html
+# https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.TrainingArguments
+training_args:
+  _target_: sentence_transformers.SentenceTransformerTrainingArguments
+  seed: 42 # Set to `null` to not set a seed during training
+  data_seed: 42
+  output_dir: training_output # Path to save model, checkpoints and evaluation results
+  do_train: True
+  do_eval: True
+  eval_strategy: epoch # 'no', 'steps', 'epoch'
+  eval_steps: 0
+  learning_rate: 1.0e-06
+  lr_scheduler_type: linear
+  optim: adamw_apex_fused # transformer's compatible optimizer name - adamw_hf adamw_apex_fused
+  weight_decay: null # Weight decay for AdamW optimizer
+  tf32: false # Use TensorFloat-32 for matrix multiplication and convolutions
+  fp16: false # Use automatic mixed precision
+  warmup_ratio: 0.0
+  per_device_train_batch_size: 32
+  per_device_eval_batch_size: 32
+  num_train_epochs: 1
+  disable_tqdm: false
+  save_strategy: "epoch" # 'no', 'steps', 'epoch', 'best'
+  save_steps: 0
+  save_total_limit: 5
+  dataloader_num_workers: 0 # How many subprocesses to use for data loading.
+  # 0 means that the data will be loaded in the main process.
+  dataloader_pin_memory: false

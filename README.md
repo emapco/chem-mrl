@@ -4,9 +4,14 @@ Chem-MRL is a SMILES embedding transformer model that leverages Matryoshka Repre
 
 The model employs [SentenceTransformers' (SBERT)](https://sbert.net/) [2D Matryoshka Sentence Embeddings](https://sbert.net/examples/training/matryoshka/README.html) (`Matryoshka2dLoss`) to enable truncatable embeddings with minimal accuracy loss, improving query performance and flexibility in downstream applications.
 
-Datasets should consists of SMILES pairs and their corresponding [Morgan fingerprint](https://www.rdkit.org/docs/GettingStartedInPython.html#morgan-fingerprints-circular-fingerprints) Tanimoto similarity scores. Currently, datasets must be in Parquet format.
+Datasets should consists of SMILES pairs and their corresponding [Morgan fingerprint](https://www.rdkit.org/docs/GettingStartedInPython.html#morgan-fingerprints-circular-fingerprints) Tanimoto similarity scores.
 
-Hyperparameter tuning indicates that a custom Tanimoto similarity loss function, `TanimotoSentLoss`, based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), CoSENTLoss, [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
+Hyperparameter tuning indicates that a custom Tanimoto similarity loss function, [`TanimotoSentLoss`](https://github.com/emapco/chem-mrl/blob/main/chem_mrl/losses/TanimotoLoss.py), based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), CoSENTLoss, [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
+
+## v0.6.0 Release
+Chem-MRL library is now built on `sentence-transformers` [v4.0.0 API](https://github.com/UKPLab/sentence-transformers/releases/tag/v4.0.1) and uses [datasets library](https://huggingface.co/docs/datasets/en/index) for loading data from local files or [Hugging Face Hub](https://huggingface.co). `sentence-transformers` library supports checkpoint resuming and extends [`transformers.Trainer`](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.Trainer) and [`transformers.TrainingArguments`](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.TrainingArguments) for enhanced training capabilities. Modify training arguments in `chem_mrl/conf/base.yaml:training_args` when using Hydra-enabled training scripts.
+
+The [PubChem 10M GenMol Fingerprint Similarity Dataset](https://huggingface.co/datasets/Derify/pubchem_10m_genmol_similarity) is available on Hugging Face Hub for training Chem-MRL models.
 
 ## Installation
 
@@ -44,8 +49,10 @@ The `scripts` directory provides training scripts with Hydra for parameter manag
 To train a model, initialize the configuration with dataset paths and model parameters, then pass it to `ChemMRLTrainer` for training.
 
 ```python
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig
+from sentence_transformers import SentenceTransformerTrainingArguments
+
 from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 from chem_mrl.trainers import ChemMRLTrainer
 
 # Define training configuration
@@ -59,6 +66,7 @@ config = BaseConfig(
         kl_div_weight=0.7,  # Weight for KL divergence regularization
         kl_temperature=0.5,  # Temperature parameter for KL loss
     ),
+    training_args=SentenceTransformerTrainingArguments("training_output"),
     train_dataset_path="train.parquet",  # Path to training data
     val_dataset_path="val.parquet",  # Path to validation data
     test_dataset_path="test.parquet",  # Optional test dataset
@@ -92,8 +100,10 @@ Supported query formats for `smiles_a` column:
 - `substructure {smiles}`
 
 ```python
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig
+from sentence_transformers import SentenceTransformerTrainingArguments
+
 from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 from chem_mrl.trainers import ChemMRLTrainer
 
 config = BaseConfig(
@@ -101,6 +111,7 @@ config = BaseConfig(
         model_name=BASE_MODEL_NAME,
         use_query_tokenizer=True,  # Train a query model
     ),
+    training_args=SentenceTransformerTrainingArguments("training_output"),
     train_dataset_path="train.parquet",
     val_dataset_path="val.parquet",
     smiles_a_column_name="query",
@@ -115,9 +126,10 @@ trainer = ChemMRLTrainer(config)
 The Latent Attention Layer model is an experimental component designed to enhance the representation learning of transformer-based models by introducing a trainable latent dictionary. This mechanism applies cross-attention between token embeddings and a set of learnable latent vectors before pooling. The output of this layer contributes to both **1D Matryoshka loss** (as the final layer output) and **2D Matryoshka loss** (by integrating into all-layer outputs). Note: initial tests suggests that when using default configuration, the latent attention layer leads to overfitting.
 
 ```python
-from chem_mrl.models import LatentAttentionLayer
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig, LatentAttentionConfig
+from sentence_transformers import SentenceTransformerTrainingArguments
+
 from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig, LatentAttentionConfig
 from chem_mrl.trainers import ChemMRLTrainer
 
 config = BaseConfig(
@@ -132,6 +144,7 @@ config = BaseConfig(
         ),
         use_2d_matryoshka=True,
     ),
+    training_args=SentenceTransformerTrainingArguments("training_output"),
     train_dataset_path="train.parquet",
     val_dataset_path="val.parquet",
 )
@@ -140,25 +153,46 @@ config = BaseConfig(
 trainer = ChemMRLTrainer(config)
 ```
 
-### Custom Evaluation Callbacks
+### Custom Callbacks
 
-You can provide a callback function that is executed every `evaluation_steps` steps, allowing custom logic such as logging, early stopping, or model checkpointing.
+You can provide a list of transformers.TrainerCallback classes to execute while training.
 
 ```python
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig
+from typing import Any
+
+from sentence_transformers import (
+    SentenceTransformer,
+    SentenceTransformerTrainingArguments,
+)
+from transformers import TrainerCallback, TrainerControl, TrainerState
+
 from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 from chem_mrl.trainers import ChemMRLTrainer
 
 
-# Define a callback function for logging evaluation metrics
-def eval_callback(score: float, epoch: int, steps: int):
-    print(f"Step {steps}, Epoch {epoch}: Evaluation Score = {score}")
+# Define a callback class for logging evaluation metrics
+class EvalCallback(TrainerCallback):
+    def on_evaluate(
+        self,
+        args: SentenceTransformerTrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        metrics: dict[str, Any],
+        model: SentenceTransformer,
+        **kwargs,
+    ) -> None:
+        """
+        Event called after an evaluation phase.
+        """
+        pass
 
 
 config = BaseConfig(
     model=ChemMRLConfig(
         model_name=BASE_MODEL_NAME,
     ),
+    training_args=SentenceTransformerTrainingArguments("training_output"),
     train_dataset_path="train.parquet",
     val_dataset_path="val.parquet",
     smiles_a_column_name="smiles_a",
@@ -168,49 +202,7 @@ config = BaseConfig(
 
 # Train with callback
 trainer = ChemMRLTrainer(config)
-val_eval_metric = trainer.train(
-    eval_callback=eval_callback
-)  # Callback executed every `evaluation_steps`
-```
-
-### W&B Integration
-
-This library includes a `WandBTrainerExecutor` class for seamless Weights & Biases (W&B) integration. It handles authentication, initialization, and logging at the frequency specified by `evaluation_steps`.
-
-```python
-from chem_mrl.schemas import BaseConfig, WandbConfig, ChemMRLConfig
-from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.trainers import ChemMRLTrainer, WandBTrainerExecutor
-from chem_mrl.schemas.Enums import WatchLogOption
-
-# Define W&B configuration for experiment tracking
-wandb_config = WandbConfig(
-    project_name="chem_mrl_test",  # W&B project name
-    run_name="test",  # Name for the experiment run
-    use_watch=True,  # Enables model watching for tracking gradients
-    watch_log=WatchLogOption.all,  # Logs all model parameters and gradients
-    watch_log_freq=1000,  # Logging frequency
-    watch_log_graph=True,  # Logs model computation graph
-)
-
-# Configure training with W&B integration
-config = BaseConfig(
-    model=ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
-    ),
-    train_dataset_path="train.parquet",
-    val_dataset_path="val.parquet",
-    smiles_a_column_name="smiles_a",
-    smiles_b_column_name="smiles_b",
-    label_column_name="similarity",
-    evaluation_steps=1000,
-    wandb=wandb_config,
-)
-
-# Initialize trainer and W&B executor
-trainer = ChemMRLTrainer(config)
-executor = WandBTrainerExecutor(trainer)
-executor.execute()  # Handles training and W&B logging
+val_eval_metric = trainer.train(callbacks=[EvalCallback(...)])
 ```
 
 ## Classifier
@@ -226,6 +218,8 @@ Hyperparameter tuning shows that cross-entropy loss (`softmax` option) outperfor
 To train a classifier, configure the model with dataset paths and column names, then initialize `ClassifierTrainer` to start training.
 
 ```python
+from sentence_transformers import SentenceTransformerTrainingArguments
+
 from chem_mrl.schemas import BaseConfig, ClassifierConfig
 from chem_mrl.trainers import ClassifierTrainer
 
@@ -234,6 +228,7 @@ config = BaseConfig(
     model=ClassifierConfig(
         model_name="path/to/trained_mrl_model",  # Pretrained MRL model path
     ),
+    training_args=SentenceTransformerTrainingArguments("training_output"),
     train_dataset_path="train_classification.parquet",  # Path to training dataset
     val_dataset_path="val_classification.parquet",  # Path to validation dataset
     smiles_a_column_name="smiles",  # Column containing SMILES representations of molecules
@@ -250,9 +245,11 @@ trainer.train()
 For imbalanced classification tasks, **Dice Loss** can improve performance by focusing on hard-to-classify samples. Below is a configuration using `DiceLossClassifierConfig`, which introduces additional hyperparameters.
 
 ```python
+from sentence_transformers import SentenceTransformerTrainingArguments
+
 from chem_mrl.schemas import BaseConfig, ClassifierConfig
-from chem_mrl.trainers import ClassifierTrainer
 from chem_mrl.schemas.Enums import ClassifierLossFctOption, DiceReductionOption
+from chem_mrl.trainers import ClassifierTrainer
 
 # Define classification training configuration with Dice Loss
 config = BaseConfig(
@@ -262,6 +259,7 @@ config = BaseConfig(
         dice_reduction=DiceReductionOption.sum,  # Reduction method for Dice Loss (e.g., 'mean' or 'sum')
         dice_gamma=1.0,  # Smoothing factor hyperparameter
     ),
+    training_args=SentenceTransformerTrainingArguments("training_output"),
     train_dataset_path="train_classification.parquet",  # Path to training dataset
     val_dataset_path="val_classification.parquet",  # Path to validation dataset
     smiles_a_column_name="smiles",

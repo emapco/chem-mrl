@@ -39,8 +39,11 @@ tanimoto_similarity_loss_func: null # Base loss function for tanimoto similarity
 # - cosine_embedding_loss
 eval_similarity_fct: tanimoto # Similarity function to use for evaluation
 # Valid options
-# - cosine
 # - tanimoto
+# - cosine
+# - dot
+# - euclidean
+# - manhattan
 eval_metric: spearman # Metric to use for evaluation
 # Valid options
 # - spearman

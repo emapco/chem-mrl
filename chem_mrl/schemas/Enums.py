@@ -20,25 +20,6 @@ class ExplicitEnum(str, Enum):
         return list(map(lambda c: c.value, cls))
 
 
-class WatchLogOption(ExplicitEnum):
-    gradients = "gradients"
-    parameters = "parameters"
-    all = "all"
-
-
-class MultiProcessContextOption(ExplicitEnum):
-    fork = "fork"
-    spawn = "spawn"
-
-
-class SchedulerOption(ExplicitEnum):
-    constantlr = "constantlr"
-    warmupconstant = "warmupconstant"
-    warmuplinear = "warmuplinear"
-    warmupcosine = "warmupcosine"
-    warmupcosinewithhardrestarts = "warmupcosinewithhardrestarts"
-
-
 class EmbeddingPoolingOption(ExplicitEnum):
     mean = "mean"
     mean_sqrt_len_tokens = "mean_sqrt_len_tokens"
@@ -63,8 +44,12 @@ class TanimotoSimilarityBaseLossFctOption(ExplicitEnum):
 
 
 class EvalSimilarityFctOption(ExplicitEnum):
-    cosine = "cosine"
     tanimoto = "tanimoto"
+    cosine = "cosine"
+    dot_product = "dot"
+    dot = "dot"
+    euclidean = "euclidean"
+    manhattan = "manhattan"
 
 
 class ChemMrlEvalMetricOption(ExplicitEnum):

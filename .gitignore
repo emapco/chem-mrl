@@ -1,7 +1,5 @@
 .venv/
 .vscode/
-chroma_db/
-data/
 outputs/
 visualizations/
 wandb/
@@ -11,13 +9,12 @@ notes/
 dist/
 /models/
 training_output/**
-
+ideas/
 
 *.pt
 *.pth
 *.safetensors
 *.bin
-.cursorignore
 .coveragerc
 *.nemo
 *.pyc

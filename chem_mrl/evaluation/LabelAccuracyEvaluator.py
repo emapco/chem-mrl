@@ -1,10 +1,10 @@
 import logging
 
 import torch
-from sentence_transformers import SentenceTransformer
-from sentence_transformers.evaluation import SentenceEvaluator
+from datasets import Dataset
+from sentence_transformers import InputExample, SentenceTransformer
+from sentence_transformers.evaluation.SentenceEvaluator import SentenceEvaluator
 from sentence_transformers.util import batch_to_device
-from torch.utils.data import DataLoader
 
 from .utils import _write_results_to_csv
 
@@ -22,20 +22,31 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
 
     def __init__(
         self,
-        dataloader: DataLoader,
+        dataset: Dataset,
         softmax_model: torch.nn.Module,
         name: str = "",
         write_csv: bool = True,
+        batch_size: int = 32,
+        smiles_column_name: str = "smiles",
+        label_column_name: str = "label",
     ):
         """
         Constructs an evaluator for the given dataset
 
-        :param dataloader:
-            the data for the evaluation
+        Args:
+            dataset (Dataset): the data for the evaluation
+            softmax_model (torch.nn.Module): the softmax model for classification
+            name (str): name for the evaluator
+            write_csv (bool): whether to write results to CSV
+            batch_size (int): batch size for evaluation
         """
-        self.dataloader = dataloader
+        super().__init__()
+        self.dataset = dataset
         self.name = name
         self.softmax_model = softmax_model
+        self.batch_size = batch_size
+        self.smiles_column_name = smiles_column_name
+        self.label_column_name = label_column_name
 
         if name:
             name = "_" + name
@@ -43,6 +54,7 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
         self.write_csv = write_csv
         self.csv_file = "accuracy_evaluation" + name + "_results.csv"
         self.csv_headers = ["epoch", "steps", "accuracy"]
+        self.primary_metric = "accuracy"
 
     def __call__(
         self,
@@ -50,7 +62,7 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
         output_path: str = ".",
         epoch: int = -1,
         steps: int = -1,
-    ) -> float:
+    ) -> dict[str, float]:
         model.eval()
         total = 0
         correct = 0
@@ -64,17 +76,31 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
             out_txt = ":"
 
         logger.info("Evaluation on the " + self.name + " dataset" + out_txt)
-        self.dataloader.collate_fn = model.smart_batching_collate
-        for _, batch in enumerate(self.dataloader):
+
+        # Process dataset in batches directly
+        for i in range(0, len(self.dataset), self.batch_size):
+            batch_data = self.dataset[i : i + self.batch_size]
+            examples = [
+                InputExample(texts=text, label=label)
+                for text, label in zip(
+                    batch_data[self.smiles_column_name],
+                    batch_data[self.label_column_name],
+                    strict=False,
+                )
+            ]
+            batch = model.smart_batching_collate(examples)
+
             features, label_ids = batch
             for idx in range(len(features)):
                 features[idx] = batch_to_device(features[idx], model.device)
             label_ids = label_ids.to(model.device)
+
             with torch.no_grad():
                 _, prediction = self.softmax_model(features, labels=None)
 
             total += prediction.size(0)
             correct += torch.argmax(prediction, dim=1).eq(label_ids).sum().item()
+
         accuracy = correct / total
 
         logger.info(f"Accuracy: {accuracy:.5f} ({correct}/{total})\n")
@@ -87,4 +113,7 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
             results=[epoch, steps, accuracy],
         )
 
-        return accuracy
+        metrics = {"accuracy": accuracy}
+        metrics = self.prefix_name_to_metrics(metrics, self.name)
+        self.store_metrics_in_model_card_data(model, metrics, epoch, steps)
+        return metrics
