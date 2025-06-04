@@ -19,6 +19,7 @@ from sentence_transformers import (
 from sentence_transformers.evaluation import SentenceEvaluator
 from transformers import EvalPrediction, PreTrainedTokenizerBase, TrainerCallback
 from transformers.data.data_collator import DataCollator
+from transformers.integrations import WandbCallback
 
 from chem_mrl.schemas import BaseConfig
 from chem_mrl.similarity_functions import patch_sentence_transformer
@@ -35,6 +36,7 @@ class _BaseTrainer(ABC):
     Concrete trainer classes can be trained directly (via fit method) or through an executor.
     """
 
+    _is_testing = False
     A_COL = "sentence_A"
     B_COL = "sentence_B"
     LABEL_COL = "label"
@@ -165,7 +167,7 @@ class _BaseTrainer(ABC):
         return learning_rate, weight_decay
 
     def _write_config(self):
-        config_file_name = os.path.join(self.model_save_dir, "chem_mrl_config.json")
+        config_file_name = os.path.join(self.model_save_dir, "config_chem_mrl.json")
         parsed_config = self.config.model.asdict()
         parsed_config.pop("model_name", None)
 
@@ -218,12 +220,14 @@ class _BaseTrainer(ABC):
         Main training entry point.
 
         Args:
+            # passed to SentenceTransformerTrainer().train()
             resume_from_checkpoint (`str` or `bool`, *optional*):
                 If a `str`, local path to a saved checkpoint as saved by a previous instance of [`Trainer`]. If a
                 `bool` and equals `True`, load the last checkpoint in *args.output_dir* as saved by a previous instance
                 of [`Trainer`]. If present, training will resume from the model/optimizer/scheduler states loaded here.
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
+            # passed to SentenceTransformerTrainer()
             data_collator (`DataCollator`, *optional*):
                 The function to use to form a batch from a list of elements of `train_dataset` or `eval_dataset`. Will
                 default to [`default_data_collator`] if no `processing_class` is provided, an instance of
@@ -285,6 +289,9 @@ class _BaseTrainer(ABC):
             optimizers=optimizers,
             preprocess_logits_for_metrics=preprocess_logits_for_metrics,
         )
+
+        if self._is_testing:
+            trainer.remove_callback(WandbCallback)
 
         if resume_from_checkpoint is None:
             resume_from_checkpoint = self._config.resume_from_checkpoint

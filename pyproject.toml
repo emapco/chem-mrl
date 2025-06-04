@@ -1,6 +1,6 @@
 [project]
 name = "chem-mrl"
-version = "0.6.0"
+version = "0.6.1"
 description = "SMILES-based Matryoshka Representation Learning Embedding Model"
 license = { text = "Apache 2.0" }
 readme = "README.md"
@@ -10,23 +10,40 @@ authors = [
 maintainers = [
     { name = "Emmanuel Cortes", email = "manny@derifyai.com" },
 ]
-requires-python = ">=3.10"
-
+requires-python = ">=3.11"
+keywords = ["cheminformatics", "machine-learning", "transformers", "smiles", "embeddings", "matryoshka-representation-learning"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "sentence-transformers>4.0.0,<5.0.0",
-    "transformers[torch]>=4.34.0", 
+    "transformers[torch]==4.51.3", 
     "optuna>4.2.0",
     "wandb>0.19.4",
-    "torch>=2.0.0",
-    "scikit-learn==1.6.1",
+    "torch>=2.6.0",
+    "scikit-learn>=1.6.1",
     "pandas>=2.0.0",
     "numpy>=1.26.4",
     "hydra-core>=1.3.2",
     "einops==0.8.0",
+    "codecarbon>=3.0.0",
 ]
 
 [project.urls]
 Repository = "https://github.com/emapco/chem-mrl"
+Homepage = "https://github.com/emapco/chem-mrl"
+Documentation = "https://github.com/emapco/chem-mrl#readme"
+"Bug Tracker" = "https://github.com/emapco/chem-mrl/issues"
+Changelog = "https://github.com/emapco/chem-mrl/releases"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "pytest-xdist", "ipykernel", "ipywidgets", "build", "ruff", "ninja==1.11.1.3"]

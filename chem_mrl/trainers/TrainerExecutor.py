@@ -1,6 +1,6 @@
 import tempfile
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from chem_mrl.schemas import BaseConfig
 
@@ -27,7 +27,7 @@ class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType]):
         return self.__trainer.config
 
     @abstractmethod
-    def execute(self) -> float:
+    def execute(self, **kwargs: Any) -> float:
         raise NotImplementedError
 
 
@@ -41,12 +41,13 @@ class TempDirTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
         super().__init__(trainer)
         self._temp_dir = tempfile.TemporaryDirectory()
         self.trainer.model_save_dir = self._temp_dir.name
+        self.trainer._is_testing = True
 
-    def execute(self) -> float:
+    def execute(self, **kwargs: Any) -> float:
         """
         Execute the trainer within the temporary directory context.
         """
-        return self.trainer.train()
+        return self.trainer.train(**kwargs)
 
     def cleanup(self) -> None:
         """

@@ -41,7 +41,7 @@ training_args:
   eval_steps: 0
   learning_rate: 1.0e-06
   lr_scheduler_type: linear
-  optim: adamw_apex_fused # transformer's compatible optimizer name - adamw_hf adamw_apex_fused
+  optim: adamw_hf # transformer's compatible optimizer name - adamw_hf adamw_apex_fused
   weight_decay: null # Weight decay for AdamW optimizer
   tf32: false # Use TensorFloat-32 for matrix multiplication and convolutions
   fp16: false # Use automatic mixed precision
