@@ -22,7 +22,7 @@ class BaseConfig:
     n_train_samples: int | None = None
     n_val_samples: int | None = None
     n_test_samples: int | None = None
-    resume_from_checkpoint: str | None = None
+    early_stopping_patience: int | None = None
     scale_learning_rate: bool = False
     use_normalized_weight_decay: bool = False
     asdict = asdict
@@ -53,8 +53,8 @@ class BaseConfig:
             raise TypeError("n_val_samples must be an integer or None")
         if self.n_test_samples is not None and not isinstance(self.n_test_samples, int):
             raise TypeError("n_test_samples must be an integer or None")
-        if not isinstance(self.resume_from_checkpoint, str | None):
-            raise TypeError("resume_from_checkpoint must be a string or None")
+        if not isinstance(self.early_stopping_patience, int | None):
+            raise TypeError("early_stopping_patience must be an integer or None")
         if not isinstance(self.scale_learning_rate, bool):
             raise TypeError("scale_learning_rate must be a boolean")
         if not isinstance(self.use_normalized_weight_decay, bool):
@@ -84,5 +84,5 @@ class BaseConfig:
             raise ValueError("n_val_samples must be greater than 0")
         if self.n_test_samples is not None and self.n_test_samples < 1:
             raise ValueError("n_test_samples must be greater than 0")
-        if self.resume_from_checkpoint is not None and self.resume_from_checkpoint == "":
-            raise ValueError("resume_from_checkpoint must be set")
+        if self.early_stopping_patience is not None and self.early_stopping_patience < 1:
+            raise ValueError("early_stopping_patience must be greater than 0")

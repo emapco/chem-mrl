@@ -1,4 +1,0 @@
-defaults:
-  - base
-  - /model: chem_mrl # chem_mrl or chem_2d_mrl
-  - _self_

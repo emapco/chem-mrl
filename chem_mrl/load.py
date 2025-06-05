@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 def load_dataset_with_fallback(dataset_name: str, key: str, columns: list[str]) -> Dataset:
     """Try loading as HF dataset first, fallback to local file."""
     truncated_dataset_name = dataset_name
-    if len(dataset_name) > 48:
-        truncated_dataset_name = dataset_name[:24] + "..." + dataset_name[-24:]
+    if len(dataset_name) > 63:
+        truncated_dataset_name = dataset_name[:30] + "..." + dataset_name[-30:]
     try:
         # Try loading as Hugging Face dataset
         logger.info(f"Attempting to load {truncated_dataset_name} as a Hugging Face dataset")

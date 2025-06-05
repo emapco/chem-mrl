@@ -40,7 +40,9 @@ class TempDirTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
     def __init__(self, trainer: BoundTrainerType):
         super().__init__(trainer)
         self._temp_dir = tempfile.TemporaryDirectory()
-        self.trainer.model_save_dir = self._temp_dir.name
+        # overwrite both since training_args.output_dir is overwritten to include a checkpoints dir
+        self.trainer._training_args.output_dir = self._temp_dir.name
+        self.trainer._root_output_dir = self._temp_dir.name
         self.trainer._is_testing = True
 
     def execute(self, **kwargs: Any) -> float:

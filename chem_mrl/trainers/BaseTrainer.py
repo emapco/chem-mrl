@@ -3,7 +3,6 @@ import math
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from datetime import datetime
 from typing import Any, TypeVar
 
 import optuna
@@ -17,9 +16,11 @@ from sentence_transformers import (
     SentenceTransformerTrainingArguments,
 )
 from sentence_transformers.evaluation import SentenceEvaluator
-from transformers import EvalPrediction, PreTrainedTokenizerBase, TrainerCallback
 from transformers.data.data_collator import DataCollator
-from transformers.integrations import WandbCallback
+from transformers.integrations.integration_utils import WandbCallback
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
+from transformers.trainer_callback import EarlyStoppingCallback, TrainerCallback
+from transformers.trainer_utils import EvalPrediction
 
 from chem_mrl.schemas import BaseConfig
 from chem_mrl.similarity_functions import patch_sentence_transformer
@@ -53,6 +54,7 @@ class _BaseTrainer(ABC):
             self._training_args: SentenceTransformerTrainingArguments = instantiate(
                 self._config.training_args
             )
+        self._root_output_dir = self._training_args.output_dir or "."
 
     ############################################################################
     # abstract properties
@@ -95,16 +97,6 @@ class _BaseTrainer(ABC):
 
     @property
     @abstractmethod
-    def model_save_dir(self) -> str:
-        raise NotImplementedError
-
-    @model_save_dir.setter
-    @abstractmethod
-    def model_save_dir(self, value: str):
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
     def steps_per_epoch(self) -> int:
         raise NotImplementedError
 
@@ -142,10 +134,6 @@ class _BaseTrainer(ABC):
     def _init_loss(self):
         raise NotImplementedError
 
-    @abstractmethod
-    def _init_output_path(self):
-        raise NotImplementedError
-
     ############################################################################
     # concrete methods
     ############################################################################
@@ -166,13 +154,15 @@ class _BaseTrainer(ABC):
         learning_rate = self._training_args.learning_rate * sqrt_batch_size
         return learning_rate, weight_decay
 
-    def _write_config(self):
-        config_file_name = os.path.join(self.model_save_dir, "config_chem_mrl.json")
-        parsed_config = self.config.model.asdict()
-        parsed_config.pop("model_name", None)
-
+    def _write_chem_mrl_config(self):
         import json
 
+        from chem_mrl import __version__
+
+        config_file_name = os.path.join(self._root_output_dir, "config_chem_mrl.json")
+        parsed_config: dict = self.config.model.asdict()
+        parsed_config["__version__"] = __version__
+        parsed_config = dict(sorted(parsed_config.items()))
         with open(config_file_name, "w") as f:
             json.dump(parsed_config, f, indent=4)
 
@@ -181,31 +171,16 @@ class _BaseTrainer(ABC):
             # sentence transformers adds the 'eval' directory to the file path
             # when it call the evaluator within the training loop
             file_path = os.path.join(
-                self.model_save_dir, self.CHECKPOINTS_DIR, "eval", self.val_eval_file_path
+                self._root_output_dir,
+                self.CHECKPOINTS_DIR,
+                "eval",
+                self.val_eval_file_path,
             )
         eval_results_df = pd.read_csv(file_path)
         return float(eval_results_df.iloc[-1][self.eval_metric])
 
-    @staticmethod
-    def _output_path_helper(prefix: str, output_dir: str, model_name: str) -> str:
-        # "asdf" -> "asdf"
-        # "asdf/fdsa" -> "asdf-fdsa"
-        # "asdf/fdsa/asdf" -> "fdsa-asdf"
-        model_name = model_name
-        name_parts = model_name.split("/")
-        relevant_parts = name_parts[-2:] if len(name_parts) > 1 else [model_name]
-        parsed_model_name = "-".join(relevant_parts)
-
-        output_path = os.path.join(
-            output_dir,
-            f"{prefix}-{parsed_model_name}-{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}",
-        )
-        logger.info(f"\nOutput path: {output_path}\n")
-        return output_path
-
     def train(
         self,
-        resume_from_checkpoint: str | bool | None = None,
         trial: optuna.Trial | dict[str, Any] = None,  # type: ignore
         data_collator: DataCollator | None = None,  # type: ignore
         tokenizer: PreTrainedTokenizerBase | Callable | None = None,
@@ -220,11 +195,7 @@ class _BaseTrainer(ABC):
         Main training entry point.
 
         Args:
-            # passed to SentenceTransformerTrainer().train()
-            resume_from_checkpoint (`str` or `bool`, *optional*):
-                If a `str`, local path to a saved checkpoint as saved by a previous instance of [`Trainer`]. If a
-                `bool` and equals `True`, load the last checkpoint in *args.output_dir* as saved by a previous instance
-                of [`Trainer`]. If present, training will resume from the model/optimizer/scheduler states loaded here.
+            # passed to SentenceTransformerTrainer.train()
             trial (`optuna.Trial` or `Dict[str, Any]`, *optional*):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
             # passed to SentenceTransformerTrainer()
@@ -268,11 +239,15 @@ class _BaseTrainer(ABC):
         """  # noqa: E501
         scaled_learning_rate, normalized_weight_decay = self.__calculate_training_params()
 
-        self._training_args.output_dir = os.path.join(self.model_save_dir, self.CHECKPOINTS_DIR)
+        self._training_args.output_dir = os.path.join(self._root_output_dir, self.CHECKPOINTS_DIR)
         if self.config.use_normalized_weight_decay:
             self._training_args.weight_decay = normalized_weight_decay
         if self.config.scale_learning_rate:
             self._training_args.learning_rate = scaled_learning_rate
+        if callbacks is None and self.config.early_stopping_patience is not None:
+            callbacks = [
+                EarlyStoppingCallback(early_stopping_patience=self.config.early_stopping_patience)
+            ]
 
         trainer = SentenceTransformerTrainer(
             model=self.model,
@@ -293,15 +268,15 @@ class _BaseTrainer(ABC):
         if self._is_testing:
             trainer.remove_callback(WandbCallback)
 
-        if resume_from_checkpoint is None:
-            resume_from_checkpoint = self._config.resume_from_checkpoint
-        trainer.train(resume_from_checkpoint=resume_from_checkpoint, trial=trial)
-        trainer.save_model(self.model_save_dir)
-        self._write_config()
+        self._write_chem_mrl_config()
+        trainer.train(
+            resume_from_checkpoint=self._training_args.resume_from_checkpoint, trial=trial
+        )
+        trainer.save_model(self._root_output_dir)
 
         if self.test_evaluator is not None:
-            model = SentenceTransformer(self.model_save_dir)
-            test_dir = os.path.join(self.model_save_dir, "test")
+            model = SentenceTransformer(self._root_output_dir)
+            test_dir = os.path.join(self._root_output_dir, "test")
             self.test_evaluator(model, output_path=test_dir)
             test_path = os.path.join(test_dir, self.test_evaluator.csv_file)  # type: ignore
             metric = self._read_eval_metric(test_path)

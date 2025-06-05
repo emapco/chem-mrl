@@ -25,7 +25,6 @@ class ChemMRLTrainer(_BaseTrainer):
                 "or train_dataset_path and val_dataset_path must be provided"
             )
 
-        self.__model_save_dir = self._init_output_path()
         self.__model: SentenceTransformer = self._init_model()
         self.__model.tokenizer = self._initialize_tokenizer()  # type: ignore
         self.__train_ds, self.__val_ds, self.__test_ds = self._init_data(
@@ -68,14 +67,6 @@ class ChemMRLTrainer(_BaseTrainer):
     @property
     def test_evaluator(self):
         return self.__test_evaluator
-
-    @property
-    def model_save_dir(self):
-        return self.__model_save_dir
-
-    @model_save_dir.setter
-    def model_save_dir(self, value: str):
-        self.__model_save_dir = value
 
     @property
     def steps_per_epoch(self):
@@ -258,15 +249,6 @@ class ChemMRLTrainer(_BaseTrainer):
             list(self._config.model.mrl_dimensions),
             matryoshka_weights=list(self._config.model.mrl_dimension_weights),
             n_dims_per_step=self._config.model.n_dims_per_step,
-        )
-
-    def _init_output_path(self):
-        assert isinstance(self._config.model, ChemMRLConfig)
-        mrl_prefix = "chem_mrl"
-        if self._config.model.use_2d_matryoshka:
-            mrl_prefix = "chem_2dmrl"
-        return self._output_path_helper(
-            mrl_prefix, self._training_args.output_dir, self._config.model.model_name
         )
 
     # private methods

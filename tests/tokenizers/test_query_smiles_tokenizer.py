@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from transformers import RobertaTokenizerFast
+from transformers.models.roberta import RobertaTokenizerFast
 
 from chem_mrl.tokenizers import QuerySmilesTokenizerFast
 

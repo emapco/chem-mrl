@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from transformers import RobertaTokenizerFast
+from transformers.models.roberta import RobertaTokenizerFast
 
 
 class QuerySmilesTokenizerFast(RobertaTokenizerFast):

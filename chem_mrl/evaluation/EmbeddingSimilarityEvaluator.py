@@ -188,9 +188,8 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             ],
         )
 
-        metrics_name = f"{self.metric}_{self.main_similarity.value}"
-        self.primary_metric = metrics_name
-        metrics = self.prefix_name_to_metrics({metrics_name: eval_metric}, self.name)
+        self.primary_metric = self.metric
+        metrics = self.prefix_name_to_metrics({self.metric: eval_metric}, self.name)
         self.store_metrics_in_model_card_data(model, metrics, epoch, steps)
         return metrics
 

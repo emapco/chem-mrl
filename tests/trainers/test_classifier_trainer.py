@@ -48,7 +48,7 @@ def test_classifier_resume_from_checkpoint():
     executor = TempDirTrainerExecutor(trainer)
     executor.execute()
 
-    config.resume_from_checkpoint = os.path.join(
+    config.training_args.resume_from_checkpoint = os.path.join(
         executor._temp_dir.name, "checkpoints", "checkpoint-1"
     )
     trainer = ClassifierTrainer(config)

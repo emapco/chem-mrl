@@ -8,11 +8,6 @@ Datasets should consists of SMILES pairs and their corresponding [Morgan fingerp
 
 Hyperparameter tuning indicates that a custom Tanimoto similarity loss function, [`TanimotoSentLoss`](https://github.com/emapco/chem-mrl/blob/main/chem_mrl/losses/TanimotoLoss.py), based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), CoSENTLoss, [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
 
-## v0.6.0 Release
-Chem-MRL library is now built on `sentence-transformers` [v4.0.0 API](https://github.com/UKPLab/sentence-transformers/releases/tag/v4.0.1) and uses [datasets library](https://huggingface.co/docs/datasets/en/index) for loading data from local files or [Hugging Face Hub](https://huggingface.co). `sentence-transformers` library supports checkpoint resuming and extends [`transformers.Trainer`](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.Trainer) and [`transformers.TrainingArguments`](https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.TrainingArguments) for enhanced training capabilities. Modify training arguments in `chem_mrl/conf/base.yaml:training_args` when using Hydra-enabled training scripts.
-
-The [PubChem 10M GenMol Fingerprint Similarity Dataset](https://huggingface.co/datasets/Derify/pubchem_10m_genmol_similarity) is available on Hugging Face Hub for training Chem-MRL models.
-
 ## Installation
 
 **Install with pip**
@@ -31,18 +26,29 @@ pip install -e .
 
 ### Hydra & Training Scripts
 
-Hydra configuration files are in `chem_mrl/conf`. The base config defines shared arguments, while model-specific configs are located in `chem_mrl/conf/model`. Use `chem_mrl_config.yaml` or `classifier_config.yaml` to run specific models.
+Hydra configuration files are in `chem_mrl/conf`. The base config (`base.yaml`) defines shared arguments and includes model-specific configurations from `chem_mrl/conf/model`. Supported models: `chem_mrl`, `chem_2d_mrl`, `classifier`, and `dice_loss_classifier`.
 
-The `scripts` directory provides training scripts with Hydra for parameter management:
+**Training Examples:**
 
-- **Train Chem-MRL model:**
-  ```bash
-  python scripts/train_chem_mrl.py train_dataset_path=/path/to/training.parquet val_dataset_path=/path/to/val.parquet
-  ```
-- **Train a linear classifier:**
-  ```bash
-  python scripts/train_classifier.py train_dataset_path=/path/to/training.parquet val_dataset_path=/path/to/val.parquet
-  ```
+```bash
+# Default (chem_mrl model)
+python scripts/train_chem_mrl.py
+
+# Specify model type
+python scripts/train_chem_mrl.py model=chem_2d_mrl
+python scripts/train_chem_mrl.py model=classifier
+
+# Override parameters
+python scripts/train_chem_mrl.py model=chem_mrl training_args.num_train_epochs=5 train_dataset_path=/path/to/data.parquet
+
+# Use different custom config also located in `chem_mrl/conf`
+python scripts/train_chem_mrl.py --config-name=my_custom_config.yaml
+```
+
+**Configuration Options:**
+- **Command line overrides:** Use `model=<type>` and parameter overrides as shown above
+- **Modify base.yaml:** Edit the `- /model: chem_mrl` line in the defaults section to change the default model, or modify any other parameters directly
+- **Override config file:** Use `--config-name=<config_name>` to specify a different base configuration file instead of the default `base.yaml`
 
 ### Basic Training Workflow
 
@@ -164,7 +170,7 @@ from sentence_transformers import (
     SentenceTransformer,
     SentenceTransformerTrainingArguments,
 )
-from transformers import TrainerCallback, TrainerControl, TrainerState
+from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 
 from chem_mrl.constants import BASE_MODEL_NAME
 from chem_mrl.schemas import BaseConfig, ChemMRLConfig

@@ -24,7 +24,6 @@ class ClassifierTrainer(_BaseTrainer):
                 "or train_dataset_path and val_dataset_path must be provided"
             )
 
-        self.__model_save_dir = self._init_output_path()
         self.__model = self._init_model()
         (
             self.__train_ds,
@@ -70,14 +69,6 @@ class ClassifierTrainer(_BaseTrainer):
     @property
     def test_evaluator(self):
         return self.__test_evaluator
-
-    @property
-    def model_save_dir(self):
-        return self.__model_save_dir
-
-    @model_save_dir.setter
-    def model_save_dir(self, value: str):
-        self.__model_save_dir = value
 
     @property
     def steps_per_epoch(self):
@@ -206,10 +197,4 @@ class ClassifierTrainer(_BaseTrainer):
             freeze_model=self._config.model.freeze_model,
             reduction=self._config.model.dice_reduction,
             gamma=self._config.model.dice_gamma,
-        )
-
-    def _init_output_path(self):
-        assert isinstance(self._config.model, ClassifierConfig)
-        return self._output_path_helper(
-            "classifier", self._training_args.output_dir, self._config.model.model_name
         )

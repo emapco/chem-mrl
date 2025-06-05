@@ -1,5 +1,6 @@
 defaults:
   - base_config_schema
+  - /model: chem_mrl # chem_mrl, chem_2d_mrl, classifier or dice_loss_classifier
   - _self_
 
 # dataset params
@@ -18,7 +19,7 @@ n_train_samples: 100000 # Number of training samples to load. Uses seeded sampli
 n_val_samples: 100000 # Number of evaluation samples to load. Uses seeded sampling if a seed is set.
 n_test_samples: 100000 # Number of testing samples to load. Uses seeded sampling if a seed is set.
 
-resume_from_checkpoint: null # Path to checkpoint to resume from
+early_stopping_patience: 3 # Number of epochs to wait before early stopping
 scale_learning_rate: false # Scale learning rate by sqrt(batch_size)
 use_normalized_weight_decay:
   false # overrides the weight decay specified in training_args
@@ -32,27 +33,43 @@ use_normalized_weight_decay:
 # https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.TrainingArguments
 training_args:
   _target_: sentence_transformers.SentenceTransformerTrainingArguments
-  seed: 42 # Set to `null` to not set a seed during training
+  run_name: chem_mrl
+  resume_from_checkpoint: null # null or the path to a folder with a valid checkpoint for your model.
+  output_dir: training_output/${training_args.run_name}_${now:%Y-%m-%d_%H-%M-%S} # Path to save model, checkpoints and evaluation results
+  overwrite_output_dir: false
+  num_train_epochs: 3
+  learning_rate: 5.0e-05
+  lr_scheduler_type: linear
+  warmup_ratio: 0.05
+  optim: adamw_hf # transformer's compatible optimizer name - adamw_hf adamw_apex_fused
+  weight_decay: 0
+  seed: 42
   data_seed: 42
-  output_dir: training_output # Path to save model, checkpoints and evaluation results
   do_train: True
   do_eval: True
+  max_steps: -1
   eval_strategy: epoch # 'no', 'steps', 'epoch'
   eval_steps: 0
-  learning_rate: 1.0e-06
-  lr_scheduler_type: linear
-  optim: adamw_hf # transformer's compatible optimizer name - adamw_hf adamw_apex_fused
-  weight_decay: null # Weight decay for AdamW optimizer
-  tf32: false # Use TensorFloat-32 for matrix multiplication and convolutions
-  fp16: false # Use automatic mixed precision
-  warmup_ratio: 0.0
+  load_best_model_at_end: true
+  metric_for_best_model: eval_val_${model.eval_metric}
+  save_strategy: epoch # 'steps', 'steps', 'epoch', 'best'
+  save_steps: 0
+  save_total_limit: 10
+  logging_strategy: epoch # 'no', 'steps', 'epoch'
+  logging_steps: 0
+  logging_nan_inf_filter: false
+  logging_dir: ${training_args.output_dir}/logs
+  report_to: all # codecarbon and wandb installed by this repo
   per_device_train_batch_size: 32
   per_device_eval_batch_size: 32
-  num_train_epochs: 1
+  tf32: false
+  fp16: false
+  fp16_full_eval: false
+  gradient_accumulation_steps: 1
+  gradient_checkpointing: false
+  torch_compile: false
   disable_tqdm: false
-  save_strategy: "epoch" # 'no', 'steps', 'epoch', 'best'
-  save_steps: 0
-  save_total_limit: 5
-  dataloader_num_workers: 0 # How many subprocesses to use for data loading.
-  # 0 means that the data will be loaded in the main process.
+  dataloader_num_workers: 0
   dataloader_pin_memory: false
+  dataloader_prefetch_factor: null # should be null if dataloader_num_workers is 0
+  dataloader_persistent_workers: false
