@@ -7,14 +7,12 @@ from chem_mrl.schemas import (
     BaseConfig,
     ChemMRLConfig,
     ClassifierConfig,
-    register_chem_mrl_configs,
-    register_classifier_configs,
+    register_configs,
 )
 from chem_mrl.trainers import ChemMRLTrainer, ClassifierTrainer
 
 logger = logging.getLogger(__name__)
-register_chem_mrl_configs()
-register_classifier_configs()
+register_configs()
 
 
 def verify_model_config(cfg: BaseConfig):

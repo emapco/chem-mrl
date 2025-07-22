@@ -1,11 +1,11 @@
 import logging
 
-from datasets import Dataset, Value
+from datasets import Dataset
 from sentence_transformers import SentenceTransformer, models
+from sentence_transformers.evaluation import SentenceEvaluator
 from torch import nn
 
 from chem_mrl.evaluation import EmbeddingSimilarityEvaluator
-from chem_mrl.load import load_dataset_with_fallback
 from chem_mrl.models import LatentAttentionLayer
 from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 
@@ -17,21 +17,14 @@ logger = logging.getLogger(__name__)
 class ChemMRLTrainer(_BaseTrainer):
     def __init__(self, config: BaseConfig):
         super().__init__(config=config)
-        if not isinstance(config.model, ChemMRLConfig):
+
+        self._model_config: ChemMRLConfig = config.model
+        if not isinstance(self._model_config, ChemMRLConfig):
             raise TypeError("config.model must be a ChemMRLConfig instance")
-        if self._config.train_dataset_path is None or self._config.val_dataset_path is None:
-            raise ValueError(
-                "Either train_dataloader and val_dataloader must be provided, "
-                "or train_dataset_path and val_dataset_path must be provided"
-            )
 
         self.__model: SentenceTransformer = self._init_model()
         self.__model.tokenizer = self._initialize_tokenizer()  # type: ignore
-        self.__train_ds, self.__val_ds, self.__test_ds = self._init_data(
-            train_file=self._config.train_dataset_path,
-            val_file=self._config.val_dataset_path,
-            test_file=self._config.test_dataset_path,
-        )
+        self.__train_ds, self.__val_ds, self.__test_ds = self._init_data()
         self.__loss_function = self._init_loss()
         self.__val_evaluator = self._init_val_evaluator()
         self.__test_evaluator = self._init_test_evaluator()
@@ -49,11 +42,11 @@ class ChemMRLTrainer(_BaseTrainer):
         return self.__model
 
     @property
-    def train_dataset(self):
+    def train_dataset(self) -> dict[str, Dataset]:
         return self.__train_ds
 
     @property
-    def eval_dataset(self):
+    def eval_dataset(self) -> dict[str, Dataset]:
         return self.__val_ds
 
     @property
@@ -69,44 +62,34 @@ class ChemMRLTrainer(_BaseTrainer):
         return self.__test_evaluator
 
     @property
-    def steps_per_epoch(self):
-        return len(self.__train_ds)
-
-    @property
     def eval_metric(self) -> str:
-        return self._config.model.eval_metric
-
-    @property
-    def val_eval_file_path(self):
-        return self.val_evaluator.csv_file
+        return self._model_config.eval_metric.value
 
     ############################################################################
     # concrete methods
     ############################################################################
 
     def _init_model(self) -> SentenceTransformer:
-        assert isinstance(self._config.model, ChemMRLConfig)
-
-        base_model = models.Transformer(self._config.model.model_name)
+        base_model = models.Transformer(self._model_config.model_name)
         pooling_model = models.Pooling(
             base_model.get_word_embedding_dimension(),
-            pooling_mode=self._config.model.embedding_pooling,
+            pooling_mode=self._model_config.embedding_pooling,
         )
         normalization_model = models.Normalize()
 
         if (
-            self._config.model.latent_attention_config is not None
-            and self._config.model.latent_attention_config.enable
+            self._model_config.latent_attention_config is not None
+            and self._model_config.latent_attention_config.enable
         ):
             latent_attention_model = LatentAttentionLayer(
-                self._config.model.latent_attention_config
+                self._model_config.latent_attention_config
             )
             modules = [base_model, latent_attention_model, pooling_model, normalization_model]
         else:
             modules = [base_model, pooling_model, normalization_model]
 
         similarity_fn_name = "cosine"
-        if self._config.model.loss_func in ["tanimotosentloss", "tanimotosimilarityloss"]:
+        if self._model_config.loss_func in ["tanimotosentloss", "tanimotosimilarityloss"]:
             similarity_fn_name = "tanimoto"
 
         model = SentenceTransformer(modules=modules, similarity_fn_name=similarity_fn_name)
@@ -116,143 +99,85 @@ class ChemMRLTrainer(_BaseTrainer):
     def _initialize_tokenizer(
         self,
     ):
-        assert isinstance(self._config.model, ChemMRLConfig)
-        if not self._config.model.use_query_tokenizer:
+        if not self._model_config.use_query_tokenizer:
             return self.__model.tokenizer
 
         from chem_mrl.tokenizers import QuerySmilesTokenizerFast
 
         return QuerySmilesTokenizerFast(max_len=self.__model.tokenizer.model_max_length)  # type: ignore
 
-    def _init_data(
-        self,
-        train_file: str,
-        val_file: str,
-        test_file: str | None = None,
-    ):
-        assert isinstance(self._config.model, ChemMRLConfig)
-        assert (
-            self._config.smiles_a_column_name is not None
-            and self._config.smiles_a_column_name != ""
-        ), "smiles_a_column_name must be specified when training a ChemMRL model"
-        assert (
-            self._config.smiles_b_column_name is not None
-            and self._config.smiles_b_column_name != ""
-        ), "smiles_b_column_name must be specified when training a ChemMRL model"
-
-        data_columns = [
-            self._config.smiles_a_column_name,
-            self._config.smiles_b_column_name,
-            self._config.label_column_name,
-        ]
-
-        def raw_to_expected_example(batch):
-            return {
-                self.A_COL: batch[self._config.smiles_a_column_name],
-                self.B_COL: batch[self._config.smiles_b_column_name],
-                self.LABEL_COL: batch[self._config.label_column_name],
-            }
-
-        def process_ds(
-            ds: Dataset,
-            cast: str | None = None,
-            sample_size: int | None = None,
-        ):
-            if sample_size is not None:
-                ds = ds.shuffle(seed=self._training_args.data_seed).select(range(sample_size))
-            if cast is not None:
-                ds = ds.cast_column(self._config.label_column_name, Value(cast))
-            ds = ds.map(raw_to_expected_example, batched=True, remove_columns=ds.column_names)
-            return ds
-
-        train_ds = process_ds(
-            load_dataset_with_fallback(train_file, self._config.train_datasets_split, data_columns),
-            cast="float32",
-            sample_size=self._config.n_train_samples,
-        )
-        eval_ds = process_ds(
-            load_dataset_with_fallback(val_file, self._config.val_datasets_split, data_columns),
-            cast="float16",
-            sample_size=self._config.n_train_samples,
-        )
-        test_ds = None
-        if test_file is not None:
-            test_ds = process_ds(
-                load_dataset_with_fallback(
-                    test_file, self._config.test_datasets_split, data_columns
-                ),
-                cast="float16",
-                sample_size=self._config.n_train_samples,
-            )
-        return train_ds, eval_ds, test_ds
-
     def _init_val_evaluator(self):
-        assert isinstance(self._config.model, ChemMRLConfig)
-        assert (
-            self._config.smiles_b_column_name is not None
-            and self._config.smiles_b_column_name != ""
-        ), "smiles_b_column_name must be specified when training a ChemMRL model"
-        return EmbeddingSimilarityEvaluator(
-            self.__val_ds[self.A_COL],
-            self.__val_ds[self.B_COL],
-            self.__val_ds[self.LABEL_COL],
-            batch_size=self._training_args.per_device_eval_batch_size,
-            main_similarity=self._config.model.eval_similarity_fct,
-            metric=self._config.model.eval_metric,
-            name="val",
-            show_progress_bar=not self._training_args.disable_tqdm,
-            write_csv=True,
-            precision="int8",
-        )
+        """
+        Initialize validation evaluators for all datasets.
+
+        Returns:
+            Dictionary mapping dataset names to evaluators
+        """
+        evaluators: dict[str, SentenceEvaluator] = {}
+        for dataset_name, val_ds in self.__val_ds.items():
+            evaluators[dataset_name] = EmbeddingSimilarityEvaluator(
+                val_ds["smiles_a"],
+                val_ds["smiles_b"],
+                val_ds["label"],
+                batch_size=self._training_args.per_device_eval_batch_size,
+                main_similarity=self._model_config.eval_similarity_fct,
+                metric=self._model_config.eval_metric,
+                name=dataset_name,
+                show_progress_bar=not self._training_args.disable_tqdm,
+                write_csv=True,
+            )
+
+        logger.info(f"Initialized {len(evaluators)} validation evaluators")
+        return evaluators
 
     def _init_test_evaluator(self):
-        if self.__test_ds is None:
-            return None
-        assert isinstance(self._config.model, ChemMRLConfig)
-        assert (
-            self._config.smiles_b_column_name is not None
-            and self._config.smiles_b_column_name != ""
-        ), "smiles_b_column_name must be specified when training a ChemMRL model"
-        return EmbeddingSimilarityEvaluator(
-            self.__val_ds[self.A_COL],
-            self.__val_ds[self.B_COL],
-            self.__val_ds[self.LABEL_COL],
-            batch_size=self._training_args.per_device_eval_batch_size,
-            main_similarity=self._config.model.eval_similarity_fct,
-            metric=self._config.model.eval_metric,
-            name="test",
-            show_progress_bar=not self._training_args.disable_tqdm,
-            write_csv=True,
-            precision="int8",
-        )
+        """
+        Initialize test evaluators for all datasets.
+
+        Returns:
+            Dictionary mapping dataset names to test evaluators, or None if no test datasets
+        """
+        evaluators: dict[str, SentenceEvaluator] = {}
+        for dataset_name, test_ds in self.__test_ds.items():
+            evaluators[dataset_name] = EmbeddingSimilarityEvaluator(
+                test_ds["smiles_a"],
+                test_ds["smiles_b"],
+                test_ds["label"],
+                batch_size=self._training_args.per_device_eval_batch_size,
+                main_similarity=self._model_config.eval_similarity_fct,
+                metric=self._model_config.eval_metric,
+                name=dataset_name,
+                show_progress_bar=not self._training_args.disable_tqdm,
+                write_csv=True,
+                precision="int8",
+            )
+
+        logger.info(f"Initialized {len(evaluators)} test evaluators")
+        return evaluators
 
     def _init_loss(self):
         from sentence_transformers.losses import Matryoshka2dLoss, MatryoshkaLoss
 
-        assert isinstance(self._config.model, ChemMRLConfig)
-        if self._config.model.use_2d_matryoshka:
+        if self._model_config.use_2d_matryoshka:
             return Matryoshka2dLoss(
                 self.__model,
-                self._get_base_loss(self.__model, self._config.model),
-                list(self._config.model.mrl_dimensions),
-                matryoshka_weights=list(self._config.model.mrl_dimension_weights),
-                n_layers_per_step=self._config.model.n_layers_per_step,
-                n_dims_per_step=self._config.model.n_dims_per_step,
-                last_layer_weight=self._config.model.last_layer_weight,
-                prior_layers_weight=self._config.model.prior_layers_weight,
-                kl_div_weight=self._config.model.kl_div_weight,
-                kl_temperature=self._config.model.kl_temperature,
+                self._get_base_loss(self.__model, self._model_config),
+                list(self._model_config.mrl_dimensions),
+                matryoshka_weights=list(self._model_config.mrl_dimension_weights),
+                n_layers_per_step=self._model_config.n_layers_per_step,
+                n_dims_per_step=self._model_config.n_dims_per_step,
+                last_layer_weight=self._model_config.last_layer_weight,
+                prior_layers_weight=self._model_config.prior_layers_weight,
+                kl_div_weight=self._model_config.kl_div_weight,
+                kl_temperature=self._model_config.kl_temperature,
             )
         return MatryoshkaLoss(
             self.__model,
-            self._get_base_loss(self.__model, self._config.model),
-            list(self._config.model.mrl_dimensions),
-            matryoshka_weights=list(self._config.model.mrl_dimension_weights),
-            n_dims_per_step=self._config.model.n_dims_per_step,
+            self._get_base_loss(self.__model, self._model_config),
+            list(self._model_config.mrl_dimensions),
+            matryoshka_weights=list(self._model_config.mrl_dimension_weights),
+            n_dims_per_step=self._model_config.n_dims_per_step,
         )
-
-    # private methods
-    ############################################################################
 
     @staticmethod
     def _get_base_loss(

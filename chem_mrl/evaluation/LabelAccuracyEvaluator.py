@@ -48,11 +48,8 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
         self.smiles_column_name = smiles_column_name
         self.label_column_name = label_column_name
 
-        if name:
-            name = "_" + name
-
         self.write_csv = write_csv
-        self.csv_file = "accuracy_evaluation" + name + "_results.csv"
+        self.csv_file = "accuracy_evaluation" + (f"_{name}" if name else "") + "_results.csv"
         self.csv_headers = ["epoch", "steps", "accuracy"]
         self.primary_metric = "accuracy"
 
