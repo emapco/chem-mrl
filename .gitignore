@@ -1,5 +1,6 @@
 .venv/
 .vscode/
+.kiro/
 outputs/
 visualizations/
 wandb/
@@ -10,11 +11,14 @@ dist/
 /models/
 training_output/**
 ideas/
+examples/isomer_design
+ips-polymer
 
 *.pt
 *.pth
 *.safetensors
 *.bin
+.coverage*
 .coveragerc
 *.nemo
 *.pyc

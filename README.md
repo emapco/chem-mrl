@@ -39,7 +39,7 @@ python scripts/train_chem_mrl.py model=chem_2d_mrl
 python scripts/train_chem_mrl.py model=classifier
 
 # Override parameters
-python scripts/train_chem_mrl.py model=chem_mrl training_args.num_train_epochs=5 train_dataset_path=/path/to/data.parquet
+python scripts/train_chem_mrl.py model=chem_mrl training_args.num_train_epochs=5 datasets[0].train_dataset.name=/path/to/data.parquet
 
 # Use different custom config also located in `chem_mrl/conf`
 python scripts/train_chem_mrl.py --config-name=my_custom_config.yaml
@@ -58,10 +58,35 @@ To train a model, initialize the configuration with dataset paths and model para
 from sentence_transformers import SentenceTransformerTrainingArguments
 
 from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig, DatasetConfig, SplitConfig
+from chem_mrl.schemas.Enums import FieldTypeOption
 from chem_mrl.trainers import ChemMRLTrainer
 
-# Define training configuration
+dataset_config = DatasetConfig(
+    key="my_dataset",
+    train_dataset=SplitConfig(
+        name="train.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=1000,
+    ),
+    val_dataset=SplitConfig(
+        name="val.parquet",
+        split_key="train",  # Use "train" for local files
+        label_cast_type=FieldTypeOption.float16,
+        sample_size=500,
+    ),
+    test_dataset=SplitConfig(
+        name="test.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float16,
+        sample_size=500,
+    ),
+    smiles_a_column_name="smiles_a",
+    smiles_b_column_name="smiles_b",
+    label_column_name="similarity",
+)
+
 config = BaseConfig(
     model=ChemMRLConfig(
         model_name=BASE_MODEL_NAME,  # Predefined model name - Can be any transformer model name or path that is compatible with sentence-transformers
@@ -72,13 +97,8 @@ config = BaseConfig(
         kl_div_weight=0.7,  # Weight for KL divergence regularization
         kl_temperature=0.5,  # Temperature parameter for KL loss
     ),
+    datasets=[dataset_config],  # List of dataset configurations
     training_args=SentenceTransformerTrainingArguments("training_output"),
-    train_dataset_path="train.parquet",  # Path to training data
-    val_dataset_path="val.parquet",  # Path to validation data
-    test_dataset_path="test.parquet",  # Optional test dataset
-    smiles_a_column_name="smiles_a",  # Column with first molecule SMILES representation
-    smiles_b_column_name="smiles_b",  # Column with second molecule SMILES representation
-    label_column_name="similarity",  # Similarity score between molecules
 )
 
 # Initialize trainer and start training
@@ -109,20 +129,36 @@ Supported query formats for `smiles_a` column:
 from sentence_transformers import SentenceTransformerTrainingArguments
 
 from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig, DatasetConfig, SplitConfig
+from chem_mrl.schemas.Enums import FieldTypeOption
 from chem_mrl.trainers import ChemMRLTrainer
+
+dataset_config = DatasetConfig(
+    key="query_dataset",
+    train_dataset=SplitConfig(
+        name="train.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=1000,
+    ),
+    val_dataset=SplitConfig(
+        name="val.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float16,
+        sample_size=500,
+    ),
+    smiles_a_column_name="query",
+    smiles_b_column_name="target_smiles",
+    label_column_name="similarity",
+)
 
 config = BaseConfig(
     model=ChemMRLConfig(
         model_name=BASE_MODEL_NAME,
         use_query_tokenizer=True,  # Train a query model
     ),
+    datasets=[dataset_config],
     training_args=SentenceTransformerTrainingArguments("training_output"),
-    train_dataset_path="train.parquet",
-    val_dataset_path="val.parquet",
-    smiles_a_column_name="query",
-    smiles_b_column_name="target_smiles",
-    label_column_name="similarity",
 )
 trainer = ChemMRLTrainer(config)
 ```
@@ -135,8 +171,34 @@ The Latent Attention Layer model is an experimental component designed to enhanc
 from sentence_transformers import SentenceTransformerTrainingArguments
 
 from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig, LatentAttentionConfig
+from chem_mrl.schemas import (
+    BaseConfig,
+    ChemMRLConfig,
+    DatasetConfig,
+    LatentAttentionConfig,
+    SplitConfig,
+)
+from chem_mrl.schemas.Enums import FieldTypeOption
 from chem_mrl.trainers import ChemMRLTrainer
+
+dataset_config = DatasetConfig(
+    key="latent_dataset",
+    train_dataset=SplitConfig(
+        name="train.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=1000,
+    ),
+    val_dataset=SplitConfig(
+        name="val.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float16,
+        sample_size=500,
+    ),
+    smiles_a_column_name="smiles_a",
+    smiles_b_column_name="smiles_b",
+    label_column_name="similarity",
+)
 
 config = BaseConfig(
     model=ChemMRLConfig(
@@ -150,9 +212,8 @@ config = BaseConfig(
         ),
         use_2d_matryoshka=True,
     ),
+    datasets=[dataset_config],
     training_args=SentenceTransformerTrainingArguments("training_output"),
-    train_dataset_path="train.parquet",
-    val_dataset_path="val.parquet",
 )
 
 # Train a model with latent attention
@@ -173,7 +234,8 @@ from sentence_transformers import (
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
 
 from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig, DatasetConfig, SplitConfig
+from chem_mrl.schemas.Enums import FieldTypeOption
 from chem_mrl.trainers import ChemMRLTrainer
 
 
@@ -194,16 +256,31 @@ class EvalCallback(TrainerCallback):
         pass
 
 
+dataset_config = DatasetConfig(
+    key="callback_dataset",
+    train_dataset=SplitConfig(
+        name="train.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=1000,
+    ),
+    val_dataset=SplitConfig(
+        name="val.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float16,
+        sample_size=500,
+    ),
+    smiles_a_column_name="smiles_a",
+    smiles_b_column_name="smiles_b",
+    label_column_name="similarity",
+)
+
 config = BaseConfig(
     model=ChemMRLConfig(
         model_name=BASE_MODEL_NAME,
     ),
+    datasets=[dataset_config],
     training_args=SentenceTransformerTrainingArguments("training_output"),
-    train_dataset_path="train.parquet",
-    val_dataset_path="val.parquet",
-    smiles_a_column_name="smiles_a",
-    smiles_b_column_name="smiles_b",
-    label_column_name="similarity",
 )
 
 # Train with callback
@@ -226,19 +303,36 @@ To train a classifier, configure the model with dataset paths and column names, 
 ```python
 from sentence_transformers import SentenceTransformerTrainingArguments
 
-from chem_mrl.schemas import BaseConfig, ClassifierConfig
+from chem_mrl.schemas import BaseConfig, ClassifierConfig, DatasetConfig, SplitConfig
+from chem_mrl.schemas.Enums import FieldTypeOption
 from chem_mrl.trainers import ClassifierTrainer
+
+dataset_config = DatasetConfig(
+    key="classification_dataset",
+    train_dataset=SplitConfig(
+        name="train_classification.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=1000,
+    ),
+    val_dataset=SplitConfig(
+        name="val_classification.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float16,
+        sample_size=500,
+    ),
+    smiles_a_column_name="smiles",
+    smiles_b_column_name=None,  # Not needed for classification
+    label_column_name="label",
+)
 
 # Define classification training configuration
 config = BaseConfig(
     model=ClassifierConfig(
         model_name="path/to/trained_mrl_model",  # Pretrained MRL model path
     ),
+    datasets=[dataset_config],
     training_args=SentenceTransformerTrainingArguments("training_output"),
-    train_dataset_path="train_classification.parquet",  # Path to training dataset
-    val_dataset_path="val_classification.parquet",  # Path to validation dataset
-    smiles_a_column_name="smiles",  # Column containing SMILES representations of molecules
-    label_column_name="label",  # Column containing classification labels
 )
 
 # Initialize and train the classifier
@@ -253,9 +347,28 @@ For imbalanced classification tasks, **Dice Loss** can improve performance by fo
 ```python
 from sentence_transformers import SentenceTransformerTrainingArguments
 
-from chem_mrl.schemas import BaseConfig, ClassifierConfig
-from chem_mrl.schemas.Enums import ClassifierLossFctOption, DiceReductionOption
+from chem_mrl.schemas import BaseConfig, ClassifierConfig, DatasetConfig, SplitConfig
+from chem_mrl.schemas.Enums import ClassifierLossFctOption, DiceReductionOption, FieldTypeOption
 from chem_mrl.trainers import ClassifierTrainer
+
+dataset_config = DatasetConfig(
+    key="dice_loss_dataset",
+    train_dataset=SplitConfig(
+        name="train_classification.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=1000,
+    ),
+    val_dataset=SplitConfig(
+        name="val_classification.parquet",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float16,
+        sample_size=500,
+    ),
+    smiles_a_column_name="smiles",
+    smiles_b_column_name=None,  # Not needed for classification
+    label_column_name="label",
+)
 
 # Define classification training configuration with Dice Loss
 config = BaseConfig(
@@ -265,11 +378,8 @@ config = BaseConfig(
         dice_reduction=DiceReductionOption.sum,  # Reduction method for Dice Loss (e.g., 'mean' or 'sum')
         dice_gamma=1.0,  # Smoothing factor hyperparameter
     ),
+    datasets=[dataset_config],
     training_args=SentenceTransformerTrainingArguments("training_output"),
-    train_dataset_path="train_classification.parquet",  # Path to training dataset
-    val_dataset_path="val_classification.parquet",  # Path to validation dataset
-    smiles_a_column_name="smiles",
-    label_column_name="label",
 )
 
 # Initialize and train the classifier with Dice Loss

@@ -1,11 +1,10 @@
 import logging
 
-import torch
-from datasets import Dataset, Value
+from datasets import Dataset
 from sentence_transformers import SentenceTransformer
+from sentence_transformers.evaluation import SentenceEvaluator
 
 from chem_mrl.evaluation import LabelAccuracyEvaluator
-from chem_mrl.load import load_dataset_with_fallback
 from chem_mrl.schemas import BaseConfig, ClassifierConfig
 
 from .BaseTrainer import _BaseTrainer
@@ -16,25 +15,14 @@ logger = logging.getLogger(__name__)
 class ClassifierTrainer(_BaseTrainer):
     def __init__(self, config: BaseConfig):
         super().__init__(config=config)
-        if not isinstance(config.model, ClassifierConfig):
+
+        self._model_config: ClassifierConfig = config.model
+        if not isinstance(self._model_config, ClassifierConfig):
             raise TypeError("config.model must be a ClassifierConfig instance")
-        if self._config.train_dataset_path is None or self._config.val_dataset_path is None:
-            raise ValueError(
-                "Either train_dataloader and val_dataloader must be provided, "
-                "or train_dataset_path and val_dataset_path must be provided"
-            )
 
         self.__model = self._init_model()
-        (
-            self.__train_ds,
-            self.__val_ds,
-            self.__test_ds,
-        ) = self._init_data(
-            train_file=self._config.train_dataset_path,
-            val_file=self._config.val_dataset_path,
-            test_file=self._config.test_dataset_path,
-        )
-        self.__loss_function: torch.nn.Module = self._init_loss()
+        self.__train_ds, self.__val_ds, self.__test_ds = self._init_data(is_classifier=True)
+        self.__loss_function = self._init_loss()
         self.__val_evaluator = self._init_val_evaluator()
         self.__test_evaluator = self._init_test_evaluator()
 
@@ -51,11 +39,11 @@ class ClassifierTrainer(_BaseTrainer):
         return self.__model
 
     @property
-    def train_dataset(self):
+    def train_dataset(self) -> dict[str, Dataset]:
         return self.__train_ds
 
     @property
-    def eval_dataset(self):
+    def eval_dataset(self) -> dict[str, Dataset]:
         return self.__val_ds
 
     @property
@@ -63,138 +51,91 @@ class ClassifierTrainer(_BaseTrainer):
         return self.__loss_function
 
     @property
-    def val_evaluator(self):
+    def val_evaluator(self) -> dict[str, SentenceEvaluator]:
         return self.__val_evaluator
 
     @property
-    def test_evaluator(self):
+    def test_evaluator(self) -> dict[str, SentenceEvaluator]:
         return self.__test_evaluator
 
     @property
-    def steps_per_epoch(self):
-        return len(self.__train_ds)
-
-    @property
     def eval_metric(self) -> str:
-        return self._config.model.eval_metric
-
-    @property
-    def val_eval_file_path(self):
-        return self.val_evaluator.csv_file
+        return self._model_config.eval_metric.value
 
     ############################################################################
     # concrete methods
     ############################################################################
 
     def _init_model(self):
-        assert isinstance(self._config.model, ClassifierConfig)
         model = SentenceTransformer(
-            self._config.model.model_name,
-            truncate_dim=self._config.model.classifier_hidden_dimension,
+            self._model_config.model_name,
+            truncate_dim=self._model_config.classifier_hidden_dimension,
         )
         logger.info(model)
         return model
 
-    def _init_data(
-        self,
-        train_file: str,
-        val_file: str,
-        test_file: str | None = None,
-    ):
-        assert isinstance(self._config.model, ClassifierConfig)
-        assert (
-            self._config.smiles_a_column_name is not None
-            and self._config.smiles_a_column_name != ""
-        ), "smiles_a_column_name must be specified when training a Classifier model"
+    def _init_val_evaluator(self):
+        """
+        Initialize validation evaluators for all datasets.
 
-        data_columns = [
-            self._config.smiles_a_column_name,
-            self._config.label_column_name,
-        ]
-
-        def raw_to_expected_example(batch):
-            return {
-                self.A_COL: batch[self._config.smiles_a_column_name],
-                self.LABEL_COL: batch[self._config.label_column_name],
-            }
-
-        def process_ds(
-            ds: Dataset,
-            cast: str | None = None,
-            sample_size: int | None = None,
-        ):
-            if sample_size is not None:
-                ds = ds.shuffle(seed=self._training_args.data_seed).select(range(sample_size))
-            if cast is not None:
-                ds = ds.cast_column(self._config.label_column_name, Value(cast))
-            ds = ds.map(raw_to_expected_example, batched=True, remove_columns=ds.column_names)
-            return ds
-
-        train_ds = process_ds(
-            load_dataset_with_fallback(train_file, self._config.train_datasets_split, data_columns),
-            cast="int64",
-            sample_size=self._config.n_train_samples,
-        )
-        eval_ds = process_ds(
-            load_dataset_with_fallback(val_file, self._config.val_datasets_split, data_columns),
-            cast="int64",
-            sample_size=self._config.n_val_samples,
-        )
-        test_ds = None
-        if test_file is not None:
-            test_ds = process_ds(
-                load_dataset_with_fallback(
-                    test_file, self._config.test_datasets_split, data_columns
-                ),
-                cast="int64",
-                sample_size=self._config.n_test_samples,
+        Returns:
+            Dictionary mapping dataset names to evaluators
+        """
+        evaluators: dict[str, SentenceEvaluator] = {}
+        for dataset_name, val_ds in self.__val_ds.items():
+            evaluators[dataset_name] = LabelAccuracyEvaluator(
+                dataset=val_ds,
+                softmax_model=self.__loss_function,
+                write_csv=True,
+                name=dataset_name,
+                batch_size=self._config.training_args.per_device_eval_batch_size,
+                smiles_column_name="smiles_a",
+                label_column_name="label",
             )
 
-        return train_ds, eval_ds, test_ds
-
-    def _init_val_evaluator(self):
-        return LabelAccuracyEvaluator(
-            dataset=self.__val_ds,
-            softmax_model=self.__loss_function,
-            write_csv=True,
-            name="val",
-            batch_size=self._config.training_args.per_device_eval_batch_size,
-            smiles_column_name=self.A_COL,
-            label_column_name=self.LABEL_COL,
-        )
+        logger.info(f"Initialized {len(evaluators)} validation evaluators")
+        return evaluators
 
     def _init_test_evaluator(self):
-        if self.__test_ds is None:
-            return None
-        return LabelAccuracyEvaluator(
-            dataset=self.__test_ds,
-            softmax_model=self.__loss_function,
-            write_csv=True,
-            name="test",
-            batch_size=self._config.training_args.per_device_eval_batch_size,
-            smiles_column_name=self.A_COL,
-            label_column_name=self.LABEL_COL,
-        )
+        """
+        Initialize test evaluators for all datasets.
+
+        Returns:
+            Dictionary mapping dataset names to test evaluators, or empty dict if no test datasets
+        """
+        evaluators: dict[str, SentenceEvaluator] = {}
+        for dataset_name, test_ds in self.__test_ds.items():
+            evaluators[dataset_name] = LabelAccuracyEvaluator(
+                dataset=test_ds,
+                softmax_model=self.__loss_function,
+                write_csv=True,
+                name=dataset_name,
+                batch_size=self._config.training_args.per_device_eval_batch_size,
+                smiles_column_name="smiles_a",
+                label_column_name="label",
+            )
+
+        logger.info(f"Initialized {len(evaluators)} test evaluators")
+        return evaluators
 
     def _init_loss(self):
         from chem_mrl.losses import SelfAdjDiceLoss, SoftmaxLoss
 
-        assert isinstance(self._config.model, ClassifierConfig)
-        if self._config.model.loss_func == "softmax":
+        if self._model_config.loss_func == "softmax":
             return SoftmaxLoss(
                 model=self.__model,
-                smiles_embedding_dimension=self._config.model.classifier_hidden_dimension,
+                smiles_embedding_dimension=self._model_config.classifier_hidden_dimension,
                 num_labels=self.config.model.num_labels,
-                dropout=self._config.model.dropout_p,
-                freeze_model=self._config.model.freeze_model,
+                dropout=self._model_config.dropout_p,
+                freeze_model=self._model_config.freeze_model,
             )
 
         return SelfAdjDiceLoss(
             model=self.__model,
-            smiles_embedding_dimension=self._config.model.classifier_hidden_dimension,
+            smiles_embedding_dimension=self._model_config.classifier_hidden_dimension,
             num_labels=self.config.model.num_labels,
-            dropout=self._config.model.dropout_p,
-            freeze_model=self._config.model.freeze_model,
-            reduction=self._config.model.dice_reduction,
-            gamma=self._config.model.dice_gamma,
+            dropout=self._model_config.dropout_p,
+            freeze_model=self._model_config.freeze_model,
+            reduction=self._model_config.dice_reduction,
+            gamma=self._model_config.dice_gamma,
         )

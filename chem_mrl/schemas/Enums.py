@@ -20,6 +20,13 @@ class ExplicitEnum(str, Enum):
         return list(map(lambda c: c.value, cls))
 
 
+class FieldTypeOption(ExplicitEnum):
+    float64 = "float64"
+    float32 = "float32"
+    float16 = "float16"
+    int64 = "int64"  # used for classification tasks
+
+
 class EmbeddingPoolingOption(ExplicitEnum):
     mean = "mean"
     mean_sqrt_len_tokens = "mean_sqrt_len_tokens"

@@ -22,14 +22,15 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.trainer_callback import EarlyStoppingCallback, TrainerCallback
 from transformers.trainer_utils import EvalPrediction
 
+from chem_mrl.evaluation import EmbeddingSimilarityEvaluator, LabelAccuracyEvaluator
+from chem_mrl.load import load_dataset_from_config
 from chem_mrl.schemas import BaseConfig
 from chem_mrl.similarity_functions import patch_sentence_transformer
 
 logger = logging.getLogger(__name__)
+patch_sentence_transformer()
 
 BoundTrainerType = TypeVar("BoundTrainerType", bound="_BaseTrainer")
-
-patch_sentence_transformer()
 
 
 class _BaseTrainer(ABC):
@@ -38,10 +39,6 @@ class _BaseTrainer(ABC):
     """
 
     _is_testing = False
-    A_COL = "sentence_A"
-    B_COL = "sentence_B"
-    LABEL_COL = "label"
-    CHECKPOINTS_DIR = "checkpoints"
 
     def __init__(
         self,
@@ -67,12 +64,12 @@ class _BaseTrainer(ABC):
 
     @property
     @abstractmethod
-    def train_dataset(self) -> Dataset:
+    def train_dataset(self) -> dict[str, Dataset]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def eval_dataset(self) -> Dataset:
+    def eval_dataset(self) -> dict[str, Dataset]:
         raise NotImplementedError
 
     @property
@@ -82,12 +79,12 @@ class _BaseTrainer(ABC):
 
     @property
     @abstractmethod
-    def val_evaluator(self) -> SentenceEvaluator:
+    def val_evaluator(self) -> dict[str, SentenceEvaluator]:
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def test_evaluator(self) -> SentenceEvaluator | None:
+    def test_evaluator(self) -> dict[str, SentenceEvaluator]:
         raise NotImplementedError
 
     @property
@@ -97,17 +94,7 @@ class _BaseTrainer(ABC):
 
     @property
     @abstractmethod
-    def steps_per_epoch(self) -> int:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
     def eval_metric(self) -> str:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def val_eval_file_path(self) -> str:
         raise NotImplementedError
 
     ############################################################################
@@ -116,10 +103,6 @@ class _BaseTrainer(ABC):
 
     @abstractmethod
     def _init_model(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def _init_data(self, train_file: str, val_file: str, test_file: str):
         raise NotImplementedError
 
     @abstractmethod
@@ -135,8 +118,79 @@ class _BaseTrainer(ABC):
         raise NotImplementedError
 
     ############################################################################
-    # concrete methods
+    # concrete properties and methods
     ############################################################################
+
+    @property
+    def val_eval_file_path(self):
+        evaluators = list(self.val_evaluator.values())
+        first_evaluator = evaluators[0]
+        assert isinstance(first_evaluator, LabelAccuracyEvaluator | EmbeddingSimilarityEvaluator)
+        return first_evaluator.csv_file
+
+    @property
+    def steps_per_epoch(self) -> int:
+        """
+        Calculate total steps per epoch across all datasets.
+        For multi-dataset training, this is the sum of steps needed for each dataset.
+        """
+        if not self.train_dataset:
+            return 0
+
+        total_steps = 0
+        for _, dataset in self.train_dataset.items():
+            total_steps += len(dataset)
+
+        return total_steps
+
+    def _init_data(self, is_classifier: bool = False):
+        """
+        Initialize datasets from all dataset configurations.
+
+        Returns:
+            Tuple of dictionaries mapping dataset names to train, validation, and test datasets
+        """
+        train_datasets: dict[str, Dataset] = {}
+        val_datasets: dict[str, Dataset] = {}
+        test_datasets: dict[str, Dataset] = {}
+
+        for dataset_config in self._config.datasets:
+            ds_name = dataset_config.key
+
+            if ds_name in train_datasets:
+                raise ValueError(f"Duplicate dataset name found: {ds_name}")
+
+            logger.info(f"Loading dataset: {ds_name}")
+
+            assert (
+                dataset_config.smiles_a_column_name is not None
+                and dataset_config.smiles_a_column_name != ""
+            ), (
+                f"Dataset {ds_name}: smiles_a_column_name must be specified "
+                f"when training a Classifier model"
+            )
+
+            train_ds, val_ds, test_ds = load_dataset_from_config(
+                dataset_config, seed=self._training_args.data_seed, is_classifier=is_classifier
+            )
+
+            if train_ds is not None:
+                train_datasets[ds_name] = train_ds
+            if val_ds is not None:
+                val_datasets[ds_name] = val_ds
+            if test_ds is not None:
+                test_datasets[ds_name] = test_ds
+
+            train_size_log = f"\t{len(train_ds)} training samples\n" if train_ds is not None else ""
+            val_size_log = f"\t{len(val_ds)} validation samples\n" if val_ds is not None else ""
+            test_size_log = f"\t{len(test_ds)} test samples" if test_ds is not None else ""
+            logger.info(
+                f"Dataset {ds_name} loaded with:\n{train_size_log}{val_size_log}{test_size_log}"
+            )
+
+        logger.info(f"Loaded {len(train_datasets)} datasets in total")
+
+        return train_datasets, val_datasets, test_datasets
 
     def __calculate_training_params(self) -> tuple[float, float]:
         total_training_points = (
@@ -154,28 +208,40 @@ class _BaseTrainer(ABC):
         learning_rate = self._training_args.learning_rate * sqrt_batch_size
         return learning_rate, weight_decay
 
-    def _write_chem_mrl_config(self):
+    def _write_chem_mrl_config(self, output_dir: str | None = None):
         import json
 
         from chem_mrl import __version__
 
-        config_file_name = os.path.join(self._root_output_dir, "config_chem_mrl.json")
+        if output_dir is None:
+            output_dir = self._root_output_dir
+
+        config_file_name = os.path.join(output_dir, "config_chem_mrl.json")
         parsed_config: dict = self.config.model.asdict()
         parsed_config["__version__"] = __version__
         parsed_config = dict(sorted(parsed_config.items()))
+
+        # remove unused keys from config
+        latent_attention_config = parsed_config.get("latent_attention_config", None)
+        if latent_attention_config is not None and not latent_attention_config.get("enable"):
+            parsed_config.pop("latent_attention_config", None)
+
         with open(config_file_name, "w") as f:
             json.dump(parsed_config, f, indent=4)
 
-    def _read_eval_metric(self, file_path: str | None = None) -> float:
+    def _read_eval_metric(self, file_path: str | None = None) -> float | None:
         if file_path is None:
             # sentence transformers adds the 'eval' directory to the file path
             # when it call the evaluator within the training loop
             file_path = os.path.join(
                 self._root_output_dir,
-                self.CHECKPOINTS_DIR,
                 "eval",
                 self.val_eval_file_path,
             )
+
+        if not os.path.exists(file_path):
+            return None
+
         eval_results_df = pd.read_csv(file_path)
         return float(eval_results_df.iloc[-1][self.eval_metric])
 
@@ -239,7 +305,7 @@ class _BaseTrainer(ABC):
         """  # noqa: E501
         scaled_learning_rate, normalized_weight_decay = self.__calculate_training_params()
 
-        self._training_args.output_dir = os.path.join(self._root_output_dir, self.CHECKPOINTS_DIR)
+        self._training_args.output_dir = os.path.join(self._root_output_dir)
         if self.config.use_normalized_weight_decay:
             self._training_args.weight_decay = normalized_weight_decay
         if self.config.scale_learning_rate:
@@ -255,7 +321,9 @@ class _BaseTrainer(ABC):
             train_dataset=self.train_dataset,
             eval_dataset=self.eval_dataset,
             loss=self.loss_function,
-            evaluator=self.val_evaluator,
+            evaluator=[
+                evaluator for evaluator in self.val_evaluator.values() if evaluator is not None
+            ],
             data_collator=data_collator,
             tokenizer=tokenizer,
             model_init=model_init,
@@ -272,14 +340,20 @@ class _BaseTrainer(ABC):
         trainer.train(
             resume_from_checkpoint=self._training_args.resume_from_checkpoint, trial=trial
         )
-        trainer.save_model(self._root_output_dir)
 
-        if self.test_evaluator is not None:
-            model = SentenceTransformer(self._root_output_dir)
+        final_model_path = os.path.join(self._root_output_dir, "final")
+        trainer.save_model(final_model_path)
+        self._write_chem_mrl_config(final_model_path)
+
+        if len(self.test_evaluator) > 0:
+            model = SentenceTransformer(final_model_path)
             test_dir = os.path.join(self._root_output_dir, "test")
-            self.test_evaluator(model, output_path=test_dir)
-            test_path = os.path.join(test_dir, self.test_evaluator.csv_file)  # type: ignore
-            metric = self._read_eval_metric(test_path)
+            metric = None
+
+            for dataset_name, evaluator in self.test_evaluator.items():
+                metric_dict = evaluator(model, output_path=os.path.join(test_dir, dataset_name))
+                assert isinstance(metric_dict, dict)
+                metric = metric_dict.get(f"{dataset_name}_{self.eval_metric}")
             return metric
 
         metric = self._read_eval_metric()

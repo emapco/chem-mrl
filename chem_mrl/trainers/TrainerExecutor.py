@@ -27,7 +27,7 @@ class _BaseTrainerExecutor(ABC, Generic[BoundTrainerType]):
         return self.__trainer.config
 
     @abstractmethod
-    def execute(self, **kwargs: Any) -> float:
+    def execute(self, **kwargs: Any) -> float | None:
         raise NotImplementedError
 
 
@@ -45,7 +45,7 @@ class TempDirTrainerExecutor(_BaseTrainerExecutor[BoundTrainerType]):
         self.trainer._root_output_dir = self._temp_dir.name
         self.trainer._is_testing = True
 
-    def execute(self, **kwargs: Any) -> float:
+    def execute(self, **kwargs: Any) -> float | None:
         """
         Execute the trainer within the temporary directory context.
         """

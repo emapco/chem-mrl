@@ -1,5 +1,4 @@
 import logging
-import os
 from collections.abc import Iterable
 from contextlib import nullcontext
 from typing import Literal
@@ -35,6 +34,8 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
     The results are written in a CSV. If a CSV already exists, then values are appended.
     """
 
+    PrecisionType = Literal["float32", "int8", "uint8", "binary", "ubinary"]
+
     def __init__(
         self,
         smiles1: Iterable[str],
@@ -46,7 +47,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         name: str = "",
         show_progress_bar: bool = False,
         write_csv: bool = True,
-        precision: Literal["float32", "int8", "uint8", "binary", "ubinary"] | None = None,
+        precision: PrecisionType | None = None,
         truncate_dim: int | None = None,
     ):
         """
@@ -70,7 +71,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         self.smiles2 = smiles2
         self.labels = scores
         self.write_csv = write_csv
-        self.precision = precision
+        self.precision: EmbeddingSimilarityEvaluator.PrecisionType = precision
         self.truncate_dim = truncate_dim
 
         assert len(self.smiles1) == len(self.smiles2)  # type: ignore
@@ -88,23 +89,23 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             )
         self.show_progress_bar = show_progress_bar
 
-        self.csv_file = os.path.join(
-            (
-                "similarity_evaluation"
-                + ("_" + name if name else "")
-                + ("_" + precision if precision else "")
-                + "_results.csv"
-            ),
+        self.csv_file = (
+            "similarity_evaluation"
+            + (f"_{name}" if name else "")
+            + (f"_{precision}" if precision else "")
+            + "_results.csv"
         )
         self.csv_headers = ["epoch", "steps", metric]
 
     def __call__(
         self,
         model: SentenceTransformer,
-        output_path: str = ".",
+        output_path: str | None = None,
         epoch: int = -1,
         steps: int = -1,
     ) -> dict[str, float]:
+        if output_path is None:
+            output_path = "."
         if epoch != -1:
             if steps == -1:
                 out_txt = f"after epoch {epoch}"
@@ -132,7 +133,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
                 show_progress_bar=self.show_progress_bar,
                 convert_to_numpy=True,
                 precision=self.precision,  # type: ignore
-                normalize_embeddings=bool(self.precision),
+                normalize_embeddings=True,
             )
             logger.info("Encoding smiles 2 validation data.")
             embeddings2 = model.encode(
@@ -141,7 +142,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
                 show_progress_bar=self.show_progress_bar,
                 convert_to_numpy=True,
                 precision=self.precision,  # type: ignore
-                normalize_embeddings=bool(self.precision),
+                normalize_embeddings=True,
             )
 
         # Binary and ubinary embeddings are packed,
