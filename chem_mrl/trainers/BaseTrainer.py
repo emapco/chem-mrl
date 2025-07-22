@@ -222,7 +222,7 @@ class _BaseTrainer(ABC):
         parsed_config = dict(sorted(parsed_config.items()))
 
         # remove unused keys from config
-        latent_attention_config = parsed_config.get("latent_attention_config", None)
+        latent_attention_config = parsed_config.get("latent_attention_config")
         if latent_attention_config is not None and not latent_attention_config.get("enable"):
             parsed_config.pop("latent_attention_config", None)
 
