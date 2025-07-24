@@ -43,6 +43,7 @@ class _BaseTrainer(ABC):
     def __init__(
         self,
         config: BaseConfig,
+        init_data_kwargs: dict[str, Any] | None = None,
     ):
         self._config = config
         if isinstance(self._config.training_args, SentenceTransformerTrainingArguments):
@@ -51,7 +52,9 @@ class _BaseTrainer(ABC):
             self._training_args: SentenceTransformerTrainingArguments = instantiate(
                 self._config.training_args
             )
+
         self._root_output_dir = self._training_args.output_dir or "."
+        self.__train_ds, self.__val_ds, self.__test_ds = self._init_data(**(init_data_kwargs or {}))
 
     ############################################################################
     # abstract properties
@@ -60,16 +63,6 @@ class _BaseTrainer(ABC):
     @property
     @abstractmethod
     def config(self) -> BaseConfig:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def train_dataset(self) -> dict[str, Dataset]:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def eval_dataset(self) -> dict[str, Dataset]:
         raise NotImplementedError
 
     @property
@@ -122,6 +115,18 @@ class _BaseTrainer(ABC):
     ############################################################################
 
     @property
+    def train_dataset(self) -> dict[str, Dataset]:
+        return self.__train_ds
+
+    @property
+    def eval_dataset(self) -> dict[str, Dataset]:
+        return self.__val_ds
+
+    @property
+    def test_dataset(self) -> dict[str, Dataset]:
+        return self.__test_ds
+
+    @property
     def val_eval_file_path(self):
         evaluators = list(self.val_evaluator.values())
         first_evaluator = evaluators[0]
@@ -165,10 +170,7 @@ class _BaseTrainer(ABC):
             assert (
                 dataset_config.smiles_a_column_name is not None
                 and dataset_config.smiles_a_column_name != ""
-            ), (
-                f"Dataset {ds_name}: smiles_a_column_name must be specified "
-                f"when training a Classifier model"
-            )
+            ), f"Dataset {ds_name}: smiles_a_column_name must be specified."
 
             train_ds, val_ds, test_ds = load_dataset_from_config(
                 dataset_config, seed=self._training_args.data_seed, is_classifier=is_classifier
@@ -266,7 +268,7 @@ class _BaseTrainer(ABC):
                 The trial run or the hyperparameter dictionary for hyperparameter search.
             # passed to SentenceTransformerTrainer()
             data_collator (`DataCollator`, *optional*):
-                The function to use to form a batch from a list of elements of `train_dataset` or `eval_dataset`. Will
+                The function to use to form a batch from a list of elements of `train_dataset`. Will
                 default to [`default_data_collator`] if no `processing_class` is provided, an instance of
                 [`DataCollatorWithPadding`] otherwise if the processing_class is a feature extractor or tokenizer.
             tokenizer (`PreTrainedTokenizerBase` or `Callable`, *optional*):
@@ -319,7 +321,6 @@ class _BaseTrainer(ABC):
             model=self.model,
             args=self._training_args,
             train_dataset=self.train_dataset,
-            eval_dataset=self.eval_dataset,
             loss=self.loss_function,
             evaluator=[
                 evaluator for evaluator in self.val_evaluator.values() if evaluator is not None

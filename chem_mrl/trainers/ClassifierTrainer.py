@@ -1,6 +1,5 @@
 import logging
 
-from datasets import Dataset
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.evaluation import SentenceEvaluator
 
@@ -14,14 +13,13 @@ logger = logging.getLogger(__name__)
 
 class ClassifierTrainer(_BaseTrainer):
     def __init__(self, config: BaseConfig):
-        super().__init__(config=config)
+        super().__init__(config=config, init_data_kwargs={"is_classifier": True})
 
         self._model_config: ClassifierConfig = config.model
         if not isinstance(self._model_config, ClassifierConfig):
             raise TypeError("config.model must be a ClassifierConfig instance")
 
-        self.__model = self._init_model()
-        self.__train_ds, self.__val_ds, self.__test_ds = self._init_data(is_classifier=True)
+        self.__model: SentenceTransformer = self._init_model()
         self.__loss_function = self._init_loss()
         self.__val_evaluator = self._init_val_evaluator()
         self.__test_evaluator = self._init_test_evaluator()
@@ -37,14 +35,6 @@ class ClassifierTrainer(_BaseTrainer):
     @property
     def model(self):
         return self.__model
-
-    @property
-    def train_dataset(self) -> dict[str, Dataset]:
-        return self.__train_ds
-
-    @property
-    def eval_dataset(self) -> dict[str, Dataset]:
-        return self.__val_ds
 
     @property
     def loss_function(self):
@@ -82,9 +72,9 @@ class ClassifierTrainer(_BaseTrainer):
             Dictionary mapping dataset names to evaluators
         """
         evaluators: dict[str, SentenceEvaluator] = {}
-        for dataset_name, val_ds in self.__val_ds.items():
+        for dataset_name, eval_ds in self.eval_dataset.items():
             evaluators[dataset_name] = LabelAccuracyEvaluator(
-                dataset=val_ds,
+                dataset=eval_ds,
                 softmax_model=self.__loss_function,
                 write_csv=True,
                 name=dataset_name,
@@ -104,7 +94,7 @@ class ClassifierTrainer(_BaseTrainer):
             Dictionary mapping dataset names to test evaluators, or empty dict if no test datasets
         """
         evaluators: dict[str, SentenceEvaluator] = {}
-        for dataset_name, test_ds in self.__test_ds.items():
+        for dataset_name, test_ds in self.test_dataset.items():
             evaluators[dataset_name] = LabelAccuracyEvaluator(
                 dataset=test_ds,
                 softmax_model=self.__loss_function,

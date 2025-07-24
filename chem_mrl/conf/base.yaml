@@ -11,7 +11,7 @@ datasets:
       name: Derify/pubchem_10m_genmol_similarity # HuggingFace dataset name or path should load as a datasets.DatasetDict
       split_key: train
       label_cast_type: float32 # float64, float32, or float16 (used by chem_mrl model)
-      sample_size: 500 # Number of training samples to load. Uses seeded sampling if a seed is set.
+      sample_size: 100000 # Number of training samples to load. Uses seeded sampling if a seed is set.
     val_dataset: # May be set to null if only using a train_dataset
       name: Derify/pubchem_10m_genmol_similarity
       split_key: validation # If loading from different local files, this should be set to train
@@ -48,7 +48,7 @@ training_args:
   learning_rate: 5.0e-05
   lr_scheduler_type: linear
   warmup_ratio: 0.05
-  optim: adamw_hf # transformer's compatible optimizer name - adamw_hf adamw_apex_fused
+  optim: adamw_torch # transformer's compatible optimizer name
   weight_decay: 0
   seed: 42
   data_seed: 42
@@ -58,7 +58,7 @@ training_args:
   eval_strategy: epoch # 'no', 'steps', 'epoch'
   eval_steps: 0
   load_best_model_at_end: true
-  metric_for_best_model: eval_${datasets[0].key}_${model.eval_metric} Change index for your choice of dataset but keep the format as is
+  metric_for_best_model: eval_${datasets[0].key}_${model.eval_metric} # Change index for your dataset of choice but keep the format as is
   save_strategy: epoch # 'no', 'steps', 'epoch'
   save_steps: 0
   save_total_limit: 10
@@ -71,7 +71,6 @@ training_args:
   per_device_eval_batch_size: 32
   tf32: false
   fp16: false
-  fp16_full_eval: false
   gradient_accumulation_steps: 1
   gradient_checkpointing: false
   disable_tqdm: false

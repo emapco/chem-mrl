@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Iterable
-from contextlib import nullcontext
 from typing import Literal
 
 import numpy as np
@@ -121,29 +120,10 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             f"Evaluating the model on the {self.name} dataset {out_txt}:"
         )
 
-        with (
-            nullcontext()
-            if self.truncate_dim is None
-            else model.truncate_sentence_embeddings(self.truncate_dim)
-        ):
-            logger.info("Encoding smiles 1 validation data.")
-            embeddings1 = model.encode(
-                self.smiles1,  # type: ignore
-                batch_size=self.batch_size,
-                show_progress_bar=self.show_progress_bar,
-                convert_to_numpy=True,
-                precision=self.precision,  # type: ignore
-                normalize_embeddings=True,
-            )
-            logger.info("Encoding smiles 2 validation data.")
-            embeddings2 = model.encode(
-                self.smiles2,  # type: ignore
-                batch_size=self.batch_size,
-                show_progress_bar=self.show_progress_bar,
-                convert_to_numpy=True,
-                precision=self.precision,  # type: ignore
-                normalize_embeddings=True,
-            )
+        logger.info("Encoding smiles 1 validation data.")
+        embeddings1 = self.embed_inputs(model, self.smiles1)  # type: ignore
+        logger.info("Encoding smiles 2 validation data.")
+        embeddings2 = self.embed_inputs(model, self.smiles1)  # type: ignore
 
         # Binary and ubinary embeddings are packed,
         # so we need to unpack them for the distance metrics
@@ -193,6 +173,23 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         metrics = self.prefix_name_to_metrics({self.metric: eval_metric}, self.name)
         self.store_metrics_in_model_card_data(model, metrics, epoch, steps)
         return metrics
+
+    def embed_inputs(
+        self,
+        model: SentenceTransformer,
+        sentences: str | list[str] | np.ndarray,
+        **kwargs,
+    ) -> np.ndarray:
+        return model.encode(
+            sentences,
+            batch_size=self.batch_size,
+            show_progress_bar=self.show_progress_bar,
+            convert_to_numpy=True,
+            precision=self.precision,
+            normalize_embeddings=bool(self.precision),
+            truncate_dim=self.truncate_dim,
+            **kwargs,
+        )
 
     @property
     def description(self) -> str:

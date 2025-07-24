@@ -1,6 +1,5 @@
 import logging
 
-from datasets import Dataset
 from sentence_transformers import SentenceTransformer, models
 from sentence_transformers.evaluation import SentenceEvaluator
 from torch import nn
@@ -23,8 +22,7 @@ class ChemMRLTrainer(_BaseTrainer):
             raise TypeError("config.model must be a ChemMRLConfig instance")
 
         self.__model: SentenceTransformer = self._init_model()
-        self.__model.tokenizer = self._initialize_tokenizer()  # type: ignore
-        self.__train_ds, self.__val_ds, self.__test_ds = self._init_data()
+        self.__model.tokenizer = self._initialize_tokenizer()
         self.__loss_function = self._init_loss()
         self.__val_evaluator = self._init_val_evaluator()
         self.__test_evaluator = self._init_test_evaluator()
@@ -40,14 +38,6 @@ class ChemMRLTrainer(_BaseTrainer):
     @property
     def model(self):
         return self.__model
-
-    @property
-    def train_dataset(self) -> dict[str, Dataset]:
-        return self.__train_ds
-
-    @property
-    def eval_dataset(self) -> dict[str, Dataset]:
-        return self.__val_ds
 
     @property
     def loss_function(self):
@@ -104,7 +94,7 @@ class ChemMRLTrainer(_BaseTrainer):
 
         from chem_mrl.tokenizers import QuerySmilesTokenizerFast
 
-        return QuerySmilesTokenizerFast(max_len=self.__model.tokenizer.model_max_length)  # type: ignore
+        return QuerySmilesTokenizerFast(max_len=self.__model.tokenizer.model_max_length)
 
     def _init_val_evaluator(self):
         """
@@ -114,11 +104,11 @@ class ChemMRLTrainer(_BaseTrainer):
             Dictionary mapping dataset names to evaluators
         """
         evaluators: dict[str, SentenceEvaluator] = {}
-        for dataset_name, val_ds in self.__val_ds.items():
+        for dataset_name, eval_ds in self.eval_dataset.items():
             evaluators[dataset_name] = EmbeddingSimilarityEvaluator(
-                val_ds["smiles_a"],
-                val_ds["smiles_b"],
-                val_ds["label"],
+                eval_ds["smiles_a"],
+                eval_ds["smiles_b"],
+                eval_ds["label"],
                 batch_size=self._training_args.per_device_eval_batch_size,
                 main_similarity=self._model_config.eval_similarity_fct,
                 metric=self._model_config.eval_metric,
@@ -138,7 +128,7 @@ class ChemMRLTrainer(_BaseTrainer):
             Dictionary mapping dataset names to test evaluators, or None if no test datasets
         """
         evaluators: dict[str, SentenceEvaluator] = {}
-        for dataset_name, test_ds in self.__test_ds.items():
+        for dataset_name, test_ds in self.test_dataset.items():
             evaluators[dataset_name] = EmbeddingSimilarityEvaluator(
                 test_ds["smiles_a"],
                 test_ds["smiles_b"],
