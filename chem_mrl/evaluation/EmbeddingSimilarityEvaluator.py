@@ -123,7 +123,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         logger.info("Encoding smiles 1 validation data.")
         embeddings1 = self.embed_inputs(model, self.smiles1)  # type: ignore
         logger.info("Encoding smiles 2 validation data.")
-        embeddings2 = self.embed_inputs(model, self.smiles1)  # type: ignore
+        embeddings2 = self.embed_inputs(model, self.smiles2)  # type: ignore
 
         # Binary and ubinary embeddings are packed,
         # so we need to unpack them for the distance metrics
