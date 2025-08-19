@@ -209,9 +209,7 @@ class TransformerEmbeddingSeeder(BenchmarkDataSeeder):
                 test_df = BenchmarkDataSeeder._load_chemical_data(
                     config.file_path, skip_rows=offset, batch_size=config.batch_size
                 )
-                smiles_embeddings = embedder.get_embeddings(
-                    test_df["smiles"], show_progress_bar=True
-                )
+                smiles_embeddings = embedder.embed(test_df["smiles"], show_progress_bar=True)
                 smiles_embeddings = smiles_embeddings.astype(np.float16)  # halfvec pgvector index
 
                 test_df[config.embedding_col_name] = list(smiles_embeddings)
@@ -385,7 +383,7 @@ def main():
     )
 
     seeder = seeder_class(config)
-    assert isinstance(seeder, (MorganFingerprintSeeder, TransformerEmbeddingSeeder))
+    assert isinstance(seeder, MorganFingerprintSeeder | TransformerEmbeddingSeeder)
 
     seeder.seed()
 

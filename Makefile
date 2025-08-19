@@ -1,8 +1,8 @@
 .PHONY: install install-pep lint release-testing docker \
 				rapids benchmark_db optuna_db clear_benchmark_db clear_optuna_db \
 				process_all_smiles_datasets run_bionemo \
-				genmol_dataset_gen run_genmol run_multiple_genmol download_genmol \
-        run_seed_db run_seed_db_base run_seed_db_test run_benchmark_db
+				run_genmol download_genmol \
+				run_seed_db run_seed_db_base run_seed_db_test run_benchmark_db
 
 ########## LIBRARY RECIPES ##########
 
@@ -20,10 +20,10 @@ lint:
 
 release-testing: lint
 	pip uninstall chem_mrl -y
-	python -m build
+	.venv/bin/python -m build
 	pip install dist/*.whl
 	rm -r dist/
-	(unset CUDA_VISIBLE_DEVICES; pytest tests)
+	(unset CUDA_VISIBLE_DEVICES; pytest tests -v)
 	pip uninstall chem_mrl -y
 	make install
 
@@ -78,9 +78,6 @@ run_bionemo:
 		nvcr.io/nvidia/clara/bionemo-framework:1.10.1 \
 		bash
 
-genmol_dataset_gen:
-	python dataset/generate_genmol_fingerprint_similarity_dataset.py \
-	dataset.path=data/processed/train_pubchem_dataset_less_than_128_tokens.parquet
 
 # https://docs.nvidia.com/nim/bionemo/genmol/latest/getting-started.html 
 # https://docs.nvidia.com/launchpad/ai/base-command-coe/latest/bc-coe-docker-basics-step-02.html
@@ -95,9 +92,6 @@ run_genmol:
 		-v ./models/genmol:/opt/nim/.cache \
 		nvcr.io/nim/nvidia/genmol:1.0.0
 
-run_multiple_genmol:
-	bash scripts/run_genmol.bash 4
-
 download_genmol:
 	docker run -it --rm --runtime=nvidia --gpus=all -e NGC_API_KEY \
 	-v ./models/genmol:/opt/nim/.cache \
@@ -108,17 +102,17 @@ download_genmol:
 ########## BENCHMARKING RECIPES ##########
 
 run_seed_db:
-	python scripts/seed_benchmarking_db.py --mode chem_mrl \
+	.venv/bin/python scripts/seed_benchmarking_db.py --mode chem_mrl \
 		--chem_mrl_model_name output/chem-2dmrl-functional-1-epoch \
 		--chem_mrl_dimensions 768
 
 run_seed_db_base:
-	python scripts/seed_benchmarking_db.py --mode base
+	.venv/bin/python scripts/seed_benchmarking_db.py --mode base
 
 run_seed_db_test:
-	python scripts/seed_benchmarking_db.py --mode test
+	.venv/bin/python scripts/seed_benchmarking_db.py --mode test
 
 run_benchmark_db:
-	python scripts/benchmark_zinc_db.py --num_rows 1000 --knn_k 10 \
+	.venv/bin/python scripts/benchmark_zinc_db.py --num_rows 1000 --knn_k 10 \
 		--model_name output/chem-2dmrl-functional-1-epoch \
 		--chem_mrl_dimensions 768

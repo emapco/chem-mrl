@@ -14,7 +14,7 @@
 
 from __future__ import annotations
 
-__version__ = "0.7.2"
+__version__ = "0.7.3"
 __MODEL_HUB_ORGANIZATION__ = "Derify"
 
 from . import (
@@ -27,6 +27,7 @@ from . import (
     trainers,
     util,
 )
+from .molecular_embedder import ChemMRL
 
 __all__ = [
     "benchmark",
@@ -37,4 +38,5 @@ __all__ = [
     "schemas",
     "trainers",
     "util",
+    "ChemMRL",
 ]

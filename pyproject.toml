@@ -1,6 +1,6 @@
 [project]
 name = "chem-mrl"
-version = "0.7.2"
+version = "0.7.3"
 description = "SMILES-based Matryoshka Representation Learning Embedding Model"
 license = { text = "Apache 2.0" }
 readme = "README.md"

@@ -10,9 +10,8 @@ notes/
 dist/
 /models/
 training_output/**
-ideas/
 examples/isomer_design
-ips-polymer
+data
 
 *.pt
 *.pth

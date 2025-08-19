@@ -50,7 +50,8 @@ def patch_sentence_transformer():
         @similarity_fn_name.setter
         def similarity_fn_name(
             self,
-            value: Literal["cosine", "dot", "euclidean", "manhattan"] | SimilarityFunction,
+            value: Literal["cosine", "dot", "euclidean", "manhattan", "tanimoto"]
+            | SimilarityFunction,
         ) -> None:
             if isinstance(value, SimilarityFunction):
                 value = value.value
@@ -195,15 +196,13 @@ def paired_tanimoto_similarity(X, Y):
         Tanimoto similarity between paired rows of X and Y
     """
     X, Y = check_paired_arrays(X, Y)
-    X = X.astype(np.float32, copy=False)
-    Y = Y.astype(np.float32, copy=False)
     dot_product = np.sum(X * Y, axis=1)
     np.multiply(X, X, out=X)  # X is now X²
     np.multiply(Y, Y, out=Y)  # Y is now Y²
     X = np.sum(X, axis=1)
     Y = np.sum(Y, axis=1)
     denominator = X + Y - dot_product
-    return (dot_product / np.maximum(denominator, 1e-9)).astype(np.float32)
+    return dot_product / np.maximum(denominator, 1e-9)
 
 
 class SimilarityFunction(Enum):

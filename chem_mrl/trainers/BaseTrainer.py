@@ -3,7 +3,7 @@ import math
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import optuna
 import pandas as pd
@@ -21,6 +21,7 @@ from transformers.integrations.integration_utils import WandbCallback
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from transformers.trainer_callback import EarlyStoppingCallback, TrainerCallback
 from transformers.trainer_utils import EvalPrediction
+from transformers.training_args import TrainingArguments
 
 from chem_mrl.evaluation import EmbeddingSimilarityEvaluator, LabelAccuracyEvaluator
 from chem_mrl.load import load_dataset_from_config
@@ -49,9 +50,7 @@ class _BaseTrainer(ABC):
         if isinstance(self._config.training_args, SentenceTransformerTrainingArguments):
             self._training_args = self._config.training_args
         else:
-            self._training_args: SentenceTransformerTrainingArguments = instantiate(
-                self._config.training_args
-            )
+            self._training_args: TrainingArguments = instantiate(self._config.training_args)
 
         self._root_output_dir = self._training_args.output_dir or "."
         self.__train_ds, self.__val_ds, self.__test_ds = self._init_data(**(init_data_kwargs or {}))
@@ -319,7 +318,7 @@ class _BaseTrainer(ABC):
 
         trainer = SentenceTransformerTrainer(
             model=self.model,
-            args=self._training_args,
+            args=cast(SentenceTransformerTrainingArguments, self._training_args),
             train_dataset=self.train_dataset,
             loss=self.loss_function,
             evaluator=[
