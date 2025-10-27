@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import os
 
@@ -28,9 +42,7 @@ def configure_pytorch():
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Molecule Optimization Pipeline for Smiles Dataset Augmentation"
-    )
+    parser = argparse.ArgumentParser(description="Molecule Optimization Pipeline for Smiles Dataset Augmentation")
     parser.add_argument(
         "dataset_path",
         type=str,
@@ -43,20 +55,12 @@ def parse_args():
         help="SMILES column name. For optimal performance, ensure smiles are RDkit canonicalized.",
     )
     parser.add_argument("--qed_cutoff", type=float, default=0.875, help="QED cutoff value")
-    parser.add_argument(
-        "--tanimoto_cutoff", type=float, default=0.6, help="Tanimoto similarity cutoff"
-    )
-    parser.add_argument(
-        "--beam_size", type=int, default=3, help="Beam size for molecule generation"
-    )
+    parser.add_argument("--tanimoto_cutoff", type=float, default=0.6, help="Tanimoto similarity cutoff")
+    parser.add_argument("--beam_size", type=int, default=3, help="Beam size for molecule generation")
     parser.add_argument("--optimizer_steps", type=int, default=5, help="Number of optimizer steps")
-    parser.add_argument(
-        "--optimizer_sigma", type=float, default=0.438864, help="Optimizer sigma value"
-    )
+    parser.add_argument("--optimizer_sigma", type=float, default=0.438864, help="Optimizer sigma value")
     parser.add_argument("--batch_size", type=int, default=96, help="Batch size")
-    parser.add_argument(
-        "--optimizer_popsize", type=int, default=10, help="Optimizer population size"
-    )
+    parser.add_argument("--optimizer_popsize", type=int, default=10, help="Optimizer population size")
     return parser.parse_args()
 
 
@@ -88,9 +92,7 @@ def scoring_function_closure_factory(qed_cutoff, tanimoto_cutoff):
     """Creates a scoring function closure for molecule optimization."""
 
     def score_mixing_function(qeds, similarities):
-        return np.clip(qeds / qed_cutoff, 0.0, 1.0) + np.clip(
-            similarities / tanimoto_cutoff, 0.0, 1.0
-        )
+        return np.clip(qeds / qed_cutoff, 0.0, 1.0) + np.clip(similarities / tanimoto_cutoff, 0.0, 1.0)
 
     def scoring_function(smiles: list[str], reference: str, **kwargs) -> np.ndarray:
         smiles = [canonicalize_smiles(smi) or "" for smi in smiles]
@@ -128,9 +130,7 @@ def main():
     model = get_controlled_generation_model(ARGS.beam_size)
     scoring_function = scoring_function_closure_factory(ARGS.qed_cutoff, ARGS.tanimoto_cutoff)
 
-    for batch_start in trange(
-        resume_batch_start, len(df), ARGS.batch_size, desc="Processing Batches"
-    ):
+    for batch_start in trange(resume_batch_start, len(df), ARGS.batch_size, desc="Processing Batches"):
         batch_end = batch_start + ARGS.batch_size
         batch_smiles = df[ARGS.smiles_column_name].iloc[batch_start:batch_end].to_list()
         sampled_data = []
@@ -146,14 +146,14 @@ def main():
             optimizer.step()
             final_smiles = optimizer.generated_smis
             scores = np.array(
-                [scoring_function(smis, ref) for smis, ref in zip(final_smiles, batch_smiles)]
+                [scoring_function(smis, ref) for smis, ref in zip(final_smiles, batch_smiles, strict=True)]
             )
             best_indices = np.argmin(scores, axis=1)
-            best_smis = [smis[idx] for smis, idx in zip(final_smiles, best_indices)]
+            best_smis = [smis[idx] for smis, idx in zip(final_smiles, best_indices, strict=True)]
             canonicalized_best_molecules = [canonicalize_smiles(smis) for smis in best_smis]
             qed_scores = qed(best_smis)
             tanimoto_scores = [
-                tanimoto_similarity([smis], ref)[0] for smis, ref in zip(best_smis, batch_smiles)
+                tanimoto_similarity([smis], ref)[0] for smis, ref in zip(best_smis, batch_smiles, strict=True)
             ]
 
             # only store molecules that have changed in the current step
@@ -164,6 +164,7 @@ def main():
                 tanimoto_scores,
                 batch_smiles,
                 qed(batch_smiles),
+                strict=True,
             ):
                 if tanimoto_score != 1.0:
                     sampled_data.append(
@@ -183,9 +184,9 @@ def main():
         batch_df["batch_start"] = batch_df["batch_start"].astype("category")
         sampled_df = pd.concat([sampled_df, batch_df], ignore_index=True)
         logger.info(f"Saving... {batch_start}-{batch_end}\n")
-        sampled_df.to_parquet(output_path, index=False, engine="pyarrow", compression="zstd")
+        sampled_df.to_parquet(output_path, index=False, engine="pyarrow", compression="gzip")
 
-    sampled_df.to_parquet(output_path, index=False, engine="pyarrow", compression="zstd")
+    sampled_df.to_parquet(output_path, index=False, engine="pyarrow", compression="gzip")
 
 
 if __name__ == "__main__":

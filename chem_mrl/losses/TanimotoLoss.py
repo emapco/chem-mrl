@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from collections.abc import Callable, Iterable
 
 import sentence_transformers
@@ -52,6 +66,18 @@ class TanimotoSentLoss(CoSENTLoss):
             similarity_fct=pairwise_tanimoto_similarity,
         )
 
+    @property
+    def citation(self) -> str:
+        return """
+@online{cortes-2025-tanimotosentloss,
+    title={TanimotoSentLoss: Tanimoto Loss for SMILES Embeddings},
+    author={Emmanuel Cortes},
+    year={2025},
+    month={Jan},
+    url={https://github.com/emapco/chem-mrl},
+}
+"""
+
 
 class TanimotoSimilarityLoss(nn.Module):
     def __init__(
@@ -77,7 +103,7 @@ class TanimotoSimilarityLoss(nn.Module):
             +===========================+========================+
             | (smiles_A, smiles2) pairs | float similarity score |
             +---------------------------+------------------------+
-        """  # noqa: E501
+        """
         super().__init__()
         self.__model = model
         self.__loss_fct = loss

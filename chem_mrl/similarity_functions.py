@@ -1,4 +1,16 @@
-from __future__ import annotations
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from collections.abc import Callable
 from enum import Enum
@@ -17,10 +29,7 @@ from sentence_transformers.util import (
     pairwise_euclidean_sim,
     pairwise_manhattan_sim,
 )
-from sklearn.metrics.pairwise import (
-    check_paired_arrays,
-    row_norms,
-)
+from sklearn.metrics.pairwise import check_paired_arrays, row_norms
 from sklearn.preprocessing import normalize
 from torch import Tensor
 
@@ -28,7 +37,7 @@ from torch import Tensor
 def patch_sentence_transformer():
     class SentenceTransformerOverride(SentenceTransformer):
         @property
-        def similarity_fn_name(
+        def similarity_fn_name(  # type: ignore
             self,
         ) -> Literal["tanimoto", "cosine", "dot", "euclidean", "manhattan"]:
             """Return the name of the similarity function used by :meth:`SentenceTransformer.similarity`
@@ -42,16 +51,15 @@ def patch_sentence_transformer():
                 >>> model = SentenceTransformer("multi-qa-mpnet-base-dot-v1")
                 >>> model.similarity_fn_name
                 'dot'
-            """  # noqa: E501
+            """
             if self._similarity_fn_name is None:
                 self.similarity_fn_name = SimilarityFunction.COSINE
-            return self._similarity_fn_name
+            return self._similarity_fn_name  # type: ignore
 
         @similarity_fn_name.setter
-        def similarity_fn_name(
+        def similarity_fn_name(  # type: ignore
             self,
-            value: Literal["cosine", "dot", "euclidean", "manhattan", "tanimoto"]
-            | SimilarityFunction,
+            value: Literal["tanimoto", "cosine", "dot", "euclidean", "manhattan"] | SimilarityFunction,
         ) -> None:
             if isinstance(value, SimilarityFunction):
                 value = value.value
@@ -63,7 +71,7 @@ def patch_sentence_transformer():
 
     new_prop = SentenceTransformerOverride.__dict__["similarity_fn_name"]
 
-    SentenceTransformer.similarity_fn_name = property(
+    SentenceTransformer.similarity_fn_name = property(  # type: ignore
         fget=new_prop.fget,
         fset=new_prop.fset,
         fdel=new_prop.fdel,
@@ -71,10 +79,10 @@ def patch_sentence_transformer():
     )
 
 
-# Used by loss classes
+# Used by loss classes and SimilarityFunction enum
 def pairwise_tanimoto_similarity(a: list | ndarray | Tensor, b: list | ndarray | Tensor) -> Tensor:
     """
-    Computes the Tanimoto similarity between two numpy arrays x and y.
+    Computes the Tanimoto similarity between two tensors x and y.
 
     Tanimoto coefficient as defined in 10.1186/s13321-015-0069-3 for continuous variables:
     T(X,Y) = <X,Y> / (Σx^2 + Σy^2 - <X,Y>)
@@ -105,9 +113,10 @@ def pairwise_tanimoto_similarity(a: list | ndarray | Tensor, b: list | ndarray |
     return dot_product / denominator.clamp(min=1e-9)
 
 
+# Used by SimilarityFunction enum
 def tanimoto_similarity(a: list | ndarray | Tensor, b: list | ndarray | Tensor) -> Tensor:
     """
-    Computes the Tanimoto similarity between two numpy arrays x and y.
+    Computes the Tanimoto similarity between two tensors x and y.
 
     Tanimoto coefficient as defined in 10.1186/s13321-015-0069-3 for continuous variables:
     T(X,Y) = <X,Y> / (Σx^2 + Σy^2 - <X,Y>)
@@ -133,7 +142,7 @@ def tanimoto_similarity(a: list | ndarray | Tensor, b: list | ndarray | Tensor) 
     a = util._convert_to_batch_tensor(a)
     b = util._convert_to_batch_tensor(b)
     dot_product = util.dot_score(a, b)
-    denominator = a.pow(2).sum(dim=-1) + b.pow(2).sum(dim=-1) - dot_product
+    denominator = a.pow(2).sum(dim=-1, keepdim=True) + b.pow(2).sum(dim=-1, keepdim=True).T - dot_product
 
     return dot_product / denominator.clamp(min=1e-9)
 
@@ -166,11 +175,12 @@ def paired_cosine_distances(X, Y):
     euclidean distance if each sample is normalized to unit norm.
     """
     X, Y = check_paired_arrays(X, Y)
-    X = normalize(X).astype(np.float32, copy=False)
-    Y = normalize(Y).astype(np.float32, copy=False)
-    return (0.5 * row_norms(X - Y, squared=True)).astype(np.float32)
+    X = normalize(X)
+    Y = normalize(Y)
+    return 0.5 * row_norms(X - Y, squared=True)
 
 
+# Used by evaluation classes
 def paired_tanimoto_similarity(X, Y):
     """
     Compute the paired Tanimoto similarity between X and Y.
@@ -197,11 +207,9 @@ def paired_tanimoto_similarity(X, Y):
     """
     X, Y = check_paired_arrays(X, Y)
     dot_product = np.sum(X * Y, axis=1)
-    np.multiply(X, X, out=X)  # X is now X²
-    np.multiply(Y, Y, out=Y)  # Y is now Y²
-    X = np.sum(X, axis=1)
-    Y = np.sum(Y, axis=1)
-    denominator = X + Y - dot_product
+    x_norm_sq = np.sum(X * X, axis=1)
+    y_norm_sq = np.sum(Y * Y, axis=1)
+    denominator = x_norm_sq + y_norm_sq - dot_product
     return dot_product / np.maximum(denominator, 1e-9)
 
 
@@ -225,7 +233,7 @@ class SimilarityFunction(Enum):
 
     @staticmethod
     def to_similarity_fn(
-        similarity_function: str | SimilarityFunction,
+        similarity_function: "str | SimilarityFunction",
     ) -> Callable[[Tensor | ndarray, Tensor | ndarray], Tensor]:
         """
         Converts a similarity function name or enum value to the corresponding similarity function.
@@ -245,7 +253,7 @@ class SimilarityFunction(Enum):
             >>> similarity_scores
             tensor([[0.3952, 0.0554],
                     [0.0992, 0.1570]])
-        """  # noqa: E501
+        """
         similarity_function = SimilarityFunction(similarity_function)
 
         if similarity_function == SimilarityFunction.COSINE:
@@ -266,7 +274,7 @@ class SimilarityFunction(Enum):
 
     @staticmethod
     def to_similarity_pairwise_fn(
-        similarity_function: str | SimilarityFunction,
+        similarity_function: "str | SimilarityFunction",
     ) -> Callable[[Tensor | ndarray, Tensor | ndarray], Tensor]:
         """
         Converts a similarity function into a pairwise similarity function.
@@ -289,7 +297,7 @@ class SimilarityFunction(Enum):
             >>> similarity_scores = pairwise_fn(embeddings1, embeddings2)
             >>> similarity_scores
             tensor([0.3952, 0.1570])
-        """  # noqa: E501
+        """
         similarity_function = SimilarityFunction(similarity_function)
 
         if similarity_function == SimilarityFunction.COSINE:

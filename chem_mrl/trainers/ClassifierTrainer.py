@@ -1,6 +1,22 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 
-from sentence_transformers import SentenceTransformer
+import torch
+from hydra.utils import instantiate
+from sentence_transformers import SentenceTransformer, SentenceTransformerModelCardData
 from sentence_transformers.evaluation import SentenceEvaluator
 
 from chem_mrl.evaluation import LabelAccuracyEvaluator
@@ -57,9 +73,26 @@ class ClassifierTrainer(_BaseTrainer):
     ############################################################################
 
     def _init_model(self):
+        dtype = torch.float32
+        if self._training_args.bf16:
+            dtype = torch.bfloat16
+        if self._training_args.fp16:
+            dtype = torch.float16
+        model_card_data: SentenceTransformerModelCardData = instantiate(self._config.model_card_data)
+        if model_card_data is not None:
+            model_card_data.tags = list(model_card_data.tags or [])  # convert from omegaconf.list to list
+
+        if self._config.config_kwargs is None:
+            self._config.config_kwargs = {}
+        self._config.config_kwargs["trust_remote_code"] = True
+
         model = SentenceTransformer(
             self._model_config.model_name,
             truncate_dim=self._model_config.classifier_hidden_dimension,
+            trust_remote_code=True,
+            model_kwargs={"dtype": dtype},
+            config_kwargs=self._config.config_kwargs,
+            model_card_data=model_card_data,
         )
         logger.info(model)
         return model
@@ -78,7 +111,7 @@ class ClassifierTrainer(_BaseTrainer):
                 softmax_model=self.__loss_function,
                 write_csv=True,
                 name=dataset_name,
-                batch_size=self._config.training_args.per_device_eval_batch_size,
+                batch_size=self._training_args.per_device_eval_batch_size,
                 smiles_column_name="smiles_a",
                 label_column_name="label",
             )
@@ -100,7 +133,7 @@ class ClassifierTrainer(_BaseTrainer):
                 softmax_model=self.__loss_function,
                 write_csv=True,
                 name=dataset_name,
-                batch_size=self._config.training_args.per_device_eval_batch_size,
+                batch_size=self._training_args.per_device_eval_batch_size,
                 smiles_column_name="smiles_a",
                 label_column_name="label",
             )

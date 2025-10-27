@@ -1,26 +1,41 @@
 # CHEM-MRL
 
+[![huggingface](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-ChemMRL%20Collection-FFD21E)](https://huggingface.co/collections/Derify/chemmrl-68d5b6f6c6f34b492b119766)
+![PyPI - Version](https://img.shields.io/pypi/v/chem-mrl)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/chem-mrl?period=total&units=INTERNATIONAL_SYSTEM&left_color=grey&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/chem-mrl)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/emapco/chem-mrl/ci.yml)
+![PyPI - Status](https://img.shields.io/pypi/status/chem-mrl)
+
 Chem-MRL is a SMILES embedding transformer model that leverages Matryoshka Representation Learning (MRL) to generate efficient, truncatable embeddings for downstream tasks such as classification, clustering, and database querying.
 
 The model employs [SentenceTransformers' (SBERT)](https://sbert.net/) [2D Matryoshka Sentence Embeddings](https://sbert.net/examples/training/matryoshka/README.html) (`Matryoshka2dLoss`) to enable truncatable embeddings with minimal accuracy loss, improving query performance and flexibility in downstream applications.
 
 Datasets should consists of SMILES pairs and their corresponding [Morgan fingerprint](https://www.rdkit.org/docs/GettingStartedInPython.html#morgan-fingerprints-circular-fingerprints) Tanimoto similarity scores.
 
-Hyperparameter tuning indicates that a custom Tanimoto similarity loss function, [`TanimotoSentLoss`](https://github.com/emapco/chem-mrl/blob/main/chem_mrl/losses/TanimotoLoss.py), based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), CoSENTLoss, [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
+Hyperparameter optimization indicates that a custom Tanimoto similarity loss function, [`TanimotoSentLoss`](https://github.com/emapco/chem-mrl/blob/main/chem_mrl/losses/TanimotoLoss.py), based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms CoSENTLoss, [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
 
 ## Installation
 
-**Install with pip**
+### Install with pip
 
 ```bash
 pip install chem-mrl
 ```
 
-**Install from source code**
+### Install from source code
 
 ```bash
 pip install -e .
 ```
+
+### Install Flash Attention (optional, improves training speed)
+The default base model, `Derify/ModChemBERT-IR-BASE`, benefits from Flash Attention for faster training and inference. Install it via pip:
+
+```bash
+MAX_JOBS=4 pip install flash-attn --no-build-isolation
+```
+
+For more information and installation options, refer to the [Flash Attention repository](https://github.com/Dao-AILab/flash-attention).
 
 ## Usage
 
@@ -39,7 +54,7 @@ python scripts/train_chem_mrl.py model=chem_2d_mrl
 python scripts/train_chem_mrl.py model=classifier
 
 # Override parameters
-python scripts/train_chem_mrl.py model=chem_mrl training_args.num_train_epochs=5 datasets[0].train_dataset.name=/path/to/data.parquet
+python scripts/train_chem_mrl.py model=chem_2d_mrl training_args.num_train_epochs=5 datasets[0].train_dataset.name=/path/to/data.parquet
 
 # Use different custom config also located in `chem_mrl/conf`
 python scripts/train_chem_mrl.py --config-name=my_custom_config.yaml
@@ -109,129 +124,18 @@ test_eval_metric = (
 # Otherwise returns the final validation eval metric
 ```
 
-### Experimental
-
-#### Train a Query Model
-
-To train a querying model, configure the model to utilize the specialized query tokenizer.
-
-The query tokenizer supports the following query types:
-
-- similar: Computes SMILES similarity between two molecular structures. For retrieving similar SMILES.
-- substructure: Determines the presence of a substructure within the second SMILES string.
-
-Supported query formats for `smiles_a` column:
-
-- `similar {smiles}`
-- `substructure {smiles}`
-
-```python
-from sentence_transformers import SentenceTransformerTrainingArguments
-
-from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.schemas import BaseConfig, ChemMRLConfig, DatasetConfig, SplitConfig
-from chem_mrl.schemas.Enums import FieldTypeOption
-from chem_mrl.trainers import ChemMRLTrainer
-
-dataset_config = DatasetConfig(
-    key="query_dataset",
-    train_dataset=SplitConfig(
-        name="train.parquet",
-        split_key="train",
-        label_cast_type=FieldTypeOption.float32,
-        sample_size=1000,
-    ),
-    val_dataset=SplitConfig(
-        name="val.parquet",
-        split_key="train",
-        label_cast_type=FieldTypeOption.float16,
-        sample_size=500,
-    ),
-    smiles_a_column_name="query",
-    smiles_b_column_name="target_smiles",
-    label_column_name="similarity",
-)
-
-config = BaseConfig(
-    model=ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        use_query_tokenizer=True,  # Train a query model
-    ),
-    datasets=[dataset_config],
-    training_args=SentenceTransformerTrainingArguments("training_output"),
-)
-trainer = ChemMRLTrainer(config)
-```
-
-#### Latent Attention Layer
-
-The Latent Attention Layer model is an experimental component designed to enhance the representation learning of transformer-based models by introducing a trainable latent dictionary. This mechanism applies cross-attention between token embeddings and a set of learnable latent vectors before pooling. The output of this layer contributes to both **1D Matryoshka loss** (as the final layer output) and **2D Matryoshka loss** (by integrating into all-layer outputs). Note: initial tests suggests that when using default configuration, the latent attention layer leads to overfitting.
-
-```python
-from sentence_transformers import SentenceTransformerTrainingArguments
-
-from chem_mrl.constants import BASE_MODEL_NAME
-from chem_mrl.schemas import (
-    BaseConfig,
-    ChemMRLConfig,
-    DatasetConfig,
-    LatentAttentionConfig,
-    SplitConfig,
-)
-from chem_mrl.schemas.Enums import FieldTypeOption
-from chem_mrl.trainers import ChemMRLTrainer
-
-dataset_config = DatasetConfig(
-    key="latent_dataset",
-    train_dataset=SplitConfig(
-        name="train.parquet",
-        split_key="train",
-        label_cast_type=FieldTypeOption.float32,
-        sample_size=1000,
-    ),
-    val_dataset=SplitConfig(
-        name="val.parquet",
-        split_key="train",
-        label_cast_type=FieldTypeOption.float16,
-        sample_size=500,
-    ),
-    smiles_a_column_name="smiles_a",
-    smiles_b_column_name="smiles_b",
-    label_column_name="similarity",
-)
-
-config = BaseConfig(
-    model=ChemMRLConfig(
-        model_name=BASE_MODEL_NAME,
-        latent_attention_config=LatentAttentionConfig(
-            hidden_dim=768,  # Transformer hidden size
-            num_latents=512,  # Number of learnable latents
-            num_cross_heads=8,  # Number of attention heads
-            cross_head_dim=32,  # Dimensionality of each head
-            output_normalize=True,  # Apply L2 normalization to outputs
-        ),
-        use_2d_matryoshka=True,
-    ),
-    datasets=[dataset_config],
-    training_args=SentenceTransformerTrainingArguments("training_output"),
-)
-
-# Train a model with latent attention
-trainer = ChemMRLTrainer(config)
-```
-
 ### Custom Callbacks
 
 You can provide a list of transformers.TrainerCallback classes to execute while training.
 
 ```python
-from typing import Any
-
+import torch
 from sentence_transformers import (
-    SentenceTransformer,
     SentenceTransformerTrainingArguments,
 )
+from transformers import PreTrainedModel
 from transformers.trainer_callback import TrainerCallback, TrainerControl, TrainerState
+from transformers.training_args import TrainingArguments
 
 from chem_mrl.constants import BASE_MODEL_NAME
 from chem_mrl.schemas import BaseConfig, ChemMRLConfig, DatasetConfig, SplitConfig
@@ -240,14 +144,15 @@ from chem_mrl.trainers import ChemMRLTrainer
 
 
 # Define a callback class for logging evaluation metrics
+# https://huggingface.co/docs/transformers/main/en/main_classes/callback#transformers.TrainerCallback
 class EvalCallback(TrainerCallback):
     def on_evaluate(
         self,
-        args: SentenceTransformerTrainingArguments,
+        args: TrainingArguments,
         state: TrainerState,
         control: TrainerControl,
-        metrics: dict[str, Any],
-        model: SentenceTransformer,
+        model: PreTrainedModel | torch.nn.Module,
+        metrics: dict[str, float],
         **kwargs,
     ) -> None:
         """
@@ -285,7 +190,7 @@ config = BaseConfig(
 
 # Train with callback
 trainer = ChemMRLTrainer(config)
-val_eval_metric = trainer.train(callbacks=[EvalCallback(...)])
+val_eval_metric = trainer.train(callbacks=[EvalCallback()])
 ```
 
 ## Classifier
@@ -396,4 +301,17 @@ trainer.train()
 - Bajusz, Dávid, et al. "Why is the Tanimoto Index an Appropriate Choice for Fingerprint-Based Similarity Calculations?" _J Cheminform_, 7, 20 (2015). [Link](https://doi.org/10.1186/s13321-015-0069-3).
 - Li, Xiaoya, et al. "Dice Loss for Data-imbalanced NLP Tasks." _arXiv [Cs.CL]_, 2020. [Link](https://arxiv.org/abs/1911.02855)
 - Reimers, Nils, and Gurevych, Iryna. "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." _Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing_, 2019. [Link](https://arxiv.org/abs/1908.10084).
-- Lee, Chankyu, et al. "NV-Embed: Improved Techniques for Training LLMs as Generalist Embedding Models." _arXiv [Cs.CL]_, 2025. [Link](https://arxiv.org/abs/2405.17428).
+
+## Citation
+If you use this code or model in your research, please cite:
+
+```bibtex
+@software{cortes-2025-chem-mrl,
+    author    = {Emmanuel Cortes},
+    title     = {CHEM-MRL: SMILES-based Matryoshka Representation Learning Embedding Transformer},
+    year      = {2025},
+    publisher = {GitHub},
+    howpublished = {GitHub repository},
+    url       = {https://github.com/emapco/chem-mrl},
+}
+```

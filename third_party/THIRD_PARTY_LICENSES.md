@@ -1,6 +1,6 @@
 # Third-Party Licenses
 
-This project includes third-party software components that are licensed separately. Below is a list of dependencies and their respective licenses.
+This project includes third-party software components and modifications that are licensed separately. Below is a list of dependencies and their respective licenses.
 
 ## Sentence Transformers
 
@@ -15,4 +15,3 @@ This project includes third-party software components that are licensed separate
 - **License:** BSD 3-Clause License
 - **Copyright:** 2007 The scikit-learn developers.
 - **License Text:** See [LICENSE](https://github.com/scikit-learn/scikit-learn/blob/main/COPYING)
-

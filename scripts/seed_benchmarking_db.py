@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import argparse
 import logging
 import os
@@ -6,7 +20,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from multiprocessing import get_context
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -74,9 +88,7 @@ class BenchmarkDataSeeder(ABC):
         )
 
     @staticmethod
-    def _load_chemical_data(
-        file_path: str, skip_rows: int | None = None, batch_size: int = 100_000
-    ):
+    def _load_chemical_data(file_path: str, skip_rows: int | None = None, batch_size: int = 100_000):
         df = pd.read_csv(
             file_path,
             sep=" ",
@@ -112,13 +124,10 @@ class MorganFingerprintSeeder(BenchmarkDataSeeder):
             total_batches = config.total_rows // config.batch_size
             resume_off = config.batch_to_resume * config.batch_size
             if resume_off > 0:
-                logging.info(
-                    f"Dimension {fp_size} - resuming from batch {config.batch_to_resume + 1}"
-                )
+                logging.info(f"Dimension {fp_size} - resuming from batch {config.batch_to_resume + 1}")
             for offset in range(resume_off, config.total_rows, config.batch_size):
                 logging.info(
-                    f"Dimension {fp_size} - "
-                    f"processing batch {offset // config.batch_size + 1} of {total_batches}"
+                    f"Dimension {fp_size} - processing batch {offset // config.batch_size + 1} of {total_batches}"
                 )
                 test_df = BenchmarkDataSeeder._load_chemical_data(
                     config.file_path, skip_rows=offset, batch_size=config.batch_size
@@ -153,10 +162,7 @@ class MorganFingerprintSeeder(BenchmarkDataSeeder):
             mp_context=get_context("spawn"),
             max_tasks_per_child=1,
         ) as executor:
-            futures = [
-                executor.submit(self.generate, self._config, fp_size)
-                for fp_size in self._config.fp_sizes
-            ]
+            futures = [executor.submit(self.generate, self._config, fp_size) for fp_size in self._config.fp_sizes]
 
             for future in as_completed(futures):
                 try:
@@ -191,33 +197,33 @@ class TransformerEmbeddingSeeder(BenchmarkDataSeeder):
         engine = BenchmarkDataSeeder._get_pooled_engine(config.db_uri, pool_size=2)
         try:
             embedder = ChemMRL(
-                model_name=model_name,
-                embedding_size=fp_size,
+                model_name_or_path=model_name,
+                truncate_dim=fp_size,
                 use_half_precision=False,
                 device=device,
-                batch_size=config.embedder_batch_size,
-                normalize_embeddings=fp_size < BASE_MODEL_HIDDEN_DIM,
             )
             total_batches = config.total_rows // config.batch_size
             resume_off = config.batch_to_resume * config.batch_size
             if resume_off > 0:
                 logging.info(f"Resuming from batch {config.batch_to_resume + 1}")
             for offset in range(resume_off, config.total_rows, config.batch_size):
-                logging.info(
-                    f"Processing batch {offset // config.batch_size + 1} of {total_batches}"
-                )
+                logging.info(f"Processing batch {offset // config.batch_size + 1} of {total_batches}")
                 test_df = BenchmarkDataSeeder._load_chemical_data(
                     config.file_path, skip_rows=offset, batch_size=config.batch_size
                 )
-                smiles_embeddings = embedder.embed(test_df["smiles"], show_progress_bar=True)
+                smiles_embeddings = embedder.embed(
+                    cast(np.ndarray, test_df["smiles"]),
+                    show_progress_bar=True,
+                    batch_size=config.embedder_batch_size,
+                    normalize_embeddings=fp_size < BASE_MODEL_HIDDEN_DIM,
+                )
+                smiles_embeddings = cast(np.ndarray, smiles_embeddings)
                 smiles_embeddings = smiles_embeddings.astype(np.float16)  # halfvec pgvector index
 
                 test_df[config.embedding_col_name] = list(smiles_embeddings)
                 del smiles_embeddings
 
-                table_name = (
-                    f"base_{fp_size}" if model_name == BASE_MODEL_NAME else f"cme_{fp_size}"
-                )
+                table_name = f"base_{fp_size}" if model_name == BASE_MODEL_NAME else f"cme_{fp_size}"
 
                 test_df.to_sql(
                     table_name,
@@ -283,8 +289,7 @@ def parse_args(mode_choice: list[str]) -> argparse.Namespace:
         "--mode",
         choices=mode_choice,
         required=True,
-        help="Specify whether to seed test fingerprint, chem_mrl embedding, "
-        "or base embedding table(s).",
+        help="Specify whether to seed test fingerprint, chem_mrl embedding, or base embedding table(s).",
     )
     parser.add_argument(
         "--chem_mrl_model_name",
@@ -321,8 +326,7 @@ def parse_args(mode_choice: list[str]) -> argparse.Namespace:
         "--batch_size",
         type=int,
         default=100_000,
-        help="Number of rows to process at a time. "
-        "Note that each process will load this amount of rows at a time.",
+        help="Number of rows to process at a time. Note that each process will load this amount of rows at a time.",
     )
     parser.add_argument(
         "--batch_to_resume",
@@ -335,8 +339,7 @@ def parse_args(mode_choice: list[str]) -> argparse.Namespace:
         "--embedder_batch_size",
         type=int,
         default=2048,
-        help="Specify the number of embeddings to generate "
-        "at a time using the embedding transformer model.",
+        help="Specify the number of embeddings to generate at a time using the embedding transformer model.",
     )
     parser.add_argument(
         "--num_cpu_processes",

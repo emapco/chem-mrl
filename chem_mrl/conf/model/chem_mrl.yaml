@@ -2,19 +2,8 @@ defaults:
   - chem_mrl_schema
   - _self_
 
-model_name: Derify/ChemBERTa_augmented_pubchem_13m # Name of the model to use. Must be either a file path or a HF transformer model name.
-# trainable "dictionary" - latent attention block used prior to pooling and used as the final layer output
-# Contributes to both 1d matryoshka loss (final layer) and 2d matryoshka loss (included in all_layers output)
-# https://arxiv.org/pdf/2405.17428
-latent_attention_config:
-  hidden_dim: 768 # must match `model_name` hidden dimension
-  num_latents: 512
-  num_cross_heads: 8
-  cross_head_dim: 64
-  output_normalize: false
-  enable: false
+model_name: Derify/ModChemBERT-IR-BASE # Name of the model to use. Must be either a file path or a HF transformer model name.
 
-use_query_tokenizer: false # Use QuerySmilesTokenizer to train a querying model. Currently supports `similarity`, `families`, `substructure` queries
 embedding_pooling: mean # Pooling layer method applied to the embeddings.
 # For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling
 # Valid options
@@ -27,7 +16,7 @@ loss_func: tanimotosentloss # ChemMRL loss function
 # - tanimotosimilarityloss
 # - cosentloss
 # - angleloss
-tanimoto_similarity_loss_func: null # Base loss function for tanimoto similarity loss function (only for tanimotosimilarityloss)
+tanimoto_similarity_loss_func: null # Base loss function for tanimoto similarity loss function (only used by tanimotosimilarityloss)
 # Valid options
 # - null
 # - mse
@@ -49,7 +38,7 @@ eval_metric: spearman # Metric to use for evaluation
 # - spearman
 # - pearson
 mrl_dimensions:
-  [768, 512, 256, 128, 64, 32, 16, 8] # A list of embedding dimensions to be used for the loss function.
+  [1024, 512, 256, 128, 64, 32, 16, 8] # A list of embedding dimensions to be used for the loss function.
   # Each value must be less than equal to the base transformer's hidden dimension.
 mrl_dimension_weights:
   [1, 1, 1, 1, 1, 1, 1, 1] # A list of weights to be used for the loss function.

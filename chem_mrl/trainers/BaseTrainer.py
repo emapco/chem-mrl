@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 import math
 import os
@@ -166,10 +180,9 @@ class _BaseTrainer(ABC):
 
             logger.info(f"Loading dataset: {ds_name}")
 
-            assert (
-                dataset_config.smiles_a_column_name is not None
-                and dataset_config.smiles_a_column_name != ""
-            ), f"Dataset {ds_name}: smiles_a_column_name must be specified."
+            assert dataset_config.smiles_a_column_name is not None and dataset_config.smiles_a_column_name != "", (
+                f"Dataset {ds_name}: smiles_a_column_name must be specified."
+            )
 
             train_ds, val_ds, test_ds = load_dataset_from_config(
                 dataset_config, seed=self._training_args.data_seed, is_classifier=is_classifier
@@ -185,27 +198,21 @@ class _BaseTrainer(ABC):
             train_size_log = f"\t{len(train_ds)} training samples\n" if train_ds is not None else ""
             val_size_log = f"\t{len(val_ds)} validation samples\n" if val_ds is not None else ""
             test_size_log = f"\t{len(test_ds)} test samples" if test_ds is not None else ""
-            logger.info(
-                f"Dataset {ds_name} loaded with:\n{train_size_log}{val_size_log}{test_size_log}"
-            )
+            logger.info(f"Dataset {ds_name} loaded with:\n{train_size_log}{val_size_log}{test_size_log}")
 
         logger.info(f"Loaded {len(train_datasets)} datasets in total")
 
         return train_datasets, val_datasets, test_datasets
 
     def __calculate_training_params(self) -> tuple[float, float]:
-        total_training_points = (
-            self.steps_per_epoch * self._training_args.per_device_train_batch_size
-        )
+        total_training_points = self.steps_per_epoch * self._training_args.per_device_train_batch_size
         # Normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf
         # optimized hyperparameter lambda_norm = 0.05 for AdamW optimizer
         # Hyperparameter search indicates a normalized weight decay outperforms
         # the default adamw weight decay
         sqrt_batch_size = math.sqrt(self._training_args.per_device_train_batch_size)
         denominator = total_training_points * self._training_args.num_train_epochs
-        weight_decay = 0.05 * math.sqrt(
-            self._training_args.per_device_train_batch_size / denominator
-        )
+        weight_decay = 0.05 * math.sqrt(self._training_args.per_device_train_batch_size / denominator)
         learning_rate = self._training_args.learning_rate * sqrt_batch_size
         return learning_rate, weight_decay
 
@@ -221,11 +228,6 @@ class _BaseTrainer(ABC):
         parsed_config: dict = self.config.model.asdict()
         parsed_config["__version__"] = __version__
         parsed_config = dict(sorted(parsed_config.items()))
-
-        # remove unused keys from config
-        latent_attention_config = parsed_config.get("latent_attention_config")
-        if latent_attention_config is not None and not latent_attention_config.get("enable"):
-            parsed_config.pop("latent_attention_config", None)
 
         with open(config_file_name, "w") as f:
             json.dump(parsed_config, f, indent=4)
@@ -255,8 +257,7 @@ class _BaseTrainer(ABC):
         compute_metrics: Callable[[EvalPrediction], dict] | None = None,
         callbacks: list[TrainerCallback] | None = None,
         optimizers: tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (None, None),  # type: ignore - take from sentence_transformers
-        preprocess_logits_for_metrics: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-        | None = None,
+        preprocess_logits_for_metrics: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] | None = None,
     ):
         """
         Main training entry point.
@@ -312,18 +313,15 @@ class _BaseTrainer(ABC):
         if self.config.scale_learning_rate:
             self._training_args.learning_rate = scaled_learning_rate
         if callbacks is None and self.config.early_stopping_patience is not None:
-            callbacks = [
-                EarlyStoppingCallback(early_stopping_patience=self.config.early_stopping_patience)
-            ]
+            callbacks = [EarlyStoppingCallback(early_stopping_patience=self.config.early_stopping_patience)]
 
         trainer = SentenceTransformerTrainer(
             model=self.model,
             args=cast(SentenceTransformerTrainingArguments, self._training_args),
             train_dataset=self.train_dataset,
+            eval_dataset=self.eval_dataset,
             loss=self.loss_function,
-            evaluator=[
-                evaluator for evaluator in self.val_evaluator.values() if evaluator is not None
-            ],
+            evaluator=[evaluator for evaluator in self.val_evaluator.values() if evaluator is not None],
             data_collator=data_collator,
             tokenizer=tokenizer,
             model_init=model_init,
@@ -337,16 +335,14 @@ class _BaseTrainer(ABC):
             trainer.remove_callback(WandbCallback)
 
         self._write_chem_mrl_config()
-        trainer.train(
-            resume_from_checkpoint=self._training_args.resume_from_checkpoint, trial=trial
-        )
+        trainer.train(resume_from_checkpoint=self._training_args.resume_from_checkpoint, trial=trial)
 
         final_model_path = os.path.join(self._root_output_dir, "final")
         trainer.save_model(final_model_path)
         self._write_chem_mrl_config(final_model_path)
 
         if len(self.test_evaluator) > 0:
-            model = SentenceTransformer(final_model_path)
+            model = SentenceTransformer(final_model_path, trust_remote_code=True)
             test_dir = os.path.join(self._root_output_dir, "test")
             metric = None
 

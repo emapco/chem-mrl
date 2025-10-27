@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 from typing import Any
 
@@ -67,9 +81,7 @@ def test_classifier_resume_from_checkpoint():
     executor = TempDirTrainerExecutor(trainer)
     executor.execute()
 
-    config.training_args.resume_from_checkpoint = os.path.join(
-        executor._temp_dir.name, "checkpoint-1"
-    )
+    config.training_args.resume_from_checkpoint = os.path.join(executor._temp_dir.name, "checkpoint-1")
     trainer = ClassifierTrainer(config)
     resume_executor = TempDirTrainerExecutor(trainer)
     resume_executor.execute()
@@ -96,9 +108,7 @@ def test_chem_mrl_test_weight_decay(weight_decay):
 def test_classifier_classifier_hidden_dimensions(
     dimension,
 ):
-    config = create_test_config(
-        model_config=ClassifierConfig(classifier_hidden_dimension=dimension)
-    )
+    config = create_test_config(model_config=ClassifierConfig(classifier_hidden_dimension=dimension))
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
     result = executor.execute()
@@ -142,9 +152,7 @@ def test_classifier_dropout(dropout_p):
 
 
 def test_dice_loss_classifier_trainer_instantiation():
-    config = create_test_config(
-        model_config=ClassifierConfig(loss_func=ClassifierLossFctOption.selfadjdice)
-    )
+    config = create_test_config(model_config=ClassifierConfig(loss_func=ClassifierLossFctOption.selfadjdice))
     trainer = ClassifierTrainer(config)
     assert isinstance(trainer, ClassifierTrainer)
     assert isinstance(trainer.loss_function, SelfAdjDiceLoss)
@@ -154,9 +162,7 @@ def test_dice_loss_classifier_trainer_instantiation():
 @pytest.mark.parametrize("dice_reduction", DiceReductionOption)
 def test_dice_loss_classifier_dice_reduction_options(dice_reduction):
     config = create_test_config(
-        model_config=ClassifierConfig(
-            loss_func=ClassifierLossFctOption.selfadjdice, dice_reduction=dice_reduction
-        )
+        model_config=ClassifierConfig(loss_func=ClassifierLossFctOption.selfadjdice, dice_reduction=dice_reduction)
     )
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
@@ -168,9 +174,7 @@ def test_dice_loss_classifier_dice_reduction_options(dice_reduction):
 @pytest.mark.parametrize("dice_gamma", [0.0, 0.5, 1.0, 2.0])
 def test_dice_loss_classifier_dice_gamma_values(dice_gamma):
     config = create_test_config(
-        model_config=ClassifierConfig(
-            loss_func=ClassifierLossFctOption.selfadjdice, dice_gamma=dice_gamma
-        )
+        model_config=ClassifierConfig(loss_func=ClassifierLossFctOption.selfadjdice, dice_gamma=dice_gamma)
     )
     trainer = ClassifierTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
@@ -261,12 +265,8 @@ def test_multi_dataset_trainer_initialization():
 def test_multi_dataset_training_execution():
     split_config = SplitConfig(name=TEST_CLASSIFICATION_PATH)
     split_config_2 = SplitConfig(name=TEST_CLASSIFICATION_PATH)
-    dataset_config_1 = DatasetConfig(
-        key="test", train_dataset=split_config, val_dataset=split_config
-    )
-    dataset_config_2 = DatasetConfig(
-        key="test_2", train_dataset=split_config_2, val_dataset=split_config_2
-    )
+    dataset_config_1 = DatasetConfig(key="test", train_dataset=split_config, val_dataset=split_config)
+    dataset_config_2 = DatasetConfig(key="test_2", train_dataset=split_config_2, val_dataset=split_config_2)
     config = BaseConfig(
         model=ClassifierConfig(),
         training_args=SentenceTransformerTrainingArguments(
@@ -296,9 +296,7 @@ def test_multi_dataset_training_execution():
 def test_multi_evaluation_dataset():
     split_config = SplitConfig(name=TEST_CLASSIFICATION_PATH)
     split_config_2 = SplitConfig(name=TEST_CLASSIFICATION_PATH)
-    dataset_config_1 = DatasetConfig(
-        key="test", train_dataset=split_config, val_dataset=split_config
-    )
+    dataset_config_1 = DatasetConfig(key="test", train_dataset=split_config, val_dataset=split_config)
     dataset_config_2 = DatasetConfig(key="test_2", val_dataset=split_config_2)
 
     config = BaseConfig(

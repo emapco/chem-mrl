@@ -1,11 +1,26 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 
-from sentence_transformers import SentenceTransformer, models
+import torch
+from hydra.utils import instantiate
+from sentence_transformers import SentenceTransformer, SentenceTransformerModelCardData, models
 from sentence_transformers.evaluation import SentenceEvaluator
 from torch import nn
 
 from chem_mrl.evaluation import EmbeddingSimilarityEvaluator
-from chem_mrl.models import LatentAttentionLayer
 from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 
 from .BaseTrainer import _BaseTrainer
@@ -22,7 +37,6 @@ class ChemMRLTrainer(_BaseTrainer):
             raise TypeError("config.model must be a ChemMRLConfig instance")
 
         self.__model: SentenceTransformer = self._init_model()
-        self.__model.tokenizer = self._initialize_tokenizer()
         self.__loss_function = self._init_loss()
         self.__val_evaluator = self._init_val_evaluator()
         self.__test_evaluator = self._init_test_evaluator()
@@ -60,41 +74,44 @@ class ChemMRLTrainer(_BaseTrainer):
     ############################################################################
 
     def _init_model(self) -> SentenceTransformer:
-        base_model = models.Transformer(self._model_config.model_name)
+        dtype = torch.float32
+        if self._training_args.bf16:
+            dtype = torch.bfloat16
+        if self._training_args.fp16:
+            dtype = torch.float16
+        model_card_data: SentenceTransformerModelCardData = instantiate(self._config.model_card_data)
+        if model_card_data is not None:
+            model_card_data.tags = list(model_card_data.tags or [])  # convert from omegaconf.list to list
+
+        if self._config.config_kwargs is None:
+            self._config.config_kwargs = {}
+        self._config.config_kwargs["trust_remote_code"] = True
+
+        base_model = models.Transformer(
+            self._model_config.model_name,
+            model_args={"dtype": dtype, "trust_remote_code": True},
+            config_args=self._config.config_kwargs,
+        )
         pooling_model = models.Pooling(
             base_model.get_word_embedding_dimension(),
             pooling_mode=self._model_config.embedding_pooling,
         )
         normalization_model = models.Normalize()
 
-        if (
-            self._model_config.latent_attention_config is not None
-            and self._model_config.latent_attention_config.enable
-        ):
-            latent_attention_model = LatentAttentionLayer(
-                self._model_config.latent_attention_config
-            )
-            modules = [base_model, latent_attention_model, pooling_model, normalization_model]
-        else:
-            modules = [base_model, pooling_model, normalization_model]
-
         similarity_fn_name = "cosine"
         if self._model_config.loss_func in ["tanimotosentloss", "tanimotosimilarityloss"]:
             similarity_fn_name = "tanimoto"
 
-        model = SentenceTransformer(modules=modules, similarity_fn_name=similarity_fn_name)
+        model = SentenceTransformer(
+            modules=[base_model, pooling_model, normalization_model],
+            similarity_fn_name=similarity_fn_name,
+            trust_remote_code=True,
+            model_kwargs={"dtype": dtype},
+            config_kwargs=self._config.config_kwargs,
+            model_card_data=model_card_data,
+        )
         logger.info(model)
         return model
-
-    def _initialize_tokenizer(
-        self,
-    ):
-        if not self._model_config.use_query_tokenizer:
-            return self.__model.tokenizer
-
-        from chem_mrl.tokenizers import QuerySmilesTokenizerFast
-
-        return QuerySmilesTokenizerFast(max_len=self.__model.tokenizer.model_max_length)
 
     def _init_val_evaluator(self):
         """
@@ -139,7 +156,6 @@ class ChemMRLTrainer(_BaseTrainer):
                 name=dataset_name,
                 show_progress_bar=not self._training_args.disable_tqdm,
                 write_csv=True,
-                precision="int8",
             )
 
         logger.info(f"Initialized {len(evaluators)} test evaluators")
@@ -187,25 +203,14 @@ class ChemMRLTrainer(_BaseTrainer):
                 "l1": lambda model: TanimotoSimilarityLoss(model, loss=nn.L1Loss()),
                 "smooth_l1": lambda model: TanimotoSimilarityLoss(model, loss=nn.SmoothL1Loss()),
                 "huber": lambda model: TanimotoSimilarityLoss(model, loss=nn.HuberLoss()),
-                "bin_cross_entropy": lambda model: TanimotoSimilarityLoss(
-                    model, loss=nn.BCEWithLogitsLoss()
-                ),
-                "kldiv": lambda model: TanimotoSimilarityLoss(
-                    model, loss=nn.KLDivLoss(reduction="batchmean")
-                ),
-                "cosine_embedding_loss": lambda model: TanimotoSimilarityLoss(
-                    model, loss=nn.CosineEmbeddingLoss()
-                ),
+                "bin_cross_entropy": lambda model: TanimotoSimilarityLoss(model, loss=nn.BCEWithLogitsLoss()),
+                "kldiv": lambda model: TanimotoSimilarityLoss(model, loss=nn.KLDivLoss(reduction="batchmean")),
+                "cosine_embedding_loss": lambda model: TanimotoSimilarityLoss(model, loss=nn.CosineEmbeddingLoss()),
             },
         }
         if config.loss_func.value in ["tanimotosentloss", "cosentloss", "angleloss"]:
             return LOSS_FUNCTIONS[config.loss_func.value](model)
 
         if config.tanimoto_similarity_loss_func is None:
-            raise ValueError(
-                "tanimoto_similarity_loss_func must be provided "
-                "when loss_func='tanimotosimilarityloss'"
-            )
-        return LOSS_FUNCTIONS["tanimotosimilarityloss"][config.tanimoto_similarity_loss_func.value](
-            model
-        )
+            raise ValueError("tanimoto_similarity_loss_func must be provided when loss_func='tanimotosimilarityloss'")
+        return LOSS_FUNCTIONS["tanimotosimilarityloss"][config.tanimoto_similarity_loss_func.value](model)

@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import contextlib
 import os
 from typing import Literal
@@ -11,9 +25,7 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 class MorganFingerprinter:
     """A class to generate and compare Morgan molecular fingerprints using RDKit."""
 
-    feature_defs = rdMolChemicalFeatures.BuildFeatureFactory(
-        os.path.join(RDConfig.RDDataDir, "BaseFeatures.fdef")
-    )
+    feature_defs = rdMolChemicalFeatures.BuildFeatureFactory(os.path.join(RDConfig.RDDataDir, "BaseFeatures.fdef"))
     feature_families = feature_defs.GetFeatureFamilies()
 
     def __init__(self, radius: int = 2, fp_size: int = 4096) -> None:
@@ -112,11 +124,7 @@ class MorganFingerprinter:
                 Tanimoto similarity score between the two molecules.
                 Returns NaN if either fingerprint is None.
         """
-        get_fp = (
-            self.get_functional_fingerprint
-            if fingerprint_type == "functional"
-            else self.get_fingerprint
-        )
+        get_fp = self.get_functional_fingerprint if fingerprint_type == "functional" else self.get_fingerprint
 
         fp1 = get_fp(smiles_a)
         if fp1 is None:
