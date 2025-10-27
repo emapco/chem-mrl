@@ -1,5 +1,5 @@
-from collections.abc import Iterable
-from typing import Any, Callable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 import numpy as np
 
@@ -10,9 +10,7 @@ from .types import EvalDatasetDict, ScoreConfig
 
 class Oracle:
     @classmethod
-    def RDKitScore(
-        cls, name: str, score_config: ScoreConfig | None = None
-    ) -> Callable[[str], Any | None]:
+    def RDKitScore(cls, name: str, score_config: ScoreConfig | None = None) -> Callable[[str], Any | None]:
         if name == "QED":
             from rdkit.Chem.QED import qed
 
@@ -62,14 +60,8 @@ class Oracle:
 
             smiles = fingerprinter.canonicalize_smiles(smiles) or ""
             reference = fingerprinter.canonicalize_smiles(reference) or ""
-            similarity = fingerprinter.tanimoto_similarity(
-                smiles, reference, config.fingerprint_type
-            )
-            score = (
-                composite_score(base_score, similarity)
-                if config.use_composite_score
-                else base_score
-            )
+            similarity = fingerprinter.tanimoto_similarity(smiles, reference, config.fingerprint_type)
+            score = composite_score(base_score, similarity) if config.use_composite_score else base_score
 
             response: EvalDatasetDict = {
                 "smiles": smiles,
@@ -101,7 +93,5 @@ class Oracle:
         reference: str,
         reference_score: float | None = None,
     ):
-        scores: list[EvalDatasetDict | None] = [
-            self.score(smiles, reference, reference_score) for smiles in molecules
-        ]
+        scores: list[EvalDatasetDict | None] = [self.score(smiles, reference, reference_score) for smiles in molecules]
         return [score for score in scores if score is not None]

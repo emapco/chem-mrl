@@ -1,6 +1,6 @@
 defaults:
   - base_config_schema
-  - /model: chem_mrl # chem_mrl, chem_2d_mrl, classifier or dice_loss_classifier
+  - /model: chem_2d_mrl # chem_mrl, chem_2d_mrl, classifier or dice_loss_classifier
   - _self_
 
 datasets:
@@ -11,17 +11,18 @@ datasets:
       name: Derify/pubchem_10m_genmol_similarity # HuggingFace dataset name or path should load as a datasets.DatasetDict
       split_key: train
       label_cast_type: float32 # float64, float32, or float16 (used by chem_mrl model)
-      sample_size: 100000 # Number of training samples to load. Uses seeded sampling if a seed is set.
+      sample_size: null # Number of training samples to load. Uses seeded sampling if a seed is set.
     val_dataset: # May be set to null if only using a train_dataset
       name: Derify/pubchem_10m_genmol_similarity
       split_key: validation # If loading from different local files, this should be set to train
-      label_cast_type: float16
-      sample_size: 100000
-    test_dataset: # may be set to null to disable evaluation on a test dataset
-      name: Derify/pubchem_10m_genmol_similarity
-      split_key: test # If loading from different local files, this should be set to train
-      label_cast_type: float16
-      sample_size: 100000
+      label_cast_type: float32
+      sample_size: null
+    test_dataset:
+      null # may be set to null to disable evaluation on a test dataset
+      # name: Derify/pubchem_10m_genmol_similarity
+      # split_key: test # If loading from different local files, this should be set to train
+      # label_cast_type: float16
+      # sample_size: null
     smiles_a_column_name: smiles_a
     smiles_b_column_name: smiles_b # Can be set to `null` when training a classifier model
     label_column_name: similarity
@@ -35,6 +36,27 @@ use_normalized_weight_decay:
   # Hyperparameter search indicates a normalized weight decay outperforms
   # the default adamw weight decay
 
+model_card_data: # A model card data object that contains information about the model.
+  # This is used to generate a model card when saving the model. If not set, a default model card data object is created.
+  _target_: sentence_transformers.model_card.SentenceTransformerModelCardData
+  language: null
+  license: apache-2.0
+  model_name: "ChemMRL: SMILES Matryoshka Representation Learning Embedding Transformer"
+  model_id: Derify/ChemMRL
+  tags:
+    - sentence-transformers
+    - modchembert
+    - cheminformatics
+    - smiles
+    - molecular-similarity
+    - feature-extraction
+    - dense
+
+config_kwargs: # Additional model configuration parameters to be passed to the Hugging Face Transformers config.
+  # See the `AutoConfig.from_pretrained documentation for more details.
+  # <https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoConfig.from_pretrained>`_
+  embedding_dropout: 0.1
+
 # Note: SentenceTransformerTrainingArguments extends transformers.TrainingArguments
 # https://sbert.net/docs/package_reference/sentence_transformer/training_args.html
 # https://huggingface.co/docs/transformers/main/en/main_classes/trainer#transformers.TrainingArguments
@@ -45,36 +67,41 @@ training_args:
   output_dir: training_output/${training_args.run_name}_${now:%Y-%m-%d_%H-%M-%S} # Path to save model, checkpoints and evaluation results
   overwrite_output_dir: false
   num_train_epochs: 3
-  learning_rate: 5.0e-05
-  lr_scheduler_type: linear
-  warmup_ratio: 0.05
-  optim: adamw_torch # transformer's compatible optimizer name
-  weight_decay: 0
+  warmup_steps: 100000
+  lr_scheduler_type: warmup_stable_decay
+  lr_scheduler_kwargs:
+    # do not define num_warmup_steps since Trainer will calculate it based on num_training_steps and warmup_ratio/warmup_steps
+    num_decay_steps: 100000
+    warmup_type: linear
+    decay_type: 1-sqrt
+  optim: stable_adamw # transformer's compatible optimizer name
+  optim_args: decouple_lr=True,max_lr=8.0e-6  # set max_lr when using warmup steps/ratio
+  learning_rate: 8.0e-6
+  weight_decay: 1.0e-5 # use 1.0e-5 when decouple_lr=True
   seed: 42
   data_seed: 42
-  do_train: true
-  eval_on_start: false
-  max_steps: -1
-  eval_strategy: epoch # 'no', 'steps', 'epoch'
-  eval_steps: 0
-  load_best_model_at_end: true
+  eval_on_start: true
+  eval_strategy: steps # 'no', 'steps', 'epoch'
+  eval_steps: 50000
+  load_best_model_at_end: false
   metric_for_best_model: eval_${datasets[0].key}_${model.eval_metric} # Change index for your dataset of choice but keep the format as is
-  save_strategy: epoch # 'no', 'steps', 'epoch'
-  save_steps: 0
+  save_strategy: steps # 'no', 'steps', 'epoch'
+  save_steps: 50000
   save_total_limit: 10
-  logging_strategy: epoch # 'no', 'steps', 'epoch'
-  logging_steps: 0
+  logging_strategy: steps # 'no', 'steps', 'epoch'
+  logging_steps: 500
+  logging_first_step: true
   logging_nan_inf_filter: true
   logging_dir: ${training_args.output_dir}/logs
   report_to: all # codecarbon and wandb installed by sentence-transformers
   per_device_train_batch_size: 32
-  per_device_eval_batch_size: 32
+  per_device_eval_batch_size: 64
   tf32: false
-  fp16: false
+  fp16: true
+  fp16_full_eval: true
   gradient_accumulation_steps: 1
-  gradient_checkpointing: false
+  gradient_checkpointing: true
+  max_grad_norm: null # unnecessary when using StableAdamW optimizer
   disable_tqdm: false
-  dataloader_num_workers: 0
-  dataloader_pin_memory: false
-  dataloader_prefetch_factor: null # should be null if dataloader_num_workers is 0
-  dataloader_persistent_workers: false
+  dataloader_num_workers: 0 # Must be set to 0
+  dataloader_pin_memory: true

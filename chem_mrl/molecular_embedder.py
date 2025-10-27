@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from collections.abc import Iterable
 from typing import Any, Literal
 
@@ -146,7 +160,7 @@ class ChemMRL:
 
     def embed(
         self,
-        smiles: str | list[str],
+        smiles: str | list[str] | np.ndarray,
         batch_size: int = 32,
         show_progress_bar: bool | None = None,
         precision: Literal["float32", "int8", "uint8", "binary", "ubinary"] = "float32",
@@ -212,7 +226,7 @@ class ChemMRL:
         """  # noqa: E501
 
         embeddings = self.backbone.encode(
-            sentences=smiles,  # type: ignore[arg-type]
+            sentences=smiles,
             batch_size=batch_size,
             show_progress_bar=show_progress_bar,
             output_value="sentence_embedding",

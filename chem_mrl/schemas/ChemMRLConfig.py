@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from dataclasses import asdict, dataclass
 
 from chem_mrl.constants import BASE_MODEL_NAME, CHEM_MRL_DIMENSIONS
@@ -9,14 +23,11 @@ from .Enums import (
     EvalSimilarityFctOption,
     TanimotoSimilarityBaseLossFctOption,
 )
-from .LatentAttentionConfig import LatentAttentionConfig
 
 
 @dataclass
 class ChemMRLConfig:
-    latent_attention_config: LatentAttentionConfig | None = None
     model_name: str = BASE_MODEL_NAME
-    use_query_tokenizer: bool = False
     embedding_pooling: EmbeddingPoolingOption = EmbeddingPoolingOption.mean
     loss_func: ChemMrlLossFctOption = ChemMrlLossFctOption.tanimotosentloss
     tanimoto_similarity_loss_func: TanimotoSimilarityBaseLossFctOption | None = None
@@ -37,8 +48,6 @@ class ChemMRLConfig:
         # check types
         if not isinstance(self.model_name, str):
             raise TypeError("model_name must be a string")
-        if not isinstance(self.use_query_tokenizer, bool):
-            raise TypeError("use_query_tokenizer must be a bool")
         if not isinstance(self.embedding_pooling, str):
             raise TypeError("embedding_pooling must be a string")
         if not isinstance(self.loss_func, str):
@@ -82,9 +91,7 @@ class ChemMRLConfig:
                 TanimotoSimilarityBaseLossFctOption.to_list(),
             )
         if not isinstance(self.eval_similarity_fct, EvalSimilarityFctOption):
-            raise ValueError(
-                f"eval_similarity_fct must be one of {EvalSimilarityFctOption.to_list()}"
-            )
+            raise ValueError(f"eval_similarity_fct must be one of {EvalSimilarityFctOption.to_list()}")
         if not isinstance(self.eval_metric, ChemMrlEvalMetricOption):
             raise ValueError(f"eval_metric must be one of {ChemMrlEvalMetricOption.to_list()}")
         if len(self.mrl_dimension_weights) != len(self.mrl_dimensions):
@@ -104,7 +111,7 @@ class ChemMRLConfig:
             raise ValueError("last_layer_weight must be positive")
         if self.prior_layers_weight <= 0:
             raise ValueError("prior_layers_weight must be positive")
-        if self.kl_div_weight <= 0:
-            raise ValueError("kl_div_weight must be positive")
-        if self.kl_temperature <= 0:
-            raise ValueError("kl_temperature must be positive")
+        if self.kl_div_weight < 0:
+            raise ValueError("kl_div_weight must be greater than or equal to zero")
+        if self.kl_temperature < 0:
+            raise ValueError("kl_temperature must be greater than or equal to zero")

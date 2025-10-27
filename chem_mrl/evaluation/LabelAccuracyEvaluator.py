@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 
 import torch
@@ -56,7 +70,7 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
     def __call__(
         self,
         model: SentenceTransformer,
-        output_path: str = ".",
+        output_path: str | None = ".",
         epoch: int = -1,
         steps: int = -1,
     ) -> dict[str, float]:
@@ -65,10 +79,7 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
         correct = 0
 
         if epoch != -1:
-            if steps == -1:
-                out_txt = f" after epoch {epoch}:"
-            else:
-                out_txt = f" in epoch {epoch} after {steps} steps:"
+            out_txt = f" after epoch {epoch}:" if steps == -1 else f" in epoch {epoch} after {steps} steps:"
         else:
             out_txt = ":"
 
@@ -106,7 +117,7 @@ class LabelAccuracyEvaluator(SentenceEvaluator):
             self.write_csv,
             self.csv_file,
             self.csv_headers,
-            output_path,
+            output_path or ".",
             results=[epoch, steps, accuracy],
         )
 

@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 from collections.abc import Iterable
 from typing import Literal
@@ -83,8 +97,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         self.batch_size = batch_size
         if show_progress_bar is False:
             show_progress_bar = (
-                logger.getEffectiveLevel() == logging.INFO
-                or logger.getEffectiveLevel() == logging.DEBUG
+                logger.getEffectiveLevel() == logging.INFO or logger.getEffectiveLevel() == logging.DEBUG
             )
         self.show_progress_bar = show_progress_bar
 
@@ -106,19 +119,13 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         if output_path is None:
             output_path = "."
         if epoch != -1:
-            if steps == -1:
-                out_txt = f"after epoch {epoch}"
-            else:
-                out_txt = f"in epoch {epoch} after {steps} steps"
+            out_txt = f"after epoch {epoch}" if steps == -1 else f"in epoch {epoch} after {steps} steps"
         else:
             out_txt = ""
         if self.truncate_dim is not None:
             out_txt += f"(truncated to {self.truncate_dim})"
 
-        logger.info(
-            "EmbeddingSimilarityEvaluator: "
-            f"Evaluating the model on the {self.name} dataset {out_txt}:"
-        )
+        logger.info(f"EmbeddingSimilarityEvaluator: Evaluating the model on the {self.name} dataset {out_txt}:")
 
         logger.info("Encoding smiles 1 validation data.")
         embeddings1 = self.embed_inputs(model, self.smiles1)  # type: ignore
@@ -141,9 +148,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
             "euclidean": lambda x, y: -paired_euclidean_distances(x, y),
             "dot": lambda x, y: [np.dot(emb1, emb2) for emb1, emb2 in zip(x, y, strict=False)],
         }
-        main_similarity_scores = similarity_functions[self.main_similarity.value](
-            embeddings1, embeddings2
-        )
+        main_similarity_scores = similarity_functions[self.main_similarity.value](embeddings1, embeddings2)
         del embeddings1, embeddings2
 
         metric_functions = {
@@ -152,8 +157,7 @@ class EmbeddingSimilarityEvaluator(SentenceEvaluator):
         }
         eval_metric: float = metric_functions[self.metric](self.labels, main_similarity_scores)
         logger.info(
-            f"{self.main_similarity.value.capitalize()}-Similarity :"
-            f"\t{self.metric.capitalize()}: {eval_metric:.5f}\n"
+            f"{self.main_similarity.value.capitalize()}-Similarity :\t{self.metric.capitalize()}: {eval_metric:.5f}\n"
         )
         del main_similarity_scores
 

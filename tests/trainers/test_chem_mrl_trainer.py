@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 from typing import Any
 
@@ -5,12 +19,10 @@ import pytest
 from constants import TEST_CHEM_MRL_PATH
 from sentence_transformers.training_args import SentenceTransformerTrainingArguments
 
-from chem_mrl.constants import BASE_MODEL_HIDDEN_DIM
 from chem_mrl.schemas import (
     BaseConfig,
     ChemMRLConfig,
     DatasetConfig,
-    LatentAttentionConfig,
     SplitConfig,
 )
 from chem_mrl.schemas.Enums import (
@@ -20,7 +32,6 @@ from chem_mrl.schemas.Enums import (
     EvalSimilarityFctOption,
     TanimotoSimilarityBaseLossFctOption,
 )
-from chem_mrl.tokenizers import QuerySmilesTokenizerFast
 from chem_mrl.trainers import ChemMRLTrainer, TempDirTrainerExecutor
 
 test_dir = "/tmp"
@@ -75,18 +86,14 @@ def test_chem_mrl_resume_from_checkpoint():
     executor = TempDirTrainerExecutor(trainer)
     executor.execute()
 
-    config.training_args.resume_from_checkpoint = os.path.join(
-        executor._temp_dir.name, "checkpoint-1"
-    )
+    config.training_args.resume_from_checkpoint = os.path.join(executor._temp_dir.name, "checkpoint-1")
     trainer = ChemMRLTrainer(config)
     resume_executor = TempDirTrainerExecutor(trainer)
     resume_executor.execute()
 
 
 def test_chem_mrl_test_evaluator():
-    config = create_test_config(
-        model_config=ChemMRLConfig(n_dims_per_step=4), include_test_dataset=True
-    )
+    config = create_test_config(model_config=ChemMRLConfig(n_dims_per_step=4), include_test_dataset=True)
     trainer = ChemMRLTrainer(config)
     executor = TempDirTrainerExecutor(trainer)
     result = executor.execute()
@@ -172,45 +179,12 @@ def test_chem_2d_mrl_trainer_instantiation():
     assert trainer.config.model.use_2d_matryoshka is True
 
 
-def test_query_chem_mrl_trainer():
-    config = create_test_config(model_config=ChemMRLConfig(use_query_tokenizer=True))
-    trainer = ChemMRLTrainer(config)
-    executor = TempDirTrainerExecutor(trainer)
-    result = executor.execute()
-    assert isinstance(result, float)
-    assert isinstance(trainer, ChemMRLTrainer)
-    assert isinstance(trainer.config.model, ChemMRLConfig)
-    assert trainer.config.model.use_query_tokenizer is True
-    assert isinstance(trainer.model.tokenizer, QuerySmilesTokenizerFast)
-    assert trainer.model.get_max_seq_length() == trainer.model.tokenizer.model_max_length
-    assert trainer.model.max_seq_length == trainer.model.tokenizer.model_max_length
-
-
 def test_mrl_dimension_weights_validation():
     with pytest.raises(ValueError, match="Dimension weights must be in increasing order"):
         config = create_test_config(
-            model_config=ChemMRLConfig(
-                mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0)
-            )
+            model_config=ChemMRLConfig(mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0))
         )
         ChemMRLTrainer(config)
-
-
-def test_mrl_latent_attention_layer():
-    config = create_test_config(
-        model_config=ChemMRLConfig(
-            latent_attention_config=LatentAttentionConfig(
-                BASE_MODEL_HIDDEN_DIM,
-            ),
-            use_2d_matryoshka=True,
-            last_layer_weight=2.0,
-            prior_layers_weight=1.0,
-        )
-    )
-    trainer = ChemMRLTrainer(config)
-    executor = TempDirTrainerExecutor(trainer)
-    result = executor.execute()
-    assert isinstance(result, float)
 
 
 def test_2d_mrl_layer_weights():
@@ -309,12 +283,8 @@ def test_multi_dataset_trainer_initialization():
 def test_multi_dataset_training_execution():
     split_config = SplitConfig(name=TEST_CHEM_MRL_PATH)
     split_config_2 = SplitConfig(name=TEST_CHEM_MRL_PATH)
-    dataset_config_1 = DatasetConfig(
-        key="test", train_dataset=split_config, val_dataset=split_config
-    )
-    dataset_config_2 = DatasetConfig(
-        key="test_2", train_dataset=split_config_2, val_dataset=split_config_2
-    )
+    dataset_config_1 = DatasetConfig(key="test", train_dataset=split_config, val_dataset=split_config)
+    dataset_config_2 = DatasetConfig(key="test_2", train_dataset=split_config_2, val_dataset=split_config_2)
     config = BaseConfig(
         model=ChemMRLConfig(n_dims_per_step=4),
         training_args=SentenceTransformerTrainingArguments(
@@ -344,9 +314,7 @@ def test_multi_dataset_training_execution():
 def test_multi_evaluation_dataset():
     split_config = SplitConfig(name=TEST_CHEM_MRL_PATH)
     split_config_2 = SplitConfig(name=TEST_CHEM_MRL_PATH)
-    dataset_config_1 = DatasetConfig(
-        key="test", train_dataset=split_config, val_dataset=split_config
-    )
+    dataset_config_1 = DatasetConfig(key="test", train_dataset=split_config, val_dataset=split_config)
     dataset_config_2 = DatasetConfig(key="test_2", val_dataset=split_config_2)
 
     config = BaseConfig(

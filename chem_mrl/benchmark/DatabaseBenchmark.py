@@ -1,3 +1,17 @@
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 import os
 from time import perf_counter
@@ -121,7 +135,7 @@ class PgVectorBenchmark:
         ground_truth: list[str],
         dim: int,
     ):
-        transformer_embedding = smiles_embedder.get_embedding(smiles)
+        transformer_embedding = smiles_embedder.embed(smiles)
         transformer_results, transformer_time = self.execute_knn_query(
             table_name,
             transformer_embedding.tolist(),  # type: ignore
@@ -177,19 +191,17 @@ class PgVectorBenchmark:
         ground_truth_queries["ground_truth"] = ground_truth_queries[smiles_column_name].apply(
             self.generate_ground_truth_result, ground_truth_fp=ground_truth_fp
         )
-        ground_truth_queries = ground_truth_queries.dropna(
-            subset=["ground_truth"], ignore_index=True
-        )
+        ground_truth_queries = ground_truth_queries.dropna(subset=["ground_truth"], ignore_index=True)
         logger.info(f"Total rows: {len(ground_truth_queries)}")
 
         for dim in chem_mrl_dimensions:
             logger.info(f"Processing dimension {dim}")
 
             morgan_fp = MorganFingerprinter(radius=2, fp_size=dim)
-            mrl_embedder = ChemMRL(model_name=model_name, embedding_size=dim)
+            mrl_embedder = ChemMRL(model_name_or_path=model_name, truncate_dim=dim)
             base_embedder = None
             if dim == base_model_hidden_dim:
-                base_embedder = ChemMRL(model_name=base_model_name, embedding_size=dim)
+                base_embedder = ChemMRL(model_name_or_path=base_model_name, truncate_dim=dim)
 
             for idx, row in ground_truth_queries.iterrows():
                 if idx % 100 == 0:  # type: ignore

@@ -1,4 +1,18 @@
 # type: ignore
+# Copyright 2025 Emmanuel Cortes. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import pytest
 
 from chem_mrl.schemas.ChemMRLConfig import (
@@ -12,7 +26,6 @@ from chem_mrl.schemas.ChemMRLConfig import (
 def test_chem_mrl_config_custom_values():
     custom_weights = (1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4)
     config = ChemMRLConfig(
-        use_query_tokenizer=True,
         embedding_pooling=EmbeddingPoolingOption.weightedmean,
         loss_func=ChemMrlLossFctOption.angleloss,
         tanimoto_similarity_loss_func=TanimotoSimilarityBaseLossFctOption.mse,
@@ -25,8 +38,6 @@ def test_chem_mrl_config_custom_values():
         kl_div_weight=0.5,
         kl_temperature=0.7,
     )
-
-    assert config.use_query_tokenizer is True
     assert config.embedding_pooling == "weightedmean"
     assert config.loss_func == "angleloss"
     assert config.tanimoto_similarity_loss_func == "mse"
@@ -70,10 +81,10 @@ def test_chem_mrl_config_validation():
         ChemMRLConfig(last_layer_weight=0)
     with pytest.raises(ValueError, match="prior_layers_weight must be positive"):
         ChemMRLConfig(prior_layers_weight=-1.0)
-    with pytest.raises(ValueError, match="kl_div_weight must be positive"):
-        ChemMRLConfig(kl_div_weight=0)
-    with pytest.raises(ValueError, match="kl_temperature must be positive"):
-        ChemMRLConfig(kl_temperature=0.0)
+    with pytest.raises(ValueError, match="kl_div_weight must be greater than or equal to zero"):
+        ChemMRLConfig(kl_div_weight=-0.1)
+    with pytest.raises(ValueError, match="kl_temperature must be greater than or equal to zero"):
+        ChemMRLConfig(kl_temperature=-0.5)
 
 
 def test_mrl_configs_asdict():
@@ -155,8 +166,6 @@ def test_chem_mrl_config_type_validation():
     """Test type validation for chem mrl config parameters"""
     with pytest.raises(TypeError):
         ChemMRLConfig(model_name=1)
-    with pytest.raises(TypeError):
-        ChemMRLConfig(use_query_tokenizer=1)
     with pytest.raises(TypeError):
         ChemMRLConfig(embedding_pooling=1)
     with pytest.raises(TypeError):
