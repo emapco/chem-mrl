@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from collections.abc import Iterable
 from typing import Any, Literal
 
@@ -28,9 +29,10 @@ from chem_mrl.similarity_functions import SimilarityFunction, patch_sentence_tra
 patch_sentence_transformer()
 
 
-class ChemMRL:
-    """A class to generate molecular (SMILES) embeddings using a pretrained transformer model."""
+logger = logging.getLogger(__name__)
 
+
+class ChemMRL(SentenceTransformer):
     def __init__(
         self,
         model_name_or_path: str | None = CHEM_MRL_MODEL_NAME,
@@ -40,7 +42,7 @@ class ChemMRL:
         default_prompt_name: str | None = None,
         similarity_fn_name: str | SimilarityFunction | None = None,
         cache_folder: str | None = None,
-        trust_remote_code: bool = False,
+        trust_remote_code: bool | None = None,
         revision: str | None = None,
         local_files_only: bool = False,
         token: bool | str | None = None,
@@ -49,7 +51,9 @@ class ChemMRL:
         model_kwargs: dict[str, Any] | None = None,
         tokenizer_kwargs: dict[str, Any] | None = None,
         config_kwargs: dict[str, Any] | None = None,
+        compile_kwargs: dict[str, Any] | None = None,
         model_card_data: SentenceTransformerModelCardData | None = None,
+        backend: Literal["torch", "onnx", "openvino"] = "torch",
         use_half_precision: bool = False,
     ) -> None:
         """
@@ -83,37 +87,33 @@ class ChemMRL:
             use_auth_token (bool or str, optional): Deprecated argument. Please use `token` instead.
             truncate_dim (int, optional): The dimension to truncate sentence embeddings to. Defaults to None.
             model_kwargs (Dict[str, Any], optional): Additional model configuration parameters to be passed to the Hugging Face Transformers model.
-                Particularly useful options are:
-
-                - ``torch_dtype``: Override the default `torch.dtype` and load the model under a specific `dtype`.
-                The different options are:
-
-                        1. ``torch.float16``, ``torch.bfloat16`` or ``torch.float``: load in a specified
-                        ``dtype``, ignoring the model's ``config.torch_dtype`` if one exists. If not specified - the model will
-                        get loaded in ``torch.float`` (fp32).
-
-                        2. ``"auto"`` - A ``torch_dtype`` entry in the ``config.json`` file of the model will be
-                        attempted to be used. If this entry isn't found then next check the ``dtype`` of the first weight in
-                        the checkpoint that's of a floating point type and use that as ``dtype``. This will load the model
-                        using the ``dtype`` it was saved in at the end of the training. It can't be used as an indicator of how
-                        the model was trained. Since it could be trained in one of half precision dtypes, but saved in fp32.
-                - ``attn_implementation``: The attention implementation to use in the model (if relevant). Can be any of
-                `"eager"` (manual implementation of the attention), `"sdpa"` (using `F.scaled_dot_product_attention
-                <https://pytorch.org/docs/master/generated/torch.nn.functional.scaled_dot_product_attention.html>`_),
-                or `"flash_attention_2"` (using `Dao-AILab/flash-attention <https://github.com/Dao-AILab/flash-attention>`_).
-                By default, if available, SDPA will be used for torch>=2.1.1. The default is otherwise the manual `"eager"`
-                implementation.
-                - ``provider``: If backend is "onnx", this is the provider to use for inference, for example "CPUExecutionProvider",
-                "CUDAExecutionProvider", etc. See https://onnxruntime.ai/docs/execution-providers/ for all ONNX execution providers.
-                - ``file_name``: If backend is "onnx" or "openvino", this is the file name to load, useful for loading optimized
-                or quantized ONNX or OpenVINO models.
-                - ``export``: If backend is "onnx" or "openvino", then this is a boolean flag specifying whether this model should
-                be exported to the backend. If not specified, the model will be exported only if the model repository or directory
-                does not already contain an exported model.
-
                 See the `PreTrainedModel.from_pretrained
                 <https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.from_pretrained>`_
                 documentation for more details.
+
+                Particularly useful options are:
+                - **dtype**: Override the default `torch.dtype` and load the model under a specific `dtype`.
+                    The different options are:
+                    1. `torch.float16`, `torch.bfloat16` or `torch.float`: load in a specified
+                        `dtype`, ignoring the model's `config.dtype` if one exists. If not specified - the model will
+                        get loaded in `torch.float` (fp32).
+                    2. `"auto"` - A `dtype` entry in the `config.json` file of the model will be
+                        attempted to be used. If this entry isn't found then next check the `dtype` of the first weight in
+                        the checkpoint that's of a floating point type and use that as `dtype`. This will load the model
+                        using the `dtype` it was saved in at the end of the training. It can't be used as an indicator of how
+                        the model was trained. Since it could be trained in one of half precision dtypes, but saved in fp32.
+                - **attn_implementation**: The attention implementation to use in the model (if relevant). Can be any of
+                    `"eager"` (manual implementation of the attention), `"sdpa"` (using `F.scaled_dot_product_attention`),
+                    or `"flash_attention_2"` (using `Dao-AILab/flash-attention`).
+                    By default, if available, SDPA will be used for torch>=2.1.1. The default is otherwise the manual `"eager"`
+                    implementation.
+                - **provider**: If backend is "onnx", this is the provider to use for inference, for example "CPUExecutionProvider",
+                    "CUDAExecutionProvider", etc. See https://onnxruntime.ai/docs/execution-providers/ for all ONNX execution providers.
+                - **file_name**: If backend is "onnx" or "openvino", this is the file name to load, useful for loading optimized
+                    or quantized ONNX or OpenVINO models.
+                - **export**: If backend is "onnx" or "openvino", then this is a boolean flag specifying whether this model should
+                    be exported to the backend. If not specified, the model will be exported only if the model repository or directory
+                    does not already contain an exported model.
             tokenizer_kwargs (Dict[str, Any], optional): Additional tokenizer configuration parameters to be passed to the Hugging Face Transformers tokenizer.
                 See the `AutoTokenizer.from_pretrained
                 <https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoTokenizer.from_pretrained>`_
@@ -122,13 +122,55 @@ class ChemMRL:
                 See the `AutoConfig.from_pretrained
                 <https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoConfig.from_pretrained>`_
                 documentation for more details.
+            compile_kwargs (dict, optional): Configuration for PyTorch 2.0+ model compilation via torch.compile.
+                If None (default), torch.compile is not applied. If provided, applies torch.compile to the transformer model with the specified options.
+                See the `torch.compile
+                <https://docs.pytorch.org/docs/2.8/generated/torch.compile.html>`_
+                documentation for more details.
+
+                Particularly useful options are:
+                - **fullgraph** (bool): Whether it is OK to break model into several subgraphs. If False (default),
+                    torch.compile attempts to discover compilable regions in the function that it will optimize.
+                    If True, requires the entire function be capturable into a single graph. Defaults to False.
+                - **dynamic** (bool or None): Use dynamic shape tracing. When True, generates kernels that are as dynamic
+                    as possible to avoid recompilations when sizes change. When False, never generates dynamic kernels
+                    and always specializes.
+                    By default (None), automatically detects if dynamism has occurred and compiles a more dynamic kernel upon recompile.
+                - **backend** (str or Callable): Backend to use for compilation. Defaults to "inductor".
+                - **mode** (str or None): Optimization mode. Options include:
+                    - `"default"`: Good balance between performance and overhead
+                    - `"reduce-overhead"`: Reduces Python overhead with CUDA graphs, useful for small batches
+                    - `"max-autotune"`: Leverages Triton/template-based operations, enables CUDA graphs on GPU
+                    - `"max-autotune-no-cudagraphs"`: Similar to max-autotune but without CUDA graphs
+                - **options** (dict or None): Dictionary of backend-specific options. Notable options include:
+                    - `epilogue_fusion`: Fuses pointwise ops into templates (requires max_autotune)
+                    - `max_autotune`: Profiles to pick the best matmul configuration
+                    - `fallback_random`: Useful for debugging accuracy issues
+                    - `shape_padding`: Pads matrix shapes for better alignment on GPUs
+                    - `triton.cudagraphs`: Reduces Python overhead with CUDA graphs
+                    - `trace.enabled`: Useful debugging flag
+                    - `trace.graph_diagram`: Shows graph visualization after fusion
+                - **disable** (bool): Turn torch.compile() into a no-op for testing. Defaults to False.
+                Example: `{"backend": "inductor", "mode": "max-autotune", "fullgraph": False}`
             model_card_data (:class:`~sentence_transformers.model_card.SentenceTransformerModelCardData`, optional): A model
                 card data object that contains information about the model. This is used to generate a model card when saving
                 the model. If not set, a default model card data object is created.
+            backend (str): The backend to use for inference. Can be one of "torch" (default), "onnx", or "openvino". Only torch is tested extensively.
+                See https://sbert.net/docs/sentence_transformer/usage/efficiency.html for benchmarking information
+                on the different backends.
             use_half_precision (bool, optional): Whether to use half precision for the model. This can reduce memory usage
                 and speed up inference, but may reduce accuracy. Defaults to False.
         """  # noqa: E501
-        self.backbone = SentenceTransformer(
+
+        # Automatically trust remote code for Derify models unless explicitly specified otherwise
+        if model_name_or_path and model_name_or_path.startswith("Derify/") and trust_remote_code is None:
+            trust_remote_code = True
+
+        # Temporary change of class name to ensure proper loading of pretrained models
+        original_name = self.__class__.__name__
+        self.__class__.__name__ = "SentenceTransformer"
+
+        super().__init__(
             model_name_or_path=model_name_or_path,
             modules=modules,
             device=device,
@@ -136,7 +178,7 @@ class ChemMRL:
             default_prompt_name=default_prompt_name,
             similarity_fn_name=similarity_fn_name,  # type: ignore[arg-type]
             cache_folder=cache_folder,
-            trust_remote_code=trust_remote_code,
+            trust_remote_code=bool(trust_remote_code),
             revision=revision,
             local_files_only=local_files_only,
             token=token,
@@ -146,17 +188,62 @@ class ChemMRL:
             tokenizer_kwargs=tokenizer_kwargs,
             config_kwargs=config_kwargs,
             model_card_data=model_card_data,
-            backend="torch",
+            backend=backend,
         )
-        self._use_half_precision = use_half_precision
-        if self._use_half_precision:
-            for module in self.backbone.modules():
+        self.__class__.__name__ = original_name  # Restore original class name
+
+        self.__use_half_precision = use_half_precision
+        if self.__use_half_precision:
+            for module in self.modules():
                 if isinstance(module, PreTrainedModel):
                     module.half()
 
+        self.__compile_kwargs = compile_kwargs
+        if self.__compile_kwargs is not None and not self.__compile_kwargs.get("disable", False):
+            self._apply_torch_compile()
+
+    def _apply_torch_compile(self) -> None:
+        """Apply torch.compile to the transformer model with the provided compile_kwargs."""
+        if self.__compile_kwargs is None:
+            return
+
+        # Enable capturing scalar outputs to avoid compilation issues - ModChemBERT specific
+        if hasattr(torch, "_dynamo"):
+            torch._dynamo.config.capture_scalar_outputs = True
+
+        first_module = self._first_module()
+        if hasattr(first_module, "auto_model"):
+            try:
+                compile_kwargs = {
+                    k: v
+                    for k, v in self.__compile_kwargs.items()
+                    if k in ["fullgraph", "dynamic", "backend", "mode", "options", "disable"]
+                }
+
+                first_module.auto_model = torch.compile(first_module.auto_model, **compile_kwargs)  # type: ignore[arg-type,call-overload]
+                backend_name = compile_kwargs.get("backend", "inductor")
+                logger.info(f"Applied torch.compile with backend={backend_name} to transformer model")
+            except Exception as e:
+                logger.warning(f"Failed to apply torch.compile: {e}")
+                if hasattr(torch, "_dynamo"):
+                    logger.info(f"Available backends: {torch._dynamo.list_backends()}")
+                raise
+
+    @property
+    def backbone(self) -> "ChemMRL":
+        """Returns self for backward compatibility.
+
+        Note:
+            In earlier versions (< 0.8.0), ChemMRL used composition with a `backbone`
+            attribute that was a SentenceTransformer instance. Now ChemMRL directly
+            inherits from SentenceTransformer, so `backbone` returns `self`.
+        """
+        return self
+
     @property
     def use_half_precision(self) -> bool:
-        return self._use_half_precision
+        """Whether half precision is used for embeddings."""
+        return self.__use_half_precision
 
     def embed(
         self,
@@ -174,17 +261,7 @@ class ChemMRL:
         **kwargs,
     ):
         """
-        Computes sentence embeddings.
-
-        .. tip::
-
-            If you are unsure whether you should use :meth:`encode`, :meth:`encode_query`, or :meth:`encode_document`,
-            your best bet is to use :meth:`encode_query` and :meth:`encode_document` for Information Retrieval tasks
-            with clear query and document/passage distinction, and use :meth:`encode` for all other tasks.
-
-            Note that :meth:`encode` is the most general method and can be used for any task, including Information
-            Retrieval, and that if the model was not trained with predefined prompts and/or task types, then all three
-            methods will return identical embeddings.
+        Computes SMILES embeddings.
 
         Args:
             smiles (Union[str, List[str]]): The SMILES to embed.
@@ -225,7 +302,7 @@ class ChemMRL:
             a torch Tensor is returned instead. If ``self.truncate_dim <= output_dimension`` then output_dimension is ``self.truncate_dim``.
         """  # noqa: E501
 
-        embeddings = self.backbone.encode(
+        embeddings = self.encode(
             sentences=smiles,
             batch_size=batch_size,
             show_progress_bar=show_progress_bar,
@@ -241,7 +318,7 @@ class ChemMRL:
             **kwargs,
         )
 
-        if self._use_half_precision and precision == "float32":
+        if self.__use_half_precision and precision == "float32":
             if isinstance(embeddings, np.ndarray | pd.DataFrame | pd.Series):
                 embeddings = embeddings.astype(np.float16)
             elif isinstance(embeddings, torch.Tensor):

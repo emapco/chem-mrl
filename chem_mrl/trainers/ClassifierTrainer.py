@@ -72,24 +72,32 @@ class ClassifierTrainer(_BaseTrainer):
     # concrete methods
     ############################################################################
 
-    def _init_model(self):
-        dtype = torch.float32
-        if self._training_args.bf16:
-            dtype = torch.bfloat16
-        if self._training_args.fp16:
-            dtype = torch.float16
+    def _init_model(self) -> SentenceTransformer:
+        """Initialize SentenceTransformer with transformer, pooling, and normalization layers.
+
+        Returns:
+            Initialized SentenceTransformer model
+        """
+        dtype = torch.bfloat16 if self._training_args.bf16 else torch.float32
+
         model_card_data: SentenceTransformerModelCardData = instantiate(self._config.model_card_data)
         if model_card_data is not None:
-            model_card_data.tags = list(model_card_data.tags or [])  # convert from omegaconf.list to list
+            model_card_data.tags = list(model_card_data.tags or [])  # OmegaConf.list to list
 
         if self._config.config_kwargs is None:
             self._config.config_kwargs = {}
-        self._config.config_kwargs["trust_remote_code"] = True
+
+        # Enable trust_remote_code by default for Derify models
+        trust_remote_code = self._config.config_kwargs.get("trust_remote_code", None)
+        if self._model_config.model_name.startswith("Derify/") and trust_remote_code is None:
+            trust_remote_code = True
+        trust_remote_code = bool(trust_remote_code)
+        self._config.config_kwargs["trust_remote_code"] = trust_remote_code
 
         model = SentenceTransformer(
             self._model_config.model_name,
             truncate_dim=self._model_config.classifier_hidden_dimension,
-            trust_remote_code=True,
+            trust_remote_code=trust_remote_code,
             model_kwargs={"dtype": dtype},
             config_kwargs=self._config.config_kwargs,
             model_card_data=model_card_data,

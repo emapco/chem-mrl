@@ -74,38 +74,46 @@ class ChemMRLTrainer(_BaseTrainer):
     ############################################################################
 
     def _init_model(self) -> SentenceTransformer:
-        dtype = torch.float32
-        if self._training_args.bf16:
-            dtype = torch.bfloat16
-        if self._training_args.fp16:
-            dtype = torch.float16
+        """Initialize SentenceTransformer with transformer, pooling, and normalization layers.
+
+        Returns:
+            Initialized SentenceTransformer model
+        """
+        dtype = torch.bfloat16 if self._training_args.bf16 else torch.float32
+
         model_card_data: SentenceTransformerModelCardData = instantiate(self._config.model_card_data)
         if model_card_data is not None:
-            model_card_data.tags = list(model_card_data.tags or [])  # convert from omegaconf.list to list
+            model_card_data.tags = list(model_card_data.tags or [])  # OmegaConf.list to list
 
         if self._config.config_kwargs is None:
             self._config.config_kwargs = {}
-        self._config.config_kwargs["trust_remote_code"] = True
 
-        base_model = models.Transformer(
+        # Enable trust_remote_code by default for Derify models
+        trust_remote_code = self._config.config_kwargs.get("trust_remote_code", None)
+        if self._model_config.model_name.startswith("Derify/") and trust_remote_code is None:
+            trust_remote_code = True
+        trust_remote_code = bool(trust_remote_code)
+        self._config.config_kwargs["trust_remote_code"] = trust_remote_code
+
+        transformer = models.Transformer(
             self._model_config.model_name,
-            model_args={"dtype": dtype, "trust_remote_code": True},
+            model_args={"dtype": dtype, "trust_remote_code": trust_remote_code},
             config_args=self._config.config_kwargs,
         )
-        pooling_model = models.Pooling(
-            base_model.get_word_embedding_dimension(),
+        pooling = models.Pooling(
+            transformer.get_word_embedding_dimension(),
             pooling_mode=self._model_config.embedding_pooling,
         )
-        normalization_model = models.Normalize()
+        normalize = models.Normalize()
 
         similarity_fn_name = "cosine"
         if self._model_config.loss_func in ["tanimotosentloss", "tanimotosimilarityloss"]:
             similarity_fn_name = "tanimoto"
 
         model = SentenceTransformer(
-            modules=[base_model, pooling_model, normalization_model],
+            modules=[transformer, pooling, normalize],
             similarity_fn_name=similarity_fn_name,
-            trust_remote_code=True,
+            trust_remote_code=trust_remote_code,
             model_kwargs={"dtype": dtype},
             config_kwargs=self._config.config_kwargs,
             model_card_data=model_card_data,

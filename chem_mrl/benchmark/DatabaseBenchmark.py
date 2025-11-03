@@ -27,9 +27,7 @@ from chem_mrl.constants import (
 )
 from chem_mrl.molecular_embedder import ChemMRL
 from chem_mrl.molecular_fingerprinter import MorganFingerprinter
-from chem_mrl.util import setup_logging
 
-setup_logging()
 logger = logging.getLogger(__name__)
 
 

@@ -1,18 +1,16 @@
 # CHEM-MRL
 
-[![huggingface](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-ChemMRL%20Collection-FFD21E)](https://huggingface.co/collections/Derify/chemmrl-68d5b6f6c6f34b492b119766)
+[![huggingface](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-ChemMRL%20Collection-FFD21E)](https://huggingface.co/collections/Derify/chemmrl)
 ![PyPI - Version](https://img.shields.io/pypi/v/chem-mrl)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/chem-mrl?period=total&units=INTERNATIONAL_SYSTEM&left_color=grey&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/chem-mrl)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/emapco/chem-mrl/ci.yml)
 ![PyPI - Status](https://img.shields.io/pypi/status/chem-mrl)
 
-Chem-MRL is a SMILES embedding transformer model that leverages Matryoshka Representation Learning (MRL) to generate efficient, truncatable embeddings for downstream tasks such as classification, clustering, and database querying.
+Chem-MRL is a SMILES embedding transformer model that leverages Matryoshka Representation Learning (MRL) to generate efficient, truncatable embeddings for downstream tasks such as classification, clustering, and database indexing.
 
-The model employs [SentenceTransformers' (SBERT)](https://sbert.net/) [2D Matryoshka Sentence Embeddings](https://sbert.net/examples/training/matryoshka/README.html) (`Matryoshka2dLoss`) to enable truncatable embeddings with minimal accuracy loss, improving query performance and flexibility in downstream applications.
+Datasets should consist of SMILES pairs and their corresponding [Morgan fingerprint](https://www.rdkit.org/docs/GettingStartedInPython.html#morgan-fingerprints-circular-fingerprints) Tanimoto similarity scores.
 
-Datasets should consists of SMILES pairs and their corresponding [Morgan fingerprint](https://www.rdkit.org/docs/GettingStartedInPython.html#morgan-fingerprints-circular-fingerprints) Tanimoto similarity scores.
-
-Hyperparameter optimization indicates that a custom Tanimoto similarity loss function, [`TanimotoSentLoss`](https://github.com/emapco/chem-mrl/blob/main/chem_mrl/losses/TanimotoLoss.py), based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms CoSENTLoss, [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), [AnglELoss](https://arxiv.org/pdf/2309.12871), and cosine similarity.
+Hyperparameter optimization indicates that a custom Tanimoto similarity loss function, [`TanimotoSentLoss`](https://github.com/emapco/chem-mrl/blob/main/chem_mrl/losses/TanimotoLoss.py), based on [CoSENTLoss](https://kexue.fm/archives/8847), outperforms CoSENTLoss, [AnglELoss](https://arxiv.org/pdf/2309.12871), [Tanimoto similarity](https://jcheminf.biomedcentral.com/articles/10.1186/s13321-015-0069-3/tables/2), and cosine similarity.
 
 ## Installation
 
@@ -39,6 +37,136 @@ For more information and installation options, refer to the [Flash Attention rep
 
 ## Usage
 
+### Inference
+
+ChemMRL provides [pre-trained models](https://huggingface.co/collections/Derify/chemmrl) for generating molecular embeddings from SMILES strings. The model supports various precision configurations to balance accuracy, speed, and memory usage.
+
+#### Quick Start
+
+```python
+from chem_mrl import ChemMRL
+
+# Load the model from the 🤗 Hub
+model = ChemMRL(
+    similarity_fn_name="tanimoto",  # tanimoto (default) | cosine | dot
+    model_kwargs={
+        "dtype": "float16",  # float32 | float16 | bfloat16
+        "attn_implementation": "sdpa",  # eager | sdpa | flash_attention_2
+    },
+)
+
+# Encode SMILES to embeddings
+smiles = [
+    "OCCCc1cc(F)cc(F)c1",
+    "Fc1cc(F)cc(-n2cc[o+]n2)c1",
+    "CCC(C)C(=O)C1(C(NN)C(C)C)CCCC1",
+]
+embeddings = model.embed(smiles)
+
+# Calculate similarity matrix using Tanimoto similarity
+similarities = model.similarity(embeddings, embeddings)
+# tensor([[1.0000, 0.3875, 0.0080],
+#         [0.3875, 1.0000, 0.0029],
+#         [0.0080, 0.0029, 1.0000]], dtype=torch.float16)
+
+# Calculate similarity between a molecule against a list of SMILES
+query = 5 * ["CN(C)CCc1c[nH]c2cccc(OP(=O)(O)O)c12"]
+docs = [
+    "CN(C)CCc1c[nH]c2cccc(OP(=O)(O)Cl)c12",
+    "CN(C)CCc1c[nH]c2cccc(OP(=O)(O)OP(=O)(O)O)c12",
+    "CCN(C)CCc1c[nH]c2cccc(OP(=O)(O)O)c12",
+    "C[N+](C)(C)CCc1c[nH]c2cccc(OP(=O)(O)O)c12",
+    "CN(C)CCc1c[nH]c2cccc(OP(=O)(Cl)Cl)c12",
+]
+query_embeddings = model.embed(query)
+docs_embeddings = model.embed(docs)
+similarities = model.similarity_pairwise(query_embeddings, docs_embeddings)
+# tensor([0.9697, 0.9214, 0.9751, 0.8892, 0.9067], dtype=torch.float16)
+```
+
+#### Precision Configurations
+
+Different precision and optimization settings offer trade-offs between accuracy, inference speed, and memory usage. The table below lists recommended configurations with their performance characteristics. All metrics were benchmarked with [`scripts/evaluate_precision.py`](https://github.com/emapco/chem-mrl/blob/main/scripts/evaluate_precision.py) on 131K samples (batch size = 1024), comparing speed and memory usage against the float32 baseline.
+
+| Configuration                   | Speedup\*†    | Memory Savings\*† | Accuracy Impact     |
+| ------------------------------- | ------------- | ----------------- | ------------------- |
+| **bf16 (sdpa)**                 | 2.12x / 1.99x | 49.9% / 49.9%     | Minimal (~0.01%)    |
+| **bf16 + torch.compile (sdpa)** | 2.55× / 2.36x | 41.9% / 41.8%     | Minimal (~0.01%)    |
+| **bf16 (flash-attn)**           | 2.54× / 2.25x | 64.3% / 64.3%     | Minimal (~0.01%)    |
+| **fp16 (sdpa)**                 | 2.09x / 2.00x | 49.9% / 49.9%     | Negligible (<0.01%) |
+| **fp16 + torch.compile (sdpa)** | 2.56× / 2.35x | 44.7% / 44.0%     | Negligible (<0.01%) |
+| **fp16 (flash-attn)**           | 2.52× / 2.25x | 64.2% / 64.1%     | Negligible (<0.01%) |
+
+\* NVIDIA 4070 Ti Super and NVIDIA 3090 FE values respectively <br/>
+† Higher is better
+
+<details><summary>Click to expand code examples for each configuration</summary>
+
+```python
+# bfloat16 with SDPA
+model = ChemMRL(
+    model_kwargs={
+        "dtype": "bfloat16",
+        "attn_implementation": "sdpa"
+    }
+)
+```
+```python
+# bfloat16 with torch.compile and SDPA
+model = ChemMRL(
+    model_kwargs={
+        "dtype": "bfloat16",
+        "attn_implementation": "sdpa"
+    },
+    compile_kwargs={
+        "backend": "inductor",
+        "dynamic": True
+    }
+)
+```
+```python
+# bfloat16 with Flash Attention
+model = ChemMRL(
+    model_kwargs={
+        "dtype": "bfloat16",
+        "attn_implementation": "flash_attention_2"
+    }
+)
+```
+```python
+# float16 with SDPA
+model = ChemMRL(
+    model_kwargs={
+        "dtype": "float16",
+        "attn_implementation": "sdpa"
+    }
+)
+```
+```python
+# float16 with torch.compile and SDPA
+model = ChemMRL(
+    model_kwargs={
+        "dtype": "float16",
+        "attn_implementation": "sdpa"
+    },
+    compile_kwargs={
+        "backend": "inductor",
+        "dynamic": True
+    }
+)
+```
+```python
+# float16 with Flash Attention
+model = ChemMRL(
+    model_kwargs={
+        "dtype": "float16",
+        "attn_implementation": "flash_attention_2"
+    }
+)
+```
+
+</details>
+
 ### Hydra & Training Scripts
 
 Hydra configuration files are in `chem_mrl/conf`. The base config (`base.yaml`) defines shared arguments and includes model-specific configurations from `chem_mrl/conf/model`. Supported models: `chem_mrl`, `chem_2d_mrl`, `classifier`, and `dice_loss_classifier`.
@@ -56,13 +184,13 @@ python scripts/train_chem_mrl.py model=classifier
 # Override parameters
 python scripts/train_chem_mrl.py model=chem_2d_mrl training_args.num_train_epochs=5 datasets[0].train_dataset.name=/path/to/data.parquet
 
-# Use different custom config also located in `chem_mrl/conf`
+# Use a different custom config also located in `chem_mrl/conf`
 python scripts/train_chem_mrl.py --config-name=my_custom_config.yaml
 ```
 
 **Configuration Options:**
 - **Command line overrides:** Use `model=<type>` and parameter overrides as shown above
-- **Modify base.yaml:** Edit the `- /model: chem_mrl` line in the defaults section to change the default model, or modify any other parameters directly
+- **Modify base.yaml directly:** Edit the `- /model: chem_mrl` line in the defaults section to change the default model, or modify any other parameters directly
 - **Override config file:** Use `--config-name=<config_name>` to specify a different base configuration file instead of the default `base.yaml`
 
 ### Basic Training Workflow
@@ -155,9 +283,7 @@ class EvalCallback(TrainerCallback):
         metrics: dict[str, float],
         **kwargs,
     ) -> None:
-        """
-        Event called after an evaluation phase.
-        """
+        """Event called after an evaluation phase."""
         pass
 
 
