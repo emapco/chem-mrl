@@ -38,4 +38,4 @@ evaluator = EmbeddingSimilarityEvaluator(
     precision="float32",
 )
 
-chem_mrl.backbone.evaluate(evaluator, output_path="evaluation_results")
+chem_mrl.evaluate(evaluator, output_path="evaluation_results")

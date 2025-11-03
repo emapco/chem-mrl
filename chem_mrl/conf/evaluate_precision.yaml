@@ -1,0 +1,101 @@
+# Configuration for ChemMRL precision evaluation script
+
+# Model and dataset
+model_name: Derify/ChemMRL
+dataset_name: Derify/pubchem_10m_genmol_similarity
+dataset_split: test
+
+# Evaluation parameters
+num_accuracy_samples: null # Number of samples for accuracy evaluation. If null, uses all samples
+num_benchmark_samples: 131072 # Number of samples for performance benchmarking
+batch_size: 1024
+num_warmup_runs: 1
+num_benchmark_runs: 3
+
+# Execution flags
+profile: false # Enable detailed PyTorch profiling (requires CUDA)
+benchmark: true # Enable performance benchmarking
+tf32_mode: true # Enable TF32 mode for compatible GPUs
+
+# Miscellaneous
+output_file: null # Optional path to save results. If null, uses timestamp
+
+# Test configurations for model precision evaluation
+# Each configuration specifies model initialization parameters to test
+test_configurations:
+  - name: "fp32 (default)"
+    model_kwargs:
+      dtype: float32
+      attn_implementation: sdpa
+
+  - name: "fp32 + torch.compile"
+    model_kwargs:
+      dtype: float32
+      attn_implementation: sdpa
+    compile_kwargs:
+      backend: inductor
+      dynamic: true
+
+  - name: "bf16 (sdpa)"
+    model_kwargs:
+      dtype: bfloat16
+      attn_implementation: sdpa
+
+  - name: "bf16 (flash-attn)"
+    model_kwargs:
+      dtype: bfloat16
+      attn_implementation: flash_attention_2
+
+  - name: "bf16 + torch.compile (sdpa)"
+    model_kwargs:
+      dtype: bfloat16
+      attn_implementation: sdpa
+    compile_kwargs:
+      backend: inductor
+      dynamic: true
+
+  - name: "bf16 + torch.compile (flash-attn)"
+    model_kwargs:
+      dtype: bfloat16
+      attn_implementation: flash_attention_2
+    compile_kwargs:
+      backend: inductor
+      dynamic: true
+
+  - name: "fp16 (sdpa)"
+    model_kwargs:
+      dtype: float16
+      attn_implementation: sdpa
+
+  - name: "fp16 (flash-attn)"
+    model_kwargs:
+      dtype: float16
+      attn_implementation: flash_attention_2
+
+  - name: "fp16 + torch.compile (sdpa)"
+    model_kwargs:
+      dtype: float16
+      attn_implementation: sdpa
+    compile_kwargs:
+      backend: inductor
+      dynamic: true
+
+  - name: "fp16 + torch.compile (flash-attn)"
+    model_kwargs:
+      dtype: float16
+      attn_implementation: flash_attention_2
+    compile_kwargs:
+      backend: inductor
+      dynamic: true
+
+  - name: "fp16 + use_half_precision (sdpa)"
+    model_kwargs:
+      dtype: float16
+      attn_implementation: sdpa
+    use_half_precision: true
+
+  - name: "fp16 + use_half_precision (flash-attn)"
+    model_kwargs:
+      dtype: float16
+      attn_implementation: flash_attention_2
+    use_half_precision: true
