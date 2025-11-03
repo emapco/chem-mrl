@@ -10,7 +10,7 @@ authors = [
 maintainers = [
     { name = "Emmanuel Cortes", email = "manny@derifyai.com" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 keywords = ["cheminformatics", "machine-learning", "transformers", "smiles", "embeddings", "matryoshka-representation-learning"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -18,6 +18,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -32,7 +33,7 @@ dependencies = [
     "torch>=2.6.0,<=2.9.0",
     "scikit-learn>=1.6.1,<2.0.0",
     "pandas>=2.0.0",
-    "numpy>=2.0.0,<2.3.0",
+    "numpy>=2.0.0",
     "hydra-core>=1.3.2",
     "einops==0.8.1",
     "codecarbon>=3.0.0,<4.0.0",
