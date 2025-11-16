@@ -192,7 +192,6 @@ def main(cfg: DictConfig) -> None:
 
     batch_size = dataset_gen.dataset_cfg.batch_size
     batch_data_list = []
-    batches = list(range(resume_batch_start, len(mol_df), batch_size))
 
     for idx, batch_start in enumerate(trange(resume_batch_start, len(mol_df), batch_size, desc="Processing Batches")):
         batch_end = min(batch_start + batch_size, len(mol_df) - 1)
@@ -200,7 +199,7 @@ def main(cfg: DictConfig) -> None:
         batch_data = dataset_gen.generate_batch_data(batch_df["safe"], batch_start)
         batch_data_list.append(batch_data)
 
-        is_last_iteration = idx == len(batches) - 1
+        is_last_iteration = batch_end >= len(mol_df) - 1
         save_frequency = 5
         if (idx + 1) % save_frequency == 0 or is_last_iteration:
             logger.info(f"Saving... {batch_start}-{batch_end}\n")
