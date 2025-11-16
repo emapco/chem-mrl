@@ -4,6 +4,13 @@ defaults:
 
 model_name: Derify/ModChemBERT-IR-BASE # Name of the model to use. Must be either a file path or a HF transformer model name.
 
+# MaxPoolBERT configuration (mutually exclusive with `embedding_pooling`` and `use_2d_matryoshka` options)
+max_pool_bert:
+  enable: false # Disable MaxPoolBERT by default
+  num_attention_heads: 4 # Number of attention heads for multi-head attention
+  last_k_layers: 3 # Number of last hidden layers to use for pooling
+  pooling_strategy: mha # Default pooling strategy (options: cls, max_cls, mha, max_seq_mha, mean_seq_mha, sum_seq_mha)
+
 embedding_pooling: mean # Pooling layer method applied to the embeddings.
 # For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling
 # Valid options
@@ -16,7 +23,7 @@ loss_func: tanimotosentloss # ChemMRL loss function
 # - tanimotosimilarityloss
 # - cosentloss
 # - angleloss
-tanimoto_similarity_loss_func: null # Base loss function for tanimoto similarity loss function (only used by tanimotosimilarityloss)
+tanimoto_similarity_loss_func: null # Base loss function for tanimoto similarity loss function (only used if loss_func=tanimotosimilarityloss)
 # Valid options
 # - null
 # - mse

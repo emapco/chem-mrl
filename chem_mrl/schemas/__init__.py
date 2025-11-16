@@ -19,6 +19,7 @@ from .BaseConfig import BaseConfig
 from .ChemMRLConfig import ChemMRLConfig
 from .ClassifierConfig import ClassifierConfig
 from .DatasetConfig import DatasetConfig, SplitConfig
+from .MaxPoolBERTConfig import MaxPoolBERTConfig
 
 
 def register_configs():
@@ -35,5 +36,6 @@ __all__ = [
     "ClassifierConfig",
     "DatasetConfig",
     "SplitConfig",
+    "MaxPoolBERTConfig",
     "register_configs",
 ]

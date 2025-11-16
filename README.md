@@ -84,7 +84,9 @@ similarities = model.similarity_pairwise(query_embeddings, docs_embeddings)
 # tensor([0.9697, 0.9214, 0.9751, 0.8892, 0.9067], dtype=torch.float16)
 ```
 
-#### Precision Configurations
+#### Precision Configuration
+
+<details><summary>Click to expand the precision configuration section</summary>
 
 Different precision and optimization settings offer trade-offs between accuracy, inference speed, and memory usage. The table below lists recommended configurations with their performance characteristics. All metrics were benchmarked with [`scripts/evaluate_precision.py`](https://github.com/emapco/chem-mrl/blob/main/scripts/evaluate_precision.py) on 131K samples (batch size = 1024), comparing speed and memory usage against the float32 baseline.
 
@@ -100,8 +102,7 @@ Different precision and optimization settings offer trade-offs between accuracy,
 \* NVIDIA 4070 Ti Super and NVIDIA 3090 FE values respectively <br/>
 † Higher is better
 
-<details><summary>Click to expand code examples for each configuration</summary>
-
+##### Code Examples
 ```python
 # bfloat16 with SDPA
 model = ChemMRL(
@@ -250,6 +251,104 @@ test_eval_metric = (
     trainer.train()
 )  # Returns the test evaluation metric if a test dataset is provided.
 # Otherwise returns the final validation eval metric
+```
+
+### MaxPoolBERT Pooling
+
+ChemMRL supports **MaxPoolBERT**, a custom pooling strategy that combines max pooling across transformer layers with multi-head attention. This advanced pooling method can improve embedding quality by aggregating information from multiple layers instead of using only the final layer.
+
+**Note:** MaxPoolBERT is only compatible with 1D Matryoshka models. It cannot be used when `use_2d_matryoshka=True`.
+
+#### Pooling Strategies
+
+MaxPoolBERT supports six pooling strategies:
+
+- **`cls`**: Use the [CLS] token from the final layer
+- **`max_cls`**: Max pool [CLS] tokens across the last k layers
+- **`mha`**: Multi-head attention on the final layer sequence
+- **`max_seq_mha`** (default): Max pool across last k layers, then apply multi-head attention
+- **`mean_seq_mha`**: Mean pool across last k layers, then apply multi-head attention
+- **`sum_seq_mha`**: Sum pool across last k layers, then apply multi-head attention
+
+#### Enabling MaxPoolBERT via Hydra
+
+To enable MaxPoolBERT in training scripts using Hydra configuration:
+
+```bash
+# Enable with default settings (max_seq_mha strategy, 4 attention heads, last 3 layers)
+python scripts/train_chem_mrl.py model.max_pool_bert.enable=true
+
+# Customize pooling strategy and parameters
+python scripts/train_chem_mrl.py \
+    model.max_pool_bert.enable=true \
+    model.max_pool_bert.pooling_strategy=mha \
+    model.max_pool_bert.num_attention_heads=8 \
+    model.max_pool_bert.last_k_layers=4
+```
+
+You can also modify the configuration directly in `chem_mrl/conf/model/chem_mrl.yaml`:
+
+```yaml
+max_pool_bert:
+  enable: true
+  num_attention_heads: 8
+  last_k_layers: 4
+  pooling_strategy: max_seq_mha
+```
+
+#### Enabling MaxPoolBERT Programmatically
+
+To use MaxPoolBERT in your training code:
+
+```python
+from sentence_transformers import SentenceTransformerTrainingArguments
+
+from chem_mrl.constants import BASE_MODEL_NAME
+from chem_mrl.schemas import BaseConfig, ChemMRLConfig, DatasetConfig, MaxPoolBERTConfig, SplitConfig
+from chem_mrl.schemas.Enums import FieldTypeOption, MaxPoolBERTStrategyOption
+from chem_mrl.trainers import ChemMRLTrainer
+
+dataset_config = DatasetConfig(
+    key="pubchem_10m_genmol_similarity",
+    train_dataset=SplitConfig(
+        name="Derify/pubchem_10m_genmol_similarity",
+        split_key="train",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=1000,
+    ),
+    val_dataset=SplitConfig(
+        name="Derify/pubchem_10m_genmol_similarity",
+        split_key="validation",
+        label_cast_type=FieldTypeOption.float32,
+        sample_size=500,
+    ),
+    smiles_a_column_name="smiles_a",
+    smiles_b_column_name="smiles_b",
+    label_column_name="similarity",
+)
+
+config = BaseConfig(
+    model=ChemMRLConfig(
+        model_name=BASE_MODEL_NAME,
+        max_pool_bert=MaxPoolBERTConfig(
+            enable=True,
+            pooling_strategy=MaxPoolBERTStrategyOption.max_seq_mha,
+            num_attention_heads=8,
+            last_k_layers=4,
+        ),
+    ),
+    datasets=[dataset_config],
+    training_args=SentenceTransformerTrainingArguments(
+        "training_output",
+        # bf16=True,  # Use bf16 if supported
+        fp16=True,  # Use fp16 if bf16 not supported
+        num_train_epochs=1,
+        eval_strategy="epoch",
+    ),
+)
+
+trainer = ChemMRLTrainer(config)
+trainer.train()
 ```
 
 ### Custom Callbacks
@@ -427,6 +526,7 @@ trainer.train()
 - Bajusz, Dávid, et al. "Why is the Tanimoto Index an Appropriate Choice for Fingerprint-Based Similarity Calculations?" _J Cheminform_, 7, 20 (2015). [Link](https://doi.org/10.1186/s13321-015-0069-3).
 - Li, Xiaoya, et al. "Dice Loss for Data-imbalanced NLP Tasks." _arXiv [Cs.CL]_, 2020. [Link](https://arxiv.org/abs/1911.02855)
 - Reimers, Nils, and Gurevych, Iryna. "Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks." _Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing_, 2019. [Link](https://arxiv.org/abs/1908.10084).
+- Behrendt, Maike, et al. "MaxPoolBERT: Enhancing BERT Classification via Layer- and Token-Wise Aggregation." _arXiv [Cs.CL]_, 2025. [Link](https://arxiv.org/abs/2505.15696).
 
 ## Citation
 If you use this code or model in your research, please cite:

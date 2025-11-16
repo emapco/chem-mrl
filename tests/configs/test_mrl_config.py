@@ -21,6 +21,8 @@ from chem_mrl.schemas.ChemMRLConfig import (
     EmbeddingPoolingOption,
     TanimotoSimilarityBaseLossFctOption,
 )
+from chem_mrl.schemas.Enums import MaxPoolBERTStrategyOption
+from chem_mrl.schemas.MaxPoolBERTConfig import MaxPoolBERTConfig
 
 
 def test_chem_mrl_config_custom_values():
@@ -194,3 +196,59 @@ def test_chem_mrl_config_type_validation():
         ChemMRLConfig(kl_div_weight="1")
     with pytest.raises(TypeError):
         ChemMRLConfig(kl_temperature="1")
+
+
+def test_chem_mrl_config_with_maxpoolbert():
+    """Test ChemMRLConfig with MaxPoolBERT enabled."""
+    maxpool_config = MaxPoolBERTConfig(
+        enable=True,
+        num_attention_heads=8,
+        last_k_layers=5,
+        pooling_strategy=MaxPoolBERTStrategyOption.max_seq_mha,
+    )
+    config = ChemMRLConfig(
+        use_2d_matryoshka=False,
+        max_pool_bert=maxpool_config,
+    )
+    assert config.max_pool_bert is not None
+    assert config.max_pool_bert.enable is True
+    assert config.max_pool_bert.num_attention_heads == 8
+    assert config.max_pool_bert.last_k_layers == 5
+    assert config.max_pool_bert.pooling_strategy == MaxPoolBERTStrategyOption.max_seq_mha
+
+
+def test_chem_mrl_config_maxpoolbert_incompatible_with_2d_mrl():
+    """Test that MaxPoolBERT is incompatible with 2D MRL."""
+    maxpool_config = MaxPoolBERTConfig(enable=True)
+    with pytest.raises(ValueError, match="MaxPoolBERT is only supported for 1D MRL"):
+        ChemMRLConfig(
+            use_2d_matryoshka=True,
+            max_pool_bert=maxpool_config,
+        )
+
+
+def test_chem_mrl_config_maxpoolbert_disabled_with_2d_mrl():
+    """Test that disabled MaxPoolBERT works with 2D MRL."""
+    maxpool_config = MaxPoolBERTConfig(enable=False)
+    config = ChemMRLConfig(
+        use_2d_matryoshka=True,
+        max_pool_bert=maxpool_config,
+    )
+    assert config.use_2d_matryoshka is True
+    assert config.max_pool_bert.enable is False
+
+
+def test_chem_mrl_config_maxpoolbert_type_validation():
+    """Test type validation for max_pool_bert field."""
+    with pytest.raises(TypeError, match="max_pool_bert must be a MaxPoolBERTConfig instance"):
+        ChemMRLConfig(max_pool_bert="invalid")
+    with pytest.raises(TypeError, match="max_pool_bert must be a MaxPoolBERTConfig instance"):
+        ChemMRLConfig(max_pool_bert={"enable": True})
+
+
+def test_chem_mrl_config_maxpoolbert_default():
+    """Test that max_pool_bert defaults to disabled MaxPoolBERTConfig."""
+    config = ChemMRLConfig()
+    assert config.max_pool_bert is not None
+    assert isinstance(config.max_pool_bert, MaxPoolBERTConfig)
+    assert config.max_pool_bert.enable is False

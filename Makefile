@@ -7,10 +7,10 @@
 ########## LIBRARY RECIPES ##########
 
 install:
-	pip install -e .[benchmark,data]
+	pip install -e .[train,benchmark,data]
 
 install-pep:
-	pip install .[benchmark,data] --use-pep517
+	pip install .[train,benchmark,data] --use-pep517
 
 lint:
 	ruff check chem_mrl --fix --config pyproject.toml

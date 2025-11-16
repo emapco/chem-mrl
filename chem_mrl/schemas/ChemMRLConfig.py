@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 from chem_mrl.constants import BASE_MODEL_NAME, CHEM_MRL_DIMENSIONS
 
@@ -23,6 +23,7 @@ from .Enums import (
     EvalSimilarityFctOption,
     TanimotoSimilarityBaseLossFctOption,
 )
+from .MaxPoolBERTConfig import MaxPoolBERTConfig
 
 
 @dataclass
@@ -42,6 +43,7 @@ class ChemMRLConfig:
     prior_layers_weight: float | int = 1
     kl_div_weight: float | int = 1
     kl_temperature: float | int = 0.3
+    max_pool_bert: MaxPoolBERTConfig = field(default_factory=MaxPoolBERTConfig)
     asdict = asdict
 
     def __post_init__(self):
@@ -76,6 +78,8 @@ class ChemMRLConfig:
             raise TypeError("kl_div_weight must be a float or int")
         if not isinstance(self.kl_temperature, float | int):
             raise TypeError("kl_temperature must be a float or int")
+        if not isinstance(self.max_pool_bert, MaxPoolBERTConfig):
+            raise TypeError("max_pool_bert must be a MaxPoolBERTConfig instance")
         # check values
         if self.model_name == "":
             raise ValueError("model_name must be set")
@@ -115,3 +119,5 @@ class ChemMRLConfig:
             raise ValueError("kl_div_weight must be greater than or equal to zero")
         if self.kl_temperature < 0:
             raise ValueError("kl_temperature must be greater than or equal to zero")
+        if self.max_pool_bert.enable and self.use_2d_matryoshka:
+            raise ValueError("MaxPoolBERT is only supported for 1D MRL (use_2d_matryoshka must be False)")

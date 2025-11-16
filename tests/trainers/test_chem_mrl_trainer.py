@@ -23,6 +23,7 @@ from chem_mrl.schemas import (
     BaseConfig,
     ChemMRLConfig,
     DatasetConfig,
+    MaxPoolBERTConfig,
     SplitConfig,
 )
 from chem_mrl.schemas.Enums import (
@@ -30,6 +31,7 @@ from chem_mrl.schemas.Enums import (
     ChemMrlLossFctOption,
     EmbeddingPoolingOption,
     EvalSimilarityFctOption,
+    MaxPoolBERTStrategyOption,
     TanimotoSimilarityBaseLossFctOption,
 )
 from chem_mrl.trainers import ChemMRLTrainer, TempDirTrainerExecutor
@@ -117,6 +119,27 @@ def test_chem_mrl_pooling_options(pooling):
     result = executor.execute()
     assert isinstance(trainer.config.model, ChemMRLConfig)
     assert trainer.config.model.embedding_pooling == pooling
+    assert isinstance(result, float)
+
+
+@pytest.mark.parametrize("pooling_strategy", MaxPoolBERTStrategyOption)
+def test_chem_mrl_maxpoolbert_pooling_strategies(pooling_strategy):
+    config = create_test_config(
+        model_config=ChemMRLConfig(
+            max_pool_bert=MaxPoolBERTConfig(
+                enable=True,
+                pooling_strategy=pooling_strategy,
+                num_attention_heads=4,
+                last_k_layers=2,
+            )
+        )
+    )
+    trainer = ChemMRLTrainer(config)
+    executor = TempDirTrainerExecutor(trainer)
+    result = executor.execute()
+    assert isinstance(trainer.config.model, ChemMRLConfig)
+    assert trainer.config.model.max_pool_bert.enable is True
+    assert trainer.config.model.max_pool_bert.pooling_strategy == pooling_strategy
     assert isinstance(result, float)
 
 
