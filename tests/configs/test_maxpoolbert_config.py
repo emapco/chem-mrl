@@ -50,14 +50,14 @@ def test_maxpoolbert_config_type_validation():
         MaxPoolBERTConfig(num_attention_heads=4.0)
     with pytest.raises(TypeError, match="last_k_layers must be an int"):
         MaxPoolBERTConfig(last_k_layers=3.5)
-    with pytest.raises(TypeError, match="pooling_strategy must be a string"):
-        MaxPoolBERTConfig(pooling_strategy=123)
 
 
 def test_maxpoolbert_config_value_validation():
     """Test value validation for MaxPoolBERTConfig parameters."""
     with pytest.raises(ValueError, match="pooling_strategy must be one of"):
         MaxPoolBERTConfig(pooling_strategy="invalid_strategy")
+    with pytest.raises(ValueError, match="pooling_strategy must be one of"):
+        MaxPoolBERTConfig(pooling_strategy=123)
     with pytest.raises(ValueError, match="num_attention_heads must be positive"):
         MaxPoolBERTConfig(num_attention_heads=0)
     with pytest.raises(ValueError, match="num_attention_heads must be positive"):
