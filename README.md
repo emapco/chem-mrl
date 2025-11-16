@@ -265,8 +265,8 @@ MaxPoolBERT supports six pooling strategies:
 
 - **`cls`**: Use the [CLS] token from the final layer
 - **`max_cls`**: Max pool [CLS] tokens across the last k layers
-- **`mha`**: Multi-head attention on the final layer sequence
-- **`max_seq_mha`** (default): Max pool across last k layers, then apply multi-head attention
+- **`mha`** (default): Multi-head attention on the final layer sequence
+- **`max_seq_mha`**: Max pool across last k layers, then apply multi-head attention
 - **`mean_seq_mha`**: Mean pool across last k layers, then apply multi-head attention
 - **`sum_seq_mha`**: Sum pool across last k layers, then apply multi-head attention
 

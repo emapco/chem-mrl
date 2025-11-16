@@ -202,7 +202,7 @@ def test_chem_2d_mrl_trainer_instantiation():
     assert trainer.config.model.use_2d_matryoshka is True
 
 
-def test_mrl_dimension_weights_validation():
+def test_chem_mrl_mrl_dimension_weights_validation():
     with pytest.raises(ValueError, match="Dimension weights must be in increasing order"):
         config = create_test_config(
             model_config=ChemMRLConfig(mrl_dimension_weights=(2.0, 1.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0))
@@ -248,7 +248,7 @@ def test_chem_mrl_learning_rates(lr):
 
 
 @pytest.mark.parametrize("path", ["test_output", "custom/nested/path", "model_outputs/test"])
-def test_classifier_output_paths(path):
+def test_chem_mrl_output_paths(path):
     # Note: For this test, we need to override the output_dir in training_args
     # We'll create the config manually since we need to set the output_dir differently
     split_config = SplitConfig(name=TEST_CHEM_MRL_PATH)

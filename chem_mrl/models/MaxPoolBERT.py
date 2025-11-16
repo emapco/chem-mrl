@@ -91,6 +91,40 @@ class MaxPoolBERT(Module):
         else:
             self.multi_head_attention = None
 
+    def _prepare_attention_mask(self, attention_mask: Tensor | None, target_seq_len: int) -> Tensor | None:
+        """
+        Prepare attention mask to match the target sequence length.
+
+        Args:
+            attention_mask: Input attention mask tensor or None
+            target_seq_len: Target sequence length to match
+
+        Returns:
+            Key padding mask for multi-head attention (inverted boolean mask) or None
+        """
+        if attention_mask is None:
+            return None
+
+        if attention_mask.dim() > 2:
+            attention_mask = attention_mask.squeeze()
+
+        # Truncate or pad attention_mask to match target sequence length
+        if attention_mask.size(1) > target_seq_len:
+            attention_mask = attention_mask[:, :target_seq_len]
+        elif attention_mask.size(1) < target_seq_len:
+            # Pad with ones (valid tokens)
+            batch_size = attention_mask.size(0)
+            padding = torch.ones(
+                batch_size,
+                target_seq_len - attention_mask.size(1),
+                device=attention_mask.device,
+                dtype=attention_mask.dtype,
+            )
+            attention_mask = torch.cat([attention_mask, padding], dim=1)
+
+        # Invert for key_padding_mask (True = ignore)
+        return ~attention_mask.bool()
+
     def forward(self, features: dict[str, Tensor], **kwargs) -> dict[str, Tensor]:
         """
         Compute sentence embeddings using the specified pooling strategy.
@@ -134,26 +168,7 @@ class MaxPoolBERT(Module):
             cls_token = last_layer[:, 0:1, :]
 
             assert self.multi_head_attention is not None
-            # Prepare key_padding_mask: ensure it matches the sequence length of last_layer
-            key_padding_mask = None
-            if attention_mask is not None:
-                if attention_mask.dim() > 2:
-                    attention_mask = attention_mask.squeeze()
-                # Truncate or pad attention_mask to match last_layer sequence length
-                seq_len = last_layer.size(1)
-                if attention_mask.size(1) > seq_len:
-                    attention_mask = attention_mask[:, :seq_len]
-                elif attention_mask.size(1) < seq_len:
-                    # Pad with ones (valid tokens)
-                    batch_size = attention_mask.size(0)
-                    padding = torch.ones(
-                        batch_size,
-                        seq_len - attention_mask.size(1),
-                        device=attention_mask.device,
-                        dtype=attention_mask.dtype,
-                    )
-                    attention_mask = torch.cat([attention_mask, padding], dim=1)
-                key_padding_mask = ~attention_mask.bool()
+            key_padding_mask = self._prepare_attention_mask(attention_mask, last_layer.size(1))
 
             attn_output, _ = self.multi_head_attention(
                 query=cls_token,
@@ -183,26 +198,7 @@ class MaxPoolBERT(Module):
             cls_token = pooled_seq[:, 0:1, :]
 
             assert self.multi_head_attention is not None
-            # Prepare key_padding_mask: ensure it matches the sequence length of pooled_seq
-            key_padding_mask = None
-            if attention_mask is not None:
-                if attention_mask.dim() > 2:
-                    attention_mask = attention_mask.squeeze()
-                # Truncate or pad attention_mask to match pooled_seq sequence length
-                seq_len = pooled_seq.size(1)
-                if attention_mask.size(1) > seq_len:
-                    attention_mask = attention_mask[:, :seq_len]
-                elif attention_mask.size(1) < seq_len:
-                    # Pad with ones (valid tokens)
-                    batch_size = attention_mask.size(0)
-                    padding = torch.ones(
-                        batch_size,
-                        seq_len - attention_mask.size(1),
-                        device=attention_mask.device,
-                        dtype=attention_mask.dtype,
-                    )
-                    attention_mask = torch.cat([attention_mask, padding], dim=1)
-                key_padding_mask = ~attention_mask.bool()
+            key_padding_mask = self._prepare_attention_mask(attention_mask, pooled_seq.size(1))
 
             attn_output, _ = self.multi_head_attention(
                 query=cls_token,
