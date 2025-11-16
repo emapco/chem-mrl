@@ -88,3 +88,12 @@ class ClassifierLossFctOption(ExplicitEnum):
 class DiceReductionOption(ExplicitEnum):
     mean = "mean"
     sum = "sum"
+
+
+class MaxPoolBERTStrategyOption(ExplicitEnum):
+    cls = "cls"
+    max_cls = "max_cls"
+    mha = "mha"
+    max_seq_mha = "max_seq_mha"
+    mean_seq_mha = "mean_seq_mha"
+    sum_seq_mha = "sum_seq_mha"

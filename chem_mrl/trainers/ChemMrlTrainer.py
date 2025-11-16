@@ -21,6 +21,7 @@ from sentence_transformers.evaluation import SentenceEvaluator
 from torch import nn
 
 from chem_mrl.evaluation import EmbeddingSimilarityEvaluator
+from chem_mrl.models import MaxPoolBERT
 from chem_mrl.schemas import BaseConfig, ChemMRLConfig
 
 from .BaseTrainer import _BaseTrainer
@@ -100,15 +101,33 @@ class ChemMRLTrainer(_BaseTrainer):
             model_args={"dtype": dtype, "trust_remote_code": trust_remote_code},
             config_args=self._config.config_kwargs,
         )
-        pooling = models.Pooling(
-            transformer.get_word_embedding_dimension(),
-            pooling_mode=self._model_config.embedding_pooling,
-        )
+
+        # Use MaxPoolBERT if enabled, otherwise use standard Pooling
+        if self._model_config.max_pool_bert.enable:
+            # Enable output_hidden_states for MaxPoolBERT
+            transformer.auto_model.config.output_hidden_states = True
+
+            pooling = MaxPoolBERT(
+                word_embedding_dimension=transformer.get_word_embedding_dimension(),
+                num_attention_heads=self._model_config.max_pool_bert.num_attention_heads,
+                last_k_layers=self._model_config.max_pool_bert.last_k_layers,
+                pooling_strategy=self._model_config.max_pool_bert.pooling_strategy,
+            )
+            logger.info(f"Using MaxPoolBERT with strategy: {self._model_config.max_pool_bert.pooling_strategy}")
+        else:
+            pooling = models.Pooling(
+                transformer.get_word_embedding_dimension(),
+                pooling_mode=self._model_config.embedding_pooling,
+            )
+            logger.info(f"Using standard Pooling with mode: {self._model_config.embedding_pooling}")
+
         normalize = models.Normalize()
 
         similarity_fn_name = "cosine"
         if self._model_config.loss_func in ["tanimotosentloss", "tanimotosimilarityloss"]:
             similarity_fn_name = "tanimoto"
+        elif self._model_config.eval_similarity_fct.value not in ["tanimoto", "cosine"]:
+            similarity_fn_name = self._model_config.eval_similarity_fct.value
 
         model = SentenceTransformer(
             modules=[transformer, pooling, normalize],

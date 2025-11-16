@@ -12,28 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.8.2"
-
-from . import (
-    benchmark,
-    constants,
-    evaluation,
-    losses,
-    molecular_fingerprinter,
-    schemas,
-    trainers,
-    util,
-)
-from .molecular_embedder import ChemMRL
+from .MaxPoolBERT import MaxPoolBERT
 
 __all__ = [
-    "benchmark",
-    "constants",
-    "evaluation",
-    "losses",
-    "molecular_fingerprinter",
-    "schemas",
-    "trainers",
-    "util",
-    "ChemMRL",
+    "MaxPoolBERT",
 ]
