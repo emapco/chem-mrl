@@ -191,6 +191,10 @@ def test_maxpoolbert_different_strategies_produce_different_embeddings(
         for j in range(i + 1, len(strategies_list)):
             emb_i = embeddings_by_strategy[strategies_list[i]]
             emb_j = embeddings_by_strategy[strategies_list[j]]
-            assert not torch.allclose(emb_i, emb_j, atol=1e-3), (
-                f"{strategies_list[i]} and {strategies_list[j]} produced identical embeddings"
+            # Relax tolerance and include difference in assertion message
+            atol = 1e-2
+            diff = torch.abs(emb_i - emb_j).max().item()
+            assert not torch.allclose(emb_i, emb_j, atol=atol), (
+                f"{strategies_list[i]} and {strategies_list[j]} produced nearly identical embeddings "
+                f"(max abs diff: {diff:.6f}, atol: {atol})"
             )
