@@ -126,7 +126,7 @@ class ChemMRLTrainer(_BaseTrainer):
         similarity_fn_name = "cosine"
         if self._model_config.loss_func in ["tanimotosentloss", "tanimotosimilarityloss"]:
             similarity_fn_name = "tanimoto"
-        elif self._model_config.eval_similarity_fct not in ["tanimoto", "cosine"]:
+        elif self._model_config.eval_similarity_fct.value not in ["tanimoto", "cosine"]:
             similarity_fn_name = self._model_config.eval_similarity_fct.value
 
         model = SentenceTransformer(
