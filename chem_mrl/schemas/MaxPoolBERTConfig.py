@@ -33,8 +33,7 @@ class MaxPoolBERTConfig:
             raise TypeError("num_attention_heads must be an int")
         if not isinstance(self.last_k_layers, int):
             raise TypeError("last_k_layers must be an int")
-        if not isinstance(self.pooling_strategy, str):
-            raise TypeError("pooling_strategy must be a string")
+
         # check values
         if not isinstance(self.pooling_strategy, MaxPoolBERTStrategyOption):
             raise ValueError(f"pooling_strategy must be one of {MaxPoolBERTStrategyOption.to_list()}")

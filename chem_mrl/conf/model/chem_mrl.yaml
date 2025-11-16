@@ -4,7 +4,7 @@ defaults:
 
 model_name: Derify/ModChemBERT-IR-BASE # Name of the model to use. Must be either a file path or a HF transformer model name.
 
-# MaxPoolBERT configuration (mutually exclusive with `embedding_pooling`` and `use_2d_matryoshka` options)
+# MaxPoolBERT configuration (mutually exclusive with `embedding_pooling` and `use_2d_matryoshka` options)
 max_pool_bert:
   enable: false # Disable MaxPoolBERT by default
   num_attention_heads: 4 # Number of attention heads for multi-head attention

@@ -275,7 +275,7 @@ MaxPoolBERT supports six pooling strategies:
 To enable MaxPoolBERT in training scripts using Hydra configuration:
 
 ```bash
-# Enable with default settings (max_seq_mha strategy, 4 attention heads, last 3 layers)
+# Enable with default settings (mha strategy, 4 attention heads, last 3 layers)
 python scripts/train_chem_mrl.py model.max_pool_bert.enable=true
 
 # Customize pooling strategy and parameters
