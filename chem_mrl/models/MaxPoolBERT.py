@@ -105,16 +105,20 @@ class MaxPoolBERT(Module):
         if attention_mask is None:
             return None
 
+        # Ensure attention_mask is 2D: [batch_size, seq_len]
         if attention_mask.dim() > 2:
             attention_mask = attention_mask.squeeze()
+
+        if attention_mask.dim() == 1:
+            # Add batch dimension if missing
+            attention_mask = attention_mask.unsqueeze(0)
 
         # Truncate or pad attention_mask to match target sequence length
         if attention_mask.size(1) > target_seq_len:
             attention_mask = attention_mask[:, :target_seq_len]
         elif attention_mask.size(1) < target_seq_len:
-            # Pad with ones (valid tokens)
             batch_size = attention_mask.size(0)
-            padding = torch.ones(
+            padding = torch.zeros(
                 batch_size,
                 target_seq_len - attention_mask.size(1),
                 device=attention_mask.device,

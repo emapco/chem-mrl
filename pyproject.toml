@@ -28,7 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "transformers[torch]>=4.56.1,<5.0.0",
-    "sentence-transformers[train]>=5.1.0,<6.0.0",
+    "sentence-transformers[train]>=5.2.0,<6.0.0",
     "optuna>=4.2.0",
     "wandb>=0.19.4",
     "torch>=2.6.0,<=2.9.0",
@@ -53,7 +53,7 @@ Changelog = "https://github.com/emapco/chem-mrl/releases"
 
 [project.optional-dependencies]
 train = ["datasets==3.6.0"]
-dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-env", "ipykernel", "ipywidgets", "build", "ruff", "ninja"]
+dev = ["pytest", "pytest-cov", "pytest-xdist", "pytest-env", "pre-commit", "ipykernel", "ipywidgets", "build", "ruff", "ninja"]
 benchmark = ["sqlalchemy==2.0.41", "psycopg2-binary==2.9.10", "pgvector==0.4.1"]
 data = ["pandarallel==1.6.5", "safe-mol==0.1.14", "opencv-python==4.12.0.88", "beautifulsoup4==4.14.2"]
 
