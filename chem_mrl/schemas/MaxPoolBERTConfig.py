@@ -19,6 +19,15 @@ from .Enums import MaxPoolBERTStrategyOption
 
 @dataclass
 class MaxPoolBERTConfig:
+    """Configuration for MaxPoolBERT.
+
+    Attributes:
+        enable: Disable MaxPoolBERT by default.
+        num_attention_heads: Number of attention heads for multi-head attention.
+        last_k_layers: Number of last hidden layers to use for pooling.
+        pooling_strategy: Default pooling strategy.
+    """
+
     enable: bool = False
     num_attention_heads: int = 4
     last_k_layers: int = 3

@@ -23,11 +23,13 @@ def test_split_config_custom_values():
     """Test SplitConfig with custom values"""
     config = SplitConfig(
         name="validation_split",
+        subset="clean",
         split_key="val",
         label_cast_type=FieldTypeOption.int64,
         sample_size=1000,
     )
     assert config.name == "validation_split"
+    assert config.subset == "clean"
     assert config.split_key == "val"
     assert config.label_cast_type == FieldTypeOption.int64
     assert config.sample_size == 1000
@@ -37,6 +39,8 @@ def test_split_config_value_validation():
     """Test SplitConfig validation"""
     with pytest.raises(ValueError, match="name must be set"):
         SplitConfig(name="")
+    with pytest.raises(ValueError, match="subset must be set"):
+        SplitConfig(name="test", subset="")
     with pytest.raises(ValueError, match="split_key must be set"):
         SplitConfig(name="test", split_key="")
     with pytest.raises(ValueError, match="sample_size must be greater than 0"):
@@ -49,6 +53,8 @@ def test_split_config_type_validation():
     """Test SplitConfig type validation"""
     with pytest.raises(TypeError, match="name must be a string"):
         SplitConfig(name=123)
+    with pytest.raises(TypeError, match="subset must be a string or None"):
+        SplitConfig(name="test", subset=123)
     with pytest.raises(TypeError, match="train_split_key must be a string"):
         SplitConfig(name="test", split_key=123)
     with pytest.raises(TypeError, match="label_cast_type must be a FieldTypeOption"):

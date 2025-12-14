@@ -24,7 +24,7 @@ from .util import get_file_extension
 logger = logging.getLogger(__name__)
 
 
-def load_dataset_with_fallback(dataset_name: str, key: str, columns: list[str]) -> Dataset:
+def load_dataset_with_fallback(dataset_name: str, key: str, columns: list[str], subset: str | None = None) -> Dataset:
     """Try loading as HF dataset first, fallback to local file."""
     truncated_dataset_name = dataset_name
     if len(dataset_name) > 63:
@@ -32,7 +32,7 @@ def load_dataset_with_fallback(dataset_name: str, key: str, columns: list[str]) 
     try:
         # Try loading as Hugging Face dataset
         logger.info(f"Attempting to load {truncated_dataset_name} as a Hugging Face dataset")
-        dataset = load_dataset(dataset_name)
+        dataset = load_dataset(dataset_name, name=subset)
         assert isinstance(dataset, DatasetDict)
         ds = dataset[key]
         logger.info(f"Successfully loaded {truncated_dataset_name}[{key}] from Hugging Face")
@@ -40,7 +40,7 @@ def load_dataset_with_fallback(dataset_name: str, key: str, columns: list[str]) 
         # Fallback to local file loading
         logger.info(f"Failed to load {truncated_dataset_name} as a HF dataset, trying local file")
         file_type = get_file_extension(dataset_name)
-        dataset = load_dataset(file_type, data_files=dataset_name)
+        dataset = load_dataset(file_type, data_files=dataset_name, name=subset)
         assert isinstance(dataset, DatasetDict)
         ds = dataset[key]
         logger.info(f"Successfully loaded {truncated_dataset_name} as a local {file_type} file")
@@ -114,6 +114,7 @@ def load_dataset_from_config(dataset_config: DatasetConfig, seed: int | None = N
                 dataset_config.train_dataset.name,
                 dataset_config.train_dataset.split_key,
                 data_columns,
+                subset=dataset_config.train_dataset.subset,
             ),
             cast="int64" if is_classifier else dataset_config.train_dataset.label_cast_type.value,
             sample_size=dataset_config.train_dataset.sample_size,
@@ -126,6 +127,7 @@ def load_dataset_from_config(dataset_config: DatasetConfig, seed: int | None = N
                 dataset_config.val_dataset.name,
                 dataset_config.val_dataset.split_key,
                 data_columns,
+                subset=dataset_config.val_dataset.subset,
             ),
             cast="int64" if is_classifier else dataset_config.val_dataset.label_cast_type.value,
             sample_size=dataset_config.val_dataset.sample_size,
@@ -138,6 +140,7 @@ def load_dataset_from_config(dataset_config: DatasetConfig, seed: int | None = N
                 dataset_config.test_dataset.name,
                 dataset_config.test_dataset.split_key,
                 data_columns,
+                subset=dataset_config.test_dataset.subset,
             ),
             cast="int64" if is_classifier else dataset_config.test_dataset.label_cast_type.value,
             sample_size=dataset_config.test_dataset.sample_size,

@@ -200,8 +200,7 @@ def main(cfg: DictConfig) -> None:
         batch_data_list.append(batch_data)
 
         is_last_iteration = batch_end >= len(mol_df) - 1
-        save_frequency = 5
-        if (idx + 1) % save_frequency == 0 or is_last_iteration:
+        if (idx + 1) % cfg.save_frequency == 0 or is_last_iteration:
             logger.info(f"Saving... {batch_start}-{batch_end}\n")
             combined_batch_data = pd.concat(batch_data_list, ignore_index=True)
             similarity_df = dataset_gen.save_similarity_dataset(combined_batch_data, similarity_df)

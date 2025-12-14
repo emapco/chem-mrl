@@ -40,12 +40,19 @@ class FieldTypeOption(ExplicitEnum):
 
 
 class EmbeddingPoolingOption(ExplicitEnum):
+    """
+    Pooling layer method applied to the embeddings.
+    For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling
+    """
+
     mean = "mean"
     mean_sqrt_len_tokens = "mean_sqrt_len_tokens"
     weightedmean = "weightedmean"
 
 
 class ChemMrlLossFctOption(ExplicitEnum):
+    """ChemMRL loss function options"""
+
     tanimotosentloss = "tanimotosentloss"
     tanimotosimilarityloss = "tanimotosimilarityloss"
     cosentloss = "cosentloss"
@@ -53,6 +60,8 @@ class ChemMrlLossFctOption(ExplicitEnum):
 
 
 class TanimotoSimilarityBaseLossFctOption(ExplicitEnum):
+    """Base loss function for tanimoto similarity loss function (only used if loss_func=tanimotosimilarityloss)"""
+
     mse = "mse"
     l1 = "l1"
     smooth_l1 = "smooth_l1"
@@ -63,6 +72,8 @@ class TanimotoSimilarityBaseLossFctOption(ExplicitEnum):
 
 
 class EvalSimilarityFctOption(ExplicitEnum):
+    """Similarity functions to use for evaluation"""
+
     tanimoto = "tanimoto"
     cosine = "cosine"
     dot_product = "dot"
@@ -72,6 +83,8 @@ class EvalSimilarityFctOption(ExplicitEnum):
 
 
 class ChemMrlEvalMetricOption(ExplicitEnum):
+    """Metric to use for evaluation"""
+
     spearman = "spearman"
     pearson = "pearson"
 
@@ -91,6 +104,8 @@ class DiceReductionOption(ExplicitEnum):
 
 
 class MaxPoolBERTStrategyOption(ExplicitEnum):
+    """Pooling strategy options for MaxPoolBERT"""
+
     cls = "cls"
     max_cls = "max_cls"
     mha = "mha"

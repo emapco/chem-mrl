@@ -22,7 +22,6 @@ data
 *.nemo
 *.pyc
 *.pkl
-*.ini
 .flake8
 *.csv
 *.tsv

@@ -22,10 +22,32 @@ BoundConfigType = TypeVar("BoundConfigType", bound="BaseConfig")
 
 @dataclass
 class BaseConfig:
+    """Base configuration for the project.
+
+    Attributes:
+        model: Model configuration.
+        training_args: Training arguments.
+        datasets: Provide train_dataset and/or val_dataset to train and evaluate on different datasets.
+            Datasets should be compatible with datasets.DatasetDict or datasets.Dataset (individual local files).
+        model_card_data: A model card data object that contains information about the model.
+            This is used to generate a model card when saving the model.
+            If not set, a default model card data object is created.
+        config_kwargs: Additional model configuration parameters to be passed to the Hugging Face Transformers config.
+            See the `AutoConfig.from_pretrained documentation for more details.
+            <https://huggingface.co/docs/transformers/en/model_doc/auto#transformers.AutoConfig.from_pretrained>`_
+        early_stopping_patience: Number of epochs to wait before early stopping.
+        scale_learning_rate: Scale learning rate by sqrt(batch_size).
+        use_normalized_weight_decay: Normalized weight decay for adamw optimizer - https://arxiv.org/pdf/1711.05101.pdf
+            optimized hyperparameter lambda_norm = 0.05 for AdamW optimizer
+            Hyperparameter search indicates a normalized weight decay outperforms
+            the default adamw weight decay.
+    """
+
     # Hydra's structured config schema doesn't support
     # generics nor unions of containers (e.g. ChemMRLConfig)
     model: Any
     training_args: Any
+
     datasets: list[DatasetConfig]
     model_card_data: dict[str, Any] | None = None
     config_kwargs: dict[str, Any] | None = None

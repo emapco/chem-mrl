@@ -25,6 +25,21 @@ from .Enums import (
 
 @dataclass
 class ClassifierConfig:
+    """Configuration for the Classifier model.
+
+    Attributes:
+        model_name: Name of the model to use. Must be either a file path or a Sentence Transformer model name.
+        eval_metric: Metric to use for evaluation.
+        loss_func: Loss function.
+        classifier_hidden_dimension: Classifier hidden dimension. Must be less than equal to the ChemMRL transformer's
+            hidden dimension. Note, the base model will be truncated to this dimension.
+        dropout_p: Dropout probability for linear layer regularization.
+        freeze_model: Freeze internal base MRL model.
+        num_labels: Number of labels.
+        dice_reduction: Reduction to apply to the output (only used if loss_func=selfadjdice).
+        dice_gamma: Smoothing factor for numerator and denominator (only used if loss_func=selfadjdice).
+    """
+
     model_name: str = CHEM_MRL_MODEL_NAME
     eval_metric: ClassifierEvalMetricOption = ClassifierEvalMetricOption.accuracy
     loss_func: ClassifierLossFctOption = ClassifierLossFctOption.softmax

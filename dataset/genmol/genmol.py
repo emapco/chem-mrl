@@ -95,32 +95,34 @@ class GenMolGenerator:
                 start_seg = len(safe_segs[seg_position_to_mask])
                 safe_segs[seg_position_to_mask] = f"[*{{{start_seg}-{start_seg + num_tokens}}}]"
                 smiles = ".".join(safe_segs)
-
-                new_molecules = inference_fn(smiles=smiles, invoke_url=invoke_url, **inference_cfg)
-                similar_molecules.extend([_["smiles"] for _ in new_molecules])
+                try:
+                    new_molecules = inference_fn(smiles=smiles, invoke_url=invoke_url, **inference_cfg)
+                    similar_molecules.extend([new_mol["smiles"] for new_mol in new_molecules])
+                except Exception as e:
+                    print(f"Error: {e}")
+                    continue
 
             partition_results[reference] = similar_molecules
         return partition_results
 
-    def produce_similar_smiles(
-        self, molecules: pd.Series, cfg: GenMolProduceConfig
-    ) -> dict[str, list[str]]:
+    def produce_similar_smiles(self, molecules: pd.Series, cfg: GenMolProduceConfig) -> dict[str, list[str]]:
         """Generate similar molecules using ProcessPoolExecutor with N workers."""
-        num_workers = cfg.num_workers or 1
-        if num_workers == 1:
+        total_api_instances = len(cfg.invoke_urls)
+        if total_api_instances == 0:
+            raise ValueError("Must pass at least one invocation url")
+        if total_api_instances == 1:
             return self._process_partition(molecules, cfg, self.inference, cfg.invoke_urls[0])
 
-        partitions = np.array_split(molecules, cfg.num_workers)  # Split into N partitions
-        invoke_urls = list(cfg.invoke_urls)
-        assert len(invoke_urls) == cfg.num_workers, (
-            "Number of invoke_urls must match number of workers"
-        )
+        partitions = self.generate_partitions(molecules, cfg)
+        if partitions is None:
+            raise ValueError("Number of partitions must be greater than 0")
 
+        invoke_urls = list(cfg.invoke_urls)
         partition_dicts: list[dict[str, list[str]]] = []
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        with ProcessPoolExecutor(max_workers=total_api_instances) as executor:
             futures = [
                 executor.submit(self._process_partition, part, cfg, self.inference, url)
-                for part, url in zip(partitions, invoke_urls)
+                for part, url in zip(partitions, invoke_urls, strict=True)
             ]
             for future in tqdm(futures, desc="Generating similar SMILES"):
                 partition_dicts.append(future.result())  # Aggregate results
@@ -138,9 +140,65 @@ class GenMolGenerator:
 
         json_data = {k: str(v) for k, v in task.items()}
 
-        response = self.session.post(invoke_url, headers=self.headers, json=json_data)
-        response.raise_for_status()
+        try:
+            response = self.session.post(invoke_url, headers=self.headers, json=json_data)
+            response.raise_for_status()
 
-        output = response.json()
-        assert output["status"] == "success"
-        return output["molecules"]
+            output = response.json()
+            assert output["status"] == "success"
+            return output["molecules"]
+        except Exception as e:
+            if self.verbose:
+                print(f"Request failed or returned an error: {e}")
+            return []
+
+    def generate_partitions(self, molecules: pd.Series, cfg: GenMolProduceConfig) -> list | None:
+        """Generate partitions of molecules for parallel processing.
+        Each partition (GPU) might have multiple API instances associated with it.
+        This generates a partition for each GPU and its sub-partitioned for each API instance.
+        Each element in `api_instances_per_partition` represents the number of API instances
+        associated with that GPU.
+        """
+        total_molecules = len(molecules)
+        num_partitions = len(cfg.api_instances_per_partition)
+
+        if num_partitions == 0:
+            return None
+
+        if len(cfg.partition_fractions) != num_partitions:
+            raise ValueError(
+                f"Number of partition fractions ({len(cfg.partition_fractions)}) "
+                f"must match number of partitions ({num_partitions})"
+            )
+
+        if not np.isclose(sum(cfg.partition_fractions), 1.0, atol=1e-5):
+            raise ValueError(f"Partition fractions must sum to 1.0, got {sum(cfg.partition_fractions)}")
+
+        total_api_instances = sum(cfg.api_instances_per_partition)
+        if len(cfg.invoke_urls) != total_api_instances:
+            raise ValueError(
+                f"Number of invocation URLs ({len(cfg.invoke_urls)}) "
+                f"must match total API instances ({total_api_instances})"
+            )
+
+        if num_partitions == 1:
+            return list(np.array_split(molecules, cfg.api_instances_per_partition[0]))
+
+        partitions: list = []
+        start_idx = 0
+        for i in range(num_partitions):
+            # Calculate segment size based on total molecules and specific fraction
+            # Use exact calculation for all but last to avoid rounding drift
+            if i == num_partitions - 1:
+                end_idx = total_molecules
+            else:
+                segment_size = int(total_molecules * cfg.partition_fractions[i])
+                end_idx = start_idx + segment_size
+
+            # Split this segment into the specified number of sub-partitions
+            segment = molecules[start_idx:end_idx]
+            sub_partitions = np.array_split(segment, cfg.api_instances_per_partition[i])
+            partitions.extend(sub_partitions)
+
+            start_idx = end_idx
+        return partitions

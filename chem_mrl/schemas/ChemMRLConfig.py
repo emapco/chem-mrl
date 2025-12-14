@@ -28,6 +28,39 @@ from .MaxPoolBERTConfig import MaxPoolBERTConfig
 
 @dataclass
 class ChemMRLConfig:
+    """Configuration for the ChemMRL model.
+
+    Attributes:
+        model_name: Name of the model to use. Must be either a file path or a HF transformer model name.
+        embedding_pooling: Pooling layer method applied to the embeddings.
+            For details visit: https://sbert.net/docs/package_reference/sentence_transformer/models.html#sentence_transformers.models.Pooling
+        loss_func: ChemMRL loss function.
+        tanimoto_similarity_loss_func: Base loss function for tanimoto similarity loss function
+            (only used if loss_func=tanimotosimilarityloss).
+        eval_similarity_fct: Similarity function to use for evaluation.
+        eval_metric: Metric to use for evaluation.
+        mrl_dimensions: A list of embedding dimensions to be used for the loss function.
+            Each value must be less than equal to the base transformer's hidden dimension.
+        mrl_dimension_weights: A list of weights to be used for the loss function.
+            The number of dimension weights must match that of the MRL dimensions.
+        n_dims_per_step: The number of dimensions to use per step. If -1, then all dimensions are used.
+            If > 0, then a random sample of n_dims_per_step dimensions are used per step.
+        use_2d_matryoshka: Use 2D Matryoshka to train over transformer layers in addition to embedding dimensions.
+        n_layers_per_step: The number of layers to use per step. If -1, then all layers are used.
+            If > 0, then a random sample of n_layers_per_step layers are used per step.
+        last_layer_weight: The weight to use for the loss of the final layer.
+            Increase this to focus more on the performance when using all layers.
+        prior_layers_weight: The weight to use for the loss of the prior layers.
+            Increase this to focus more on the performance when using fewer layers.
+        kl_div_weight: The weight to use for the KL-div loss that is used to make the prior layers match that of the
+            last layer.
+            Increase this to focus more on the performance when using fewer layers.
+        kl_temperature: The temperature to use for the KL-divergence loss.
+            If 0, then the KL-divergence loss is not used.
+        max_pool_bert: MaxPoolBERT configuration (mutually exclusive with `embedding_pooling` and
+            `use_2d_matryoshka` options).
+    """
+
     model_name: str = BASE_MODEL_NAME
     embedding_pooling: EmbeddingPoolingOption = EmbeddingPoolingOption.mean
     loss_func: ChemMrlLossFctOption = ChemMrlLossFctOption.tanimotosentloss

@@ -1,6 +1,6 @@
 [project]
 name = "chem-mrl"
-version = "0.8.2"
+version = "0.8.3"
 description = "SMILES-based Matryoshka Representation Learning Embedding Model"
 license = { text = "Apache 2.0" }
 readme = "README.md"
@@ -17,6 +17,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -106,3 +107,36 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+# addopts = "-n 2 --cov=./ --cov-report html"
+addopts = "-n 2"
+pythonpath = "src"
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')"
+]
+
+[tool.pyright]
+include = [
+  "src",
+  "tests"
+]
+ignore = [
+  ".git",
+  ".github",
+  "**/__pycache__",
+  "**/.pytest_cache",
+  ".venv",
+  ".vscode",
+  "outputs",
+  "models",
+  "data",
+  "training_output",
+  "wandb",
+  "outputs",
+  ".venv",
+  "third_party"
+]

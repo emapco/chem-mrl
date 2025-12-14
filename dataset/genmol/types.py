@@ -34,7 +34,8 @@ class GenMolProduceConfig:
     num_top_scored_molecules_to_keep: int
     inference: GenMolInferenceConfig
     invoke_urls: list[str]
-    num_workers: int = 1
+    api_instances_per_partition: list[int]
+    partition_fractions: list[float]
 
 
 @dataclass

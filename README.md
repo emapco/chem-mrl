@@ -1,10 +1,12 @@
 # CHEM-MRL
 
 [![huggingface](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-ChemMRL%20Collection-FFD21E)](https://huggingface.co/collections/Derify/chemmrl)
-![PyPI - Version](https://img.shields.io/pypi/v/chem-mrl)
+[![PyPI - Version](https://img.shields.io/pypi/v/chem-mrl)](https://pypi.org/project/chem-mrl/)
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/chem-mrl?period=total&units=INTERNATIONAL_SYSTEM&left_color=grey&right_color=BLUE&left_text=downloads)](https://pepy.tech/projects/chem-mrl)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/emapco/chem-mrl/ci.yml)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/emapco/chem-mrl/ci.yml)](https://github.com/emapco/chem-mrl/actions)
 ![PyPI - Status](https://img.shields.io/pypi/status/chem-mrl)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/emapco/chem-mrl/blob/main/LICENSE)
+[![Star on GitHub](https://img.shields.io/github/stars/emapco/chem-mrl?style=social)](https://github.com/emapco/chem-mrl)
 
 Chem-MRL is a SMILES embedding transformer model that leverages Matryoshka Representation Learning (MRL) to generate efficient, truncatable embeddings for downstream tasks such as classification, clustering, and database indexing.
 
@@ -27,6 +29,7 @@ pip install -e .
 ```
 
 ### Install Flash Attention (optional, improves training speed)
+
 The default base model, `Derify/ModChemBERT-IR-BASE`, benefits from Flash Attention for faster training and inference. Install it via pip:
 
 ```bash
@@ -103,6 +106,7 @@ Different precision and optimization settings offer trade-offs between accuracy,
 † Higher is better
 
 ##### Code Examples
+
 ```python
 # bfloat16 with SDPA
 model = ChemMRL(
@@ -112,6 +116,7 @@ model = ChemMRL(
     }
 )
 ```
+
 ```python
 # bfloat16 with torch.compile and SDPA
 model = ChemMRL(
@@ -125,6 +130,7 @@ model = ChemMRL(
     }
 )
 ```
+
 ```python
 # bfloat16 with Flash Attention
 model = ChemMRL(
@@ -134,6 +140,7 @@ model = ChemMRL(
     }
 )
 ```
+
 ```python
 # float16 with SDPA
 model = ChemMRL(
@@ -143,6 +150,7 @@ model = ChemMRL(
     }
 )
 ```
+
 ```python
 # float16 with torch.compile and SDPA
 model = ChemMRL(
@@ -156,6 +164,7 @@ model = ChemMRL(
     }
 )
 ```
+
 ```python
 # float16 with Flash Attention
 model = ChemMRL(
@@ -190,6 +199,7 @@ python scripts/train_chem_mrl.py --config-name=my_custom_config.yaml
 ```
 
 **Configuration Options:**
+
 - **Command line overrides:** Use `model=<type>` and parameter overrides as shown above
 - **Modify base.yaml directly:** Edit the `- /model: chem_mrl` line in the defaults section to change the default model, or modify any other parameters directly
 - **Override config file:** Use `--config-name=<config_name>` to specify a different base configuration file instead of the default `base.yaml`
@@ -210,6 +220,7 @@ dataset_config = DatasetConfig(
     key="my_dataset",
     train_dataset=SplitConfig(
         name="train.parquet",
+        subset=None,  # Optional: Specify a subset if dealing with a dataset with multiple configurations
         split_key="train",
         label_cast_type=FieldTypeOption.float32,
         sample_size=1000,
@@ -517,7 +528,7 @@ trainer = ClassifierTrainer(config)
 trainer.train()
 ```
 
-## References:
+## References
 
 - Chithrananda, Seyone, et al. "ChemBERTa: Large-Scale Self-Supervised Pretraining for Molecular Property Prediction." _arXiv [Cs.LG]_, 2020. [Link](http://arxiv.org/abs/2010.09885).
 - Ahmad, Walid, et al. "ChemBERTa-2: Towards Chemical Foundation Models." _arXiv [Cs.LG]_, 2022. [Link](http://arxiv.org/abs/2209.01712).
@@ -529,6 +540,7 @@ trainer.train()
 - Behrendt, Maike, et al. "MaxPoolBERT: Enhancing BERT Classification via Layer- and Token-Wise Aggregation." _arXiv [Cs.CL]_, 2025. [Link](https://arxiv.org/abs/2505.15696).
 
 ## Citation
+
 If you use this code or model in your research, please cite:
 
 ```bibtex

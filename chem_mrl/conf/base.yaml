@@ -9,17 +9,20 @@ datasets:
   - key: pubchem_10m_genmol_similarity # Should be unique
     train_dataset: # may be set to null if only using a val_dataset
       name: Derify/pubchem_10m_genmol_similarity # HuggingFace dataset name or path should load as a datasets.DatasetDict
+      subset: null # Optional subset
       split_key: train
       label_cast_type: float32 # float64, float32, or float16 (used by chem_mrl model)
       sample_size: null # Number of training samples to load. Uses seeded sampling if a seed is set.
     val_dataset: # May be set to null if only using a train_dataset
       name: Derify/pubchem_10m_genmol_similarity
+      subset: null
       split_key: validation # If loading from different local files, this should be set to train
       label_cast_type: float32
       sample_size: null
     test_dataset:
       null # may be set to null to disable evaluation on a test dataset
       # name: Derify/pubchem_10m_genmol_similarity
+      # subset: null
       # split_key: test # If loading from different local files, this should be set to train
       # label_cast_type: float16
       # sample_size: null
@@ -75,7 +78,7 @@ training_args:
     warmup_type: linear
     decay_type: 1-sqrt
   optim: stable_adamw # transformer's compatible optimizer name
-  optim_args: decouple_lr=True,max_lr=8.0e-6  # set max_lr when using warmup steps/ratio
+  optim_args: decouple_lr=True,max_lr=8.0e-6 # set max_lr when using warmup steps/ratio
   learning_rate: 8.0e-6
   weight_decay: 1.0e-5 # use 1.0e-5 when decouple_lr=True
   seed: 42
